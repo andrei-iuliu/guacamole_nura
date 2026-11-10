@@ -370,7 +370,7 @@ class ImageVerificationTests(CheckoutTest):
     def test_fixed_module_is_verified_in_the_chroot_image(self):
         result = self.run_script('camera_serve.sh', '--check')
         self.assertIn('PASS  rootfs image: i2c-qcom-cci %s (%d bytes)'
-                      % (FIXED_CCI_SHA, FIXED_CCI_SIZE), result.stdout)
+                      % (hashlib.sha256(fixed_module_bytes()).hexdigest(), FIXED_CCI_SIZE), result.stdout)
         self.assertIn('PASS  rootfs image: exactly one module tree (%s)' % RELEASE, result.stdout)
         self.assertIn('PASS  rootfs image: netboot hook sets NBD_PORT=10001', result.stdout)
 

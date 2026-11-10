@@ -8,7 +8,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -67,6 +67,12 @@ source="
 	0029-media-guacamole-rear-sensors-and-lenses.patch
 	0030-arm64-dts-guacamole-three-rear-cameras.patch
 	0031-i2c-qcom-cci-initialize-all-master-completions.patch
+	0032-smb5-readback.patch
+	0033-slim-ngd-work-init.patch
+	0034-fastrpc-freezable-wait.patch
+	0035-s6sy761-resume-irq.patch
+	0036-dsi-phy-pm.patch
+	0037-dsi-cmd-frame-sync.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -143,4 +149,10 @@ a923a87e8542d7a5b94bf45079013a9337fff351dc377e37fd1464ba37b371fa2260c91c9a8f6ebd
 2f76fee159b441be106b3872a1a4f2d05f402a8f3bcc09dee9a8c86026aca192fcb02478a91b2ce09031e94ce50bf397bc20edb7f6d696c52f693f03c1252b5f  0029-media-guacamole-rear-sensors-and-lenses.patch
 e50dfb94f276bad8d9f7e32beb014dad1231c7cbc719695fbfd0a15b37784a2a69172ab04fe0b86222c34dfe68cc9fb0cd75b20f9ea24ce3c3e05a897827b990  0030-arm64-dts-guacamole-three-rear-cameras.patch
 7659d7f8abfc041f322b0a5d3322fd172e2be9a43a2b49eb180f9083dedcc8903c1d59cb5b939c669798d243c635919f5d1634698003fcd73b95523bcedd1788  0031-i2c-qcom-cci-initialize-all-master-completions.patch
+14413f280cc3f5a1f97035db33649c5f1b51e3e083e1d54ff0c1e760f92dd2b2ee0e3ef50208cbe3e2c3f2d5323fba42d4fcfb1f8423095c746bc28fc697fafd  0032-smb5-readback.patch
+3d63f869bb8f124d9d4eedcb43104549b8641d6701570d3da7b192af050f28937bc1934945e4f7d4a347adae0c601062d3080461de92d1c26026fa299ff102bb  0033-slim-ngd-work-init.patch
+3d0491f1bb0397b7a2f9a11deb65f42fc736cce3ec7963941ca1d981383a0e390c3f67a43fa8e895efac6d3e0b0bbe23d8231f7ad0529fe4c1aaeccc56b911d9  0034-fastrpc-freezable-wait.patch
+b96ad70eb7f46677e6810d77f92fccd37bc93d243f3b4b5c7d4b0cc906f4a95b17a4b6a21976d54206e47bef0b8106eddfe69cb3c24ae5b7b9399aa82858f1ff  0035-s6sy761-resume-irq.patch
+0029a80ea97ad2b6f34c5d57de8dfff279ca74b6bda6cee32bbb022bfd7756aca9e215d6d65a3bf3afef69f7f2f78d9124dae23e2c1397693b69561532f03fca  0036-dsi-phy-pm.patch
+eacf94c756a1430c0a73819cba45204993a2bee0ce79e5ad8d0bf2098b696060135c9874943f37b5527a7e93524269e47b5c455be7f98485b4fc205b6f85fef7  0037-dsi-cmd-frame-sync.patch
 "
