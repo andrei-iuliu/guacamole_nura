@@ -6,18 +6,24 @@ current limit (ICL) from the detected SDP/CDP/DCP type and never looks at a
 USB-PD contract or the battery temperature. This daemon adds the policy the
 stock charger stack had:
 
-  - USB PD: ICL from the negotiated contract (the connector sinks 5 V/3 A,
-    9 V/3 A and 12 V/2.25 A, as on stock);
+  - USB PD: ICL from the negotiated contract (the connector sinks 5 V/3 A
+    only; the board never passes 9 V through to the PMIC);
   - DCP wall chargers: 1.8 A, the stock usb-icl;
   - CDP: 1.5 A; SDP (a PC port): left to the USB gadget, which reports the
     configured bMaxPower to the charger (dwc3 usb-psy-name);
-  - thermal throttling from the battery temperature;
+  - thermal throttling from the battery temperature, with a cold cutoff (the
+    kernel has no JEITA taper, so the input is suspended instead of charging
+    a cold pack at full current);
+  - failing closed when the gauge data is missing, malformed or outside a
+    plausible range: while the daemon runs, the input is suspended rather
+    than charged at the last policy, and a failed read can never clear a
+    latched thermal state (SIGTERM still resumes the input, as before);
   - an optional charge window (CHG_MIN/CHG_MAX) by suspending the input,
     for a phone that lives on a cable.
 
 It publishes what the phone is charging from in /run/guacamole/charger (one
-line, e.g. "pd 9000 3000 27.0 USB PD 9 V 3 A (27 W)") and in the journal on
-every change, and `guacamole-chgctrl status` prints it.
+line, e.g. "pd 5000 3000 15.0 USB PD 5 V 3 A (15 W) | state=ok") and in the
+journal on every change, and `guacamole-chgctrl status` prints it.
 
 Warp Charge (the OnePlus 5 V/6 A protocol through the MCU at I2C 0x26) is
 not supported: a Warp charger is driven as an ordinary DCP source.
@@ -43,6 +49,20 @@ ICL_HOT_UA = 1000000        # stock thermal mitigation step
 TEMP_WARM = 420             # 42.0 C: throttle
 TEMP_HOT = 450              # 45.0 C: suspend input
 TEMP_HYST = 20              # 2.0 C
+# Cold cutoff. The kernel has no JEITA current taper, so below this the input
+# is suspended instead of charging at the full 3 A/4.35 V policy. 5 C keeps a
+# margin over gauge accuracy and cell self-heating; resume at 8 C for 3 C of
+# hysteresis. This is a software policy choice, not a value measured on this
+# unit; the boundary is covered by mocked tests only.
+TEMP_COLD = 50              # 5.0 C: suspend input
+TEMP_COLD_RESUME = 80       # 8.0 C: resume
+# Plausibility window for the gauge. The bq27411 reports 0.1 C; a reading
+# outside -40..125 C, or a missing/malformed one, is a failed read, not a
+# temperature. Capacity is the gauge's state of charge, 0..100 %.
+TEMP_MIN = -400
+TEMP_MAX = 1250
+CAP_MIN = 0
+CAP_MAX = 100
 POLL_S = 5
 
 
@@ -60,6 +80,24 @@ def read_int(path, default=0):
         return int(v)
     except (TypeError, ValueError):
         return default
+
+
+def plausible_temp(temp):
+    return temp is not None and TEMP_MIN <= temp <= TEMP_MAX
+
+
+def plausible_capacity(cap):
+    return cap is not None and CAP_MIN <= cap <= CAP_MAX
+
+
+def invalid_telemetry(temp, cap):
+    """Names of the gauge readings that cannot be used for policy."""
+    bad = []
+    if not plausible_temp(temp):
+        bad.append("temperature")
+    if not plausible_capacity(cap):
+        bad.append("capacity")
+    return bad
 
 
 def write(path, value):
@@ -111,6 +149,12 @@ def battery_percent():
     if now >= 0 and full > 0:
         return min(100, max(0, now * 100 // full))
     return -1
+
+
+def battery_temp():
+    """Battery temperature in 0.1 C, or None when the read is unusable."""
+    temp = read_int(BATTERY + "/temp", None)
+    return temp if plausible_temp(temp) else None
 
 
 def typec_psy():
@@ -188,11 +232,15 @@ def publish(line):
 def cmd_status():
     kind, mv, ma, label = source(load_conf())
     print(label)
-    print("battery: %d%% %s, %.2f V, %+.0f mA, %.1f C" % (
-        battery_percent(), read(BATTERY + "/status"),
+    cap = battery_percent()
+    raw_temp = read_int(BATTERY + "/temp", None)
+    print("battery: %s %s, %.2f V, %+.0f mA, %s" % (
+        ("%d%%" % cap) if plausible_capacity(cap) else "capacity invalid",
+        read(BATTERY + "/status"),
         read_int(BATTERY + "/voltage_now") / 1e6,
         read_int(BATTERY + "/current_now") / 1000,
-        read_int(BATTERY + "/temp") / 10))
+        ("%.1f C" % (raw_temp / 10)) if plausible_temp(raw_temp)
+        else "temperature invalid"))
     if kind != "none":
         print("input limit: %g A" % (read_int(CHARGER + "/input_current_limit") / 1e6))
     st = read(STATE_FILE)
@@ -212,29 +260,63 @@ def main():
         return
     signal.signal(signal.SIGTERM, resume_input)
     signal.signal(signal.SIGINT, resume_input)
-    conf = load_conf()
+    run(load_conf())
+
+
+def run(conf, sleep=time.sleep):
+    """Policy loop. sleep is injectable so tests can step it without sysfs."""
     suspended_by_window = False
     hot = False
     warm = False
+    cold = False
+    last_state = None
     last = None
     last_icl = None
     while True:
         kind, mv, ma, label = source(conf)
         cap = battery_percent()
-        temp = read_int(BATTERY + "/temp", 250)
+        temp = battery_temp()
 
-        # Thermal state with hysteresis.
-        if temp >= TEMP_HOT:
-            hot = True
-        elif hot and temp < TEMP_HOT - TEMP_HYST:
-            hot = False
-        if temp >= TEMP_WARM:
-            warm = True
-        elif warm and temp < TEMP_WARM - TEMP_HYST:
-            warm = False
+        # Thermal state with hysteresis. Only a usable temperature may move
+        # the flags, so a failed read cannot clear a latched inhibition.
+        if plausible_temp(temp):
+            if temp >= TEMP_HOT:
+                hot = True
+            elif hot and temp < TEMP_HOT - TEMP_HYST:
+                hot = False
+            if temp >= TEMP_WARM:
+                warm = True
+            elif warm and temp < TEMP_WARM - TEMP_HYST:
+                warm = False
+            if temp <= TEMP_COLD:
+                cold = True
+            elif cold and temp >= TEMP_COLD_RESUME:
+                cold = False
+        invalid = not plausible_temp(temp) or not plausible_capacity(cap)
+        if invalid:
+            state = "invalid"
+        elif hot:
+            state = "hot"
+        elif cold:
+            state = "cold"
+        elif warm:
+            state = "warm"
+        else:
+            state = "ok"
+        if state != last_state:
+            if state == "invalid":
+                detail = " (%s unusable)" % " and ".join(invalid_telemetry(temp, cap))
+            elif state in ("hot", "cold", "warm"):
+                detail = " (battery %.1f C)" % (temp / 10)
+            else:
+                detail = ""
+            print("chgctrl: state %s -> %s%s" % (last_state or "start", state, detail),
+                  flush=True)
+            last_state = state
 
-        # Charge window: stop at CHG_MAX, resume at CHG_MIN (100 disables).
-        if kind != "none" and cap >= 0 and conf["CHG_MAX"] < 100:
+        # Charge window: stop at CHG_MAX, resume at CHG_MIN (100 disables). An
+        # unusable capacity changes nothing; it suspends the input on its own.
+        if kind != "none" and plausible_capacity(cap) and conf["CHG_MAX"] < 100:
             if not suspended_by_window and cap >= conf["CHG_MAX"]:
                 suspended_by_window = True
             elif suspended_by_window and cap <= conf["CHG_MIN"]:
@@ -242,11 +324,16 @@ def main():
         elif kind == "none":
             suspended_by_window = False
 
-        suspend = kind != "none" and (hot or suspended_by_window)
+        suspend = kind != "none" and (hot or cold or invalid or suspended_by_window)
         reason = ""
         if kind != "none":
-            if hot:
+            if invalid:
+                reason = "input suspended: gauge %s unusable" % (
+                    " and ".join(invalid_telemetry(temp, cap)))
+            elif hot:
                 reason = "input suspended: battery %.1f C" % (temp / 10)
+            elif cold:
+                reason = "input suspended: battery %.1f C (cold cutoff)" % (temp / 10)
             elif suspended_by_window:
                 reason = "input suspended: charge window %d-%d%%" % (conf["CHG_MIN"], conf["CHG_MAX"])
             elif warm:
@@ -274,13 +361,14 @@ def main():
         if kind == "none" or suspend:
             last_icl = None
 
-        line = "%s %d %d %.1f %s%s" % (kind, mv, ma, mv * ma / 1e6, label,
-                                        (" | " + reason) if reason else "")
+        line = "%s %d %d %.1f %s" % (kind, mv, ma, mv * ma / 1e6, label)
+        if kind != "none":
+            line += " | state=%s%s" % (state, (": " + reason) if reason else "")
         if line != last:
             publish(line)
             print("chgctrl: " + line, flush=True)
             last = line
-        time.sleep(POLL_S)
+        sleep(POLL_S)
 
 
 if __name__ == "__main__":
