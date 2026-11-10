@@ -78,8 +78,10 @@ def patch():
 \tqcom,board-id = <0x08 0x00 0x00 0x00>;"""
     text = text.replace(root_marker, qcom_props, 1)
 
-    out_dts = "/tmp/patched_guacamole.dts"
-    out_dtb = "/tmp/custom_guacamole.dtb"
+    output_dir = os.path.join(workspace_dir, "build")
+    os.makedirs(output_dir, exist_ok=True)
+    out_dts = os.path.join(output_dir, "patched_guacamole.dts")
+    out_dtb = os.path.join(output_dir, "custom_guacamole.dtb")
     with open(out_dts, "w") as out:
         out.write(text)
 

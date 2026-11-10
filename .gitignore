@@ -1,5 +1,7 @@
 # Dependencies and sub-clones
 pmbootstrap/
+platform-tools
+local/
 
 # Build and chroot directories
 .work/

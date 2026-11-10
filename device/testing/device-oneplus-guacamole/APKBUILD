@@ -4,7 +4,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=11
+pkgrel=12
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -13,6 +13,7 @@ depends="
 	firmware-oneplus-guacamole
 	linux-postmarketos-qcom-sm8150
 	mkbootimg
+	python3
 	alsa-ucm-conf
 	bluez-btmgmt
 	e2fsprogs-extra
@@ -26,11 +27,13 @@ depends="
 	tqftpserv
 "
 makedepends="devicepkg-dev"
-# Sensor DSP support files read from a OnePlus 7 Pro's stock partitions
-# (vendor_b sensor config, dsp_b SLPI libraries, persist registry snapshot).
-# Not downloadable: generate it next to this APKBUILD with
-#   scripts/extract_sensor_files.sh user@172.16.42.1 device/testing/device-oneplus-guacamole
-_sensors="guacamole-sensors-20261014"
+# Public sensor DSP support files from the LineageOS 24.0 20261102 OTA
+# (vendor_b sensor config, dsp_b SLPI libraries). The per-unit persist
+# registry is deliberately not packaged; guacamole-sensors-registry imports
+# this device's own calibration at first boot and fails closed without it.
+# Generate the tarball with:
+#   scripts/prepare_sensor_bundle.py
+_sensors="guacamole-sensors-20261102"
 subpackages="$pkgname-openrc"
 source="
 	deviceinfo
@@ -56,6 +59,7 @@ source="
 	61-guacamole-accel-mount-matrix.rules
 	guacamole-sensors-registry
 	guacamole-sensors-registry.service
+	hexagonrpcd-sdsp-registry.conf
 	iio-sensor-proxy-guacamole.conf
 	$_sensors.tar.gz
 "
@@ -127,14 +131,13 @@ package() {
 	for f in sns_reg_version file1 file2; do
 		ln -s "/var/lib/guacamole/sensors/$f" "$q/sensors/$f"
 	done
-	mkdir -p "$pkgdir/usr/share/guacamole/sensors-registry-default"
-	cp -r "$sd/registry-default/registry" \
-		"$pkgdir/usr/share/guacamole/sensors-registry-default/registry"
-	find "$q" "$pkgdir/usr/share/guacamole" -type f -exec chmod 644 {} +
+	find "$q" -type f -exec chmod 644 {} +
 	install -Dm755 "$srcdir/guacamole-sensors-registry" \
 		"$pkgdir/usr/libexec/guacamole-sensors-registry"
 	install -Dm644 "$srcdir/guacamole-sensors-registry.service" \
 		"$pkgdir/usr/lib/systemd/system/guacamole-sensors-registry.service"
+	install -Dm644 "$srcdir/hexagonrpcd-sdsp-registry.conf" \
+		"$pkgdir/usr/lib/systemd/system/hexagonrpcd-sdsp.service.d/guacamole-registry.conf"
 	install -Dm644 "$srcdir/90-guacamole-sensors.rules" \
 		"$pkgdir/usr/lib/udev/rules.d/90-guacamole-sensors.rules"
 	install -Dm644 "$srcdir/61-guacamole-accel-mount-matrix.rules" \
@@ -182,8 +185,9 @@ a6a258a95f57e3c68b7d48bb019d9bfb170b5ca7617ac320652906b2998aaf8b63021cbff8900e72
 be1a5cb1c37b8ddda6b8d5cce2dd3596be44fefed67c75493abd4ad15d5041601493a0d9f2823b67825d2940f11b36274f05ebf8ce0113bd42e972aac20ad187  90-guacamole-wlanmac.rules
 722313af8488dd1e0e19ceed62e002ebb6c09315078d5b2b4730e6084c25c1165049b3a85efdb156a756d06b6387c9d31d5fda280b106bccb003bab54bba99f8  90-guacamole-sensors.rules
 d0a84b5aa02540f3187b92f5c96fac8f5af07b0c3532a32e63eb75614a76b7ad62b166bc2551c2fab68405446bff0a03b3e6f7c7ab1e2e99dafc070a628046ff  61-guacamole-accel-mount-matrix.rules
-1e2b796d12b35c224919a2a0c8bdf263b5f3fe7f63ce0e764b9602816171909764407ce3e5af2fac80d53eb30ca41587a8a3f261b7d4851d3b8931fc84809c7d  guacamole-sensors-registry
+977d664269d5c52193a5ed4bedc15b73b7688f67fcbcd4c9f14f218ec23e7be53457e9484a74ae3bce65f8e95bc72047e3605b544099cfb5076c59adb5dc99e5  guacamole-sensors-registry
 81cf37c601c90e6b208bfcb1dac19d11ec553681958fc2a8ef7f75343a784a7f323e7fefd95780c6e14b0ec0076ac2e2d4a7f43c301d5ddbec8451e070d7504c  guacamole-sensors-registry.service
+558563eacbcf020a977f3a0993d2567b1fdb15a0e31747c2f0e59d2e196db840d6e2936ac5458feb7d0751fcf1da582479c47da0986c83947eb9043071074677  hexagonrpcd-sdsp-registry.conf
 6aaa3a7da243fe9ab85065f7894e6bde4004a0ed88714ac06d137804e49426820cb78c4d27137cf6c9e885b6511082a572e76096c6624d541ef6a667b4eadea1  iio-sensor-proxy-guacamole.conf
-a344ed0d7a24a67a8ed222f7cf4991ca29ec195f8e0b69c48e91f75281e1543043b18e462ca2a396c8428bde014f605e284e5358020ca782813364e2fc232193  guacamole-sensors-20261014.tar.gz
+9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "

@@ -1,0 +1,80 @@
+# SYNTHETIC fixture for tool self-tests only. Not phone evidence.
+@@META@@
+probe_version=1
+collected_utc=2026-11-10T12:00:00Z
+collected_epoch=1762776000
+kernel_release=7.0.0-synthetic
+kernel_version=#1 SMP PREEMPT
+os_pretty=postmarketOS synthetic
+boot_cmdline=console=tty0 pmos.root=/dev/nbd0p2
+@@PACKAGES@@
+libcamera-99990.8.0-r1
+libcamera-ipa-99990.8.0-r1
+pipewire-spa-libcamera-1.6.11-r0
+@@MODULES@@
+i2c_qcom_cci 20480 0
+qcom_camss 430080 0
+imx586 36864 0
+imx481 32768 0
+s5k3m5 32768 0
+@@CCI_MODULE@@
+path=/usr/lib/modules/7.0.0-synthetic/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.zst
+size=8950
+sha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+@@DMESG@@
+[    0.000000] i2c-qcom-cci 0c1c000.i2c: CCI HW version = 0x00030000
+[    0.100000] camss: probe ok
+@@CAMERA_PROCESSES@@
+PROCESS pid=1234 comm=nura-camera exe=/usr/bin/nura-camera devices=/dev/video0
+CMDLINE nura-camera --preview
+ENV LD_LIBRARY_PATH=/opt/nura-rear-camera/lib
+MAP /opt/nura-rear-camera/lib/libcamera.so.0.7.2
+PROCESS pid=5678 comm=pipewire exe=/usr/bin/pipewire devices=/dev/video0
+CMDLINE pipewire
+MAP /usr/lib/libcamera.so.0.8
+MAP /usr/lib/spa-0.2/libcamera/libspa-libcamera.so
+@@LIBCAMERA_LIBS@@
+LOADED /opt/nura-rear-camera/lib/libcamera.so.0.7.2
+  realpath=/opt/nura-rear-camera/lib/libcamera.so.0.7.2
+  size=2211064
+  sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  owner=/opt/nura-rear-camera/lib/libcamera.so.0.7.2 is owned by libcamera-rear-0.7.2-r0
+LOADED /usr/lib/libcamera.so.0.8
+  realpath=/usr/lib/libcamera.so.0.8.0
+  size=2000000
+  sha256=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+@@AUDIO@@
+0 [sm8150]: sm8150 - sm8150
+AUDIO_I2C 0-0034 name=tfa9874
+@@WIFI@@
+NET wlan0 operstate=up
+@@BLUETOOTH@@
+HCI hci0 address=00:11:22:33:44:55
+@@CHARGING@@
+SUPPLY battery
+  type=Battery
+  status=Charging
+  capacity=55
+  voltage_now=4000000
+SUPPLY usb
+  type=USB
+  online=1
+  input_current_limit=1800000
+@@SUSPEND@@
+success=3
+fail=0
+last_failed_dev=
+@@THERMAL@@
+CPUFREQ policy0 cur=1800000 min=300000 max=2800000 governor=schedutil
+DEVFREQ kgsl-3d0 cur=500000000 min=200000000 max=600000000 governor=msm-v2
+THERMAL thermal_zone0 type=cpu-0 temp_mC=42000
+@@WATCH@@
+# epoch load1 load5 psi_cpu_some psi_io_some cpu_max_khz cpu_gov gpu_hz gpu_gov thermal_max_c batt_status batt_capacity usb_online input_limit_ua
+1762776000 2.0 1.0 55.0 1.0 1800000 schedutil 500000000 msm-v2 80 Charging 50 1 1800000
+1762776001 2.1 1.0 60.0 1.0 800000 schedutil 300000000 msm-v2 82 Charging 49 1 1800000
+@@RECORDINGS@@
+DIR /home/user/Videos
+-rw-r--r-- 1 user user 1234567 Nov 10 12:00 main-scene.mp4
+@@JOURNAL@@
+[NO_MATCH]
+@@END@@

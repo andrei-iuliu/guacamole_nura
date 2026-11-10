@@ -1,0 +1,577 @@
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+new file mode 100644
+index 000000000..c4b18ca91
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -0,0 +1,553 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Nura board delta for the OnePlus 7 Pro (guacamole), kernel v7.0.0-sm8150.
++ *
++ * The 7.0 tree keeps the SoC/common description in sm8150.dtsi and
++ * sm8150-oneplus-common.dtsi.  This file adds only the board description
++ * that is not upstream yet, using labels from those files.  It is included
++ * at the end of sm8150-oneplus-guacamole.dts.
++ *
++ * Reserved-memory values, board IDs and the TCSR download-mode handle are
++ * the ones validated by the 6.17 bring-up (docs/PLAN.md,
++ * docs/TEMPORARY_BOOT.md); they are expressed here as labels and explicit
++ * regions instead of the old flattened-DTS numeric phandles.
++ */
++
++#include <dt-bindings/input/linux-event-codes.h>
++#include <dt-bindings/sound/qcom,q6asm.h>
++
++/ {
++	qcom,msm-name = "SM8150 V2";
++	qcom,msm-id = <0x153 0x20000>;
++	qcom,pmic-name = "PM8150";
++	qcom,board-id = <0x08 0x00 0x00 0x00>;
++
++	aliases {
++		serial1 = &uart13;
++	};
++
++	reserved-memory {
++		/*
++		 * Bootloader splash / display ramdump (stock cont_splash_region
++		 * and disp_rdump_region).  Handing these pages to Linux made UFS
++		 * buffered writes intermittently return zeros during the 6.17
++		 * bring-up.
++		 */
++		cont_splash_mem: memory@9c000000 {
++			reg = <0x0 0x9c000000 0x0 0x2400000>;
++			no-map;
++		};
++
++		bootloader_log_mem@9fff7000 {
++			reg = <0x0 0x9fff7000 0x0 0x9000>;
++			no-map;
++		};
++
++		cdsp_sec_mem: memory@a4c00000 {
++			compatible = "removed-dma-pool";
++			no-map;
++			reg = <0x0 0xa4c00000 0x0 0x3c00000>;
++		};
++
++		ramoops_mem: ramoops@a9800000 {
++			compatible = "ramoops";
++			reg = <0x0 0xa9800000 0x0 0x400000>;
++			record-size = <0x40000>;
++			console-size = <0x40000>;
++			ftrace-size = <0x40000>;
++			pmsg-size = <0x200000>;
++		};
++
++		param_mem: memory@ac200000 {
++			reg = <0x0 0xac200000 0x0 0x100000>;
++			no-map;
++		};
++
++		mtp_mem: memory@ac300000 {
++			reg = <0x0 0xac300000 0x0 0xb00000>;
++			no-map;
++		};
++
++		/*
++		 * FastRPC sensor-PD message buffers.  Keep the pool below 4 GiB:
++		 * patch 0017 asks the FastRPC driver to allocate from this pool,
++		 * and a context-bank IOVA above 4 GiB stalls the interconnect.
++		 */
++		fastrpc_mem: fastrpc-shared-pool {
++			compatible = "shared-dma-pool";
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			size = <0x0 0x1000000>;
++			reusable;
++		};
++	};
++
++	/*
++	 * Battery limits for the PM8150B SMB5 charger.  Stock reports
++	 * 4.365 V fv-max and 3.0 A fast charge for the OP_4000mAh profile;
++	 * keep a 4.35 V float limit.  The bq27411 gauge deliberately has no
++	 * monitored-battery link; this simple-battery node is consumed by the
++	 * charger only.
++	 */
++	battery: battery {
++		compatible = "simple-battery";
++		device-chemistry = "lithium-ion-polymer";
++		charge-full-design-microamp-hours = <4000000>;
++		voltage-min-design-microvolt = <3400000>;
++		voltage-max-design-microvolt = <4370000>;
++		constant-charge-current-max-microamp = <3000000>;
++		constant-charge-voltage-max-microvolt = <4350000>;
++		charge-term-current-microamp = <310000>;
++	};
++
++	/* Volume keys on PM8150 GPIO 6/7 (active low), as in stock. */
++	gpio-keys {
++		compatible = "gpio-keys";
++		label = "gpio-keys";
++		pinctrl-names = "default";
++		pinctrl-0 = <&vol_up_default &vol_down_default>;
++
++		key-vol-up {
++			label = "volume_up";
++			gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_KEY>;
++			linux,code = <KEY_VOLUMEUP>;
++			wakeup-source;
++			debounce-interval = <15>;
++		};
++
++		key-vol-down {
++			label = "volume_down";
++			gpios = <&pm8150_gpios 7 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_KEY>;
++			linux,code = <KEY_VOLUMEDOWN>;
++			wakeup-source;
++			debounce-interval = <15>;
++		};
++	};
++};
++
++/*
++ * The upstream 7.0 node calls this region xbl_mem at 0x85d00000.  The stock
++ * OnePlus memory map places xbl_aop_mem at 0x85e00000, which is what the
++ * 6.17 bring-up used.  Delete the upstream node and add the stock one so the
++ * unit address and reg agree.
++ */
++/delete-node/ &xbl_mem;
++
++/ {
++	reserved-memory {
++		memory@85e00000 {
++			reg = <0x0 0x85e00000 0x0 0x140000>;
++			no-map;
++		};
++	};
++};
++
++/* Stock trusts the TrustZone reservation up to 0x8b700000. */
++&tz_mem {
++	reg = <0x0 0x86200000 0x0 0x5500000>;
++};
++
++/* TCSR syscon used by the SCM download-mode cookie (clean reboot with Wi-Fi). */
++&soc {
++	tcsr_regs: syscon@1fc0000 {
++		compatible = "qcom,sm8150-tcsr", "syscon";
++		reg = <0x0 0x01fc0000 0x0 0x30000>;
++	};
++};
++
++&scm {
++	qcom,dload-mode = <&tcsr_regs 0x13000>;
++};
++
++/* The common dtsi disables the GPU, ADSP and SLPI by default. */
++&gpu {
++	status = "okay";
++};
++
++&gmu {
++	status = "okay";
++};
++
++&gpu_zap_shader {
++	firmware-name = "qcom/a640_zap.mdt";
++};
++
++&remoteproc_adsp {
++	status = "okay";
++	firmware-name = "qcom/sm8150/oneplus7/adsp.mdt";
++};
++
++&wifi {
++	vdd-0.8-cx-mx-supply = <&vreg_l1a_0p75>;
++	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
++	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
++	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
++};
++
++&tlmm {
++	quat_mi2s_active: quat-mi2s-active-state {
++		pins = "gpio137", "gpio138";
++		function = "qua_mi2s";
++		drive-strength = <8>;
++		bias-disable;
++		output-high;
++	};
++
++	quat_mi2s_sd0_active: quat-mi2s-sd0-active-state {
++		pins = "gpio139";
++		function = "qua_mi2s";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	quat_mi2s_sd1_active: quat-mi2s-sd1-active-state {
++		pins = "gpio140";
++		function = "qua_mi2s";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	qup_uart13_default: qup-uart13-default-state {
++		pins = "gpio43", "gpio44", "gpio45", "gpio46";
++		function = "qup13";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++&pm8150_gpios {
++	vol_up_default: key-vol-up-state {
++		pins = "gpio6";
++		function = "normal";
++		input-enable;
++		bias-pull-up;
++		power-source = <1>;
++	};
++
++	vol_down_default: key-vol-down-state {
++		pins = "gpio7";
++		function = "normal";
++		input-enable;
++		bias-pull-up;
++		power-source = <1>;
++	};
++};
++
++/* Bluetooth WCN3990 on QUP13 UART, same rails as flame/hotdog. */
++&uart13 {
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&qup_uart13_default>;
++
++	bluetooth: bluetooth {
++		compatible = "qcom,wcn3990-bt";
++		vddio-supply = <&vreg_l1a_0p75>;
++		vddxo-supply = <&vreg_l7a_1p8>;
++		vddrf-supply = <&vreg_l2c_1p3>;
++		vddch0-supply = <&vreg_l11c_3p3>;
++		max-speed = <3200000>;
++		/* ROM 0x1001 would derive rev 01 names; this board runs rev 21. */
++		firmware-name = "crnv21.bin", "crbtfw21.tlv";
++	};
++};
++
++/* Speaker amplifiers: top/earpiece on 0x34, bottom on 0x35. */
++&wcd9340 {
++	reset-gpios = <&tlmm 143 GPIO_ACTIVE_HIGH>;
++	vdd-buck-supply = <&vreg_s4a_1p8>;
++	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
++	vdd-tx-supply = <&vreg_s4a_1p8>;
++	vdd-rx-supply = <&vreg_s4a_1p8>;
++	vdd-io-supply = <&vreg_s4a_1p8>;
++};
++
++&i2c4 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	speaker_top: audio-codec@34 {
++		compatible = "nxp,tfa9874";
++		reg = <0x34>;
++		#sound-dai-cells = <0>;
++	};
++
++	speaker_bottom: audio-codec@35 {
++		compatible = "nxp,tfa9874";
++		reg = <0x35>;
++		#sound-dai-cells = <0>;
++	};
++};
++
++/*
++ * Fuel gauge.  Stock calls it bq27541, but its register layout follows
++ * bq27421/bq27411.  Do not add monitored-battery: that would let the driver
++ * write the factory-programmed gauge data memory.  The QUP1 GPI DMA
++ * controller stays disabled, so use the FIFO path (same as 6.17).
++ */
++&i2c8 {
++	status = "okay";
++	clock-frequency = <100000>;
++	/delete-property/ dmas;
++	/delete-property/ dma-names;
++
++	fuel-gauge@55 {
++		compatible = "ti,bq27411";
++		reg = <0x55>;
++		power-supplies = <&pm8150b_charger>;
++	};
++};
++
++&pm8150b_vbus {
++	status = "okay";
++};
++
++/*
++ * Type-C connector.  Sink contract is 5 V/3 A only: the phone never passes
++ * a 9 V/12 V PD supply to the PMIC (USBIN reads 0 V under a 9 V contract).
++ * Port 0 is the data-role switch, port 1 is the orientation switch.
++ */
++&pm8150b_typec {
++	status = "okay";
++	vdd-pdphy-supply = <&vdd_pdphy>;
++
++	connector {
++		compatible = "usb-c-connector";
++		power-role = "dual";
++		data-role = "dual";
++		self-powered;
++		source-pdos = <0x26019096>;
++		sink-pdos = <0x2601912c>;
++		op-sink-microwatt = <0xe4e1c0>;
++
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			port@0 {
++				reg = <0>;
++
++				usb_1_connector_hs: endpoint {
++					remote-endpoint = <&usb_1_dwc3_hs>;
++				};
++			};
++
++			port@1 {
++				reg = <1>;
++
++				usb_1_connector_ss: endpoint {
++					remote-endpoint = <&usb_1_qmpphy_out>;
++				};
++			};
++		};
++	};
++};
++
++&pm8150b_charger {
++	status = "okay";
++	monitored-battery = <&battery>;
++};
++
++&usb_1_dwc3 {
++	dr_mode = "otg";
++	usb-role-switch;
++	usb-psy-name = "pm8150b-charger";
++};
++
++&usb_1_dwc3_hs {
++	remote-endpoint = <&usb_1_connector_hs>;
++};
++
++&usb_1_qmpphy {
++	orientation-switch;
++};
++
++&usb_1_qmpphy_out {
++	remote-endpoint = <&usb_1_connector_ss>;
++};
++
++/* IPA data path to the modem.  The 7.0 node already has the stock regs. */
++&ipa {
++	status = "okay";
++	qcom,gsi-loader = "self";
++	memory-region = <&ipa_fw_mem>;
++	firmware-name = "qcom/sm8150/oneplus7/ipa_fws.mbn";
++};
++
++/* SLPI runs the sensor DSP; its FastRPC node gets the reserved pool. */
++&remoteproc_slpi {
++	status = "okay";
++	firmware-name = "qcom/sm8150/oneplus7/slpi.mdt";
++
++	glink-edge {
++		fastrpc {
++			memory-region = <&fastrpc_mem>;
++			qcom,vmids = <3 5 6>;
++		};
++	};
++};
++
++/* Audio graph: six multimedia frontends, QUAT MI2S speakers, SLIMbus codec. */
++&q6afedai {
++	dai@22 {
++		reg = <QUATERNARY_MI2S_RX>;
++		qcom,sd-lines = <1>;
++	};
++};
++
++&q6asmdai {
++	dai@0 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
++	};
++
++	dai@1 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
++	};
++
++	dai@2 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA3>;
++	};
++
++	dai@3 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA4>;
++	};
++
++	dai@4 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA5>;
++	};
++
++	dai@5 {
++		reg = <MSM_FRONTEND_DAI_MULTIMEDIA6>;
++	};
++};
++
++&sound {
++	compatible = "qcom,sm8150-sndcard";
++	model = "OnePlus 7 Pro";
++	pinctrl-names = "default";
++	pinctrl-0 = <&quat_mi2s_active &quat_mi2s_sd0_active &quat_mi2s_sd1_active>;
++	/* Mic bias wiring from the stock OxygenOS sm8150-tavil-snd-card. */
++	audio-routing = "RX_BIAS", "MCLK",
++			"AMIC1", "MIC BIAS1",
++			"AMIC2", "MIC BIAS2",
++			"AMIC3", "MIC BIAS4",
++			"AMIC4", "MIC BIAS1",
++			"AMIC5", "MIC BIAS1";
++
++	mm1-dai-link {
++		link-name = "MultiMedia1";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA1>;
++		};
++	};
++
++	mm2-dai-link {
++		link-name = "MultiMedia2";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA2>;
++		};
++	};
++
++	mm3-dai-link {
++		link-name = "MultiMedia3";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA3>;
++		};
++	};
++
++	mm4-dai-link {
++		link-name = "MultiMedia4";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA4>;
++		};
++	};
++
++	mm5-dai-link {
++		link-name = "MultiMedia5";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA5>;
++		};
++	};
++
++	mm6-dai-link {
++		link-name = "MultiMedia6";
++		cpu {
++			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA6>;
++		};
++	};
++
++	speaker-dai-link {
++		link-name = "Speaker Playback";
++		cpu {
++			sound-dai = <&q6afedai QUATERNARY_MI2S_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&speaker_top>, <&speaker_bottom>;
++		};
++	};
++
++	slim-dai-link {
++		link-name = "SLIM Playback 1";
++		cpu {
++			sound-dai = <&q6afedai SLIMBUS_0_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&wcd9340 0>;
++		};
++	};
++
++	slimcap-dai-link {
++		link-name = "SLIM Capture 1";
++		cpu {
++			sound-dai = <&q6afedai SLIMBUS_0_TX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&wcd9340 1>;
++		};
++	};
++
++	slim2-dai-link {
++		link-name = "SLIM Playback 2";
++		cpu {
++			sound-dai = <&q6afedai SLIMBUS_1_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&wcd9340 2>;
++		};
++	};
++
++	slimcap2-dai-link {
++		link-name = "SLIM Capture 2";
++		cpu {
++			sound-dai = <&q6afedai SLIMBUS_1_TX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&wcd9340 3>;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
+index 8e562eb57..b70a29383 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
+@@ -13,6 +13,7 @@
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/interrupt-controller/irq.h>
+ #include "sm8150-oneplus-common.dtsi"
++#include "sm8150-wcd9340.dtsi"
+ 
+ / {
+ 	model = "OnePlus 7 Pro";
+@@ -129,3 +130,5 @@ touchscreen@48 {
+ 		status = "okay";
+ 	};
+ };
++
++#include "sm8150-oneplus-guacamole-nura.dtsi"

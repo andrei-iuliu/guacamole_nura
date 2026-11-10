@@ -6,6 +6,29 @@
 
 This repository contains the bringup workspace, kernel patches, device tree sources, firmware packages, helper utilities, and documentation for running **postmarketOS / Nura** on the **OnePlus 7 Pro** (codename `guacamole`).
 
+The consolidated source workspace is `runtime-workspace`; the hardware-tested
+runtime remains in `nura-rear-cameras-7-0`. See [workspace status](docs/WORKSPACE_STATUS.md)
+before building or serving: local tools, chroots and images are not stored in Git.
+
+For the original prepared 7.0 netboot setup, run these host scripts in separate terminals
+from its prepared runtime checkout (Bash or fish; no sudo in front):
+
+```sh
+bash scripts/serve_7_0.sh  # leave running; configures USB networking, serves port 10000
+bash scripts/boot_7_0.sh  # Android -> fastboot -> temporary boot of build/7.0/boot.img
+bash scripts/ssh_phone.sh # connect after Phosh starts
+```
+
+The speaker fix is included in the default image. See
+[the 7.0 bring-up report](docs/SM8150_7_0_BRINGUP.md) for build and hardware status.
+
+The separate [three-rear-camera candidate](docs/REAR_CAMERA_7_0_BRINGUP.md)
+uses `7.0.0-sm8150-rear1` and an isolated musl libcamera stack alongside the
+system libraries. The user confirmed all three rear cameras work in the camera
+app and video records, with choppy recording still under investigation.
+Its netboot rootfs uses port 10001. Continue usability fixes and temporary
+boot testing; internal installation is deferred until the system is ready.
+
 ---
 
 ## Device Specifications
@@ -133,12 +156,16 @@ guacamole_nura/
 │   ├── envsetup.sh                 # Environment setup and aliases
 │   ├── extract_dtb.sh              # ADB tool to extract & decompile live DTB
 │   ├── build_kernel.sh             # Compiles kernel using envkernel.sh
+│   ├── build_bootimg_7_0.sh        # Packs the v7.0.0-sm8150 boot image (host-only)
+│   ├── check_boot_envelope.py      # Rejects kernel/DTB load-address overlap
+│   ├── check_initramfs_release.py  # Rejects wrong/mixed initramfs module releases
 │   ├── flash_boot.sh               # Non-destructive fastboot testing helper
 │   └── ramoops.sh                  # Dumps pstore logs following kernel panic
 │
 └── docs/                           # Detailed technical documentation
     ├── PLAN.md                     # Bringup roadmap and status
     ├── PORTING.md                  # Kernel space vs user space split, for other distributions
+    ├── SM8150_7_0_BRINGUP.md       # v7.0.0-sm8150 port attempt, build evidence and handoff
     └── BRINGUP_GUIDE.md            # Hardware notes and bringup walkthrough
 ```
 

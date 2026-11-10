@@ -1,7 +1,7 @@
 pkgname=firmware-oneplus-guacamole
-pkgdesc="OnePlus 7 Pro firmware (WiFi, Bluetooth, modem, IPA, sensor DSP, GPU zap shader)"
+pkgdesc="OnePlus 7 Pro firmware (WiFi, Bluetooth, modem, ADSP audio, IPA, sensor DSP, GPU zap shader)"
 pkgver=1
-pkgrel=6
+pkgrel=7
 url="https://github.com/M1DNYT3/firmware-oneplus-guacamole"
 license="proprietary"
 arch="aarch64"
@@ -12,6 +12,12 @@ _raw="https://raw.githubusercontent.com/M1DNYT3/firmware-oneplus-guacamole/$_com
 
 _gpu="a640_zap.mdt a640_zap.b00 a640_zap.b01 a640_zap.b02"
 _pd="modemuw.jsn"
+# Audio DSP (ADSP), M1DNYT3 OxygenOS 11 set. The flattened DTB requests
+# qcom/sm8150/oneplus7/adsp.mdt; without it the ADSP remoteproc fails and the
+# TFA9874 speakers and WCD9340 microphone have no audio path.
+_adsp="adsp.mdt adsp.b00 adsp.b01 adsp.b02 adsp.b03 adsp.b04 adsp.b05
+	adsp.b06 adsp.b07 adsp.b08 adsp.b09 adsp.b10 adsp.b11 adsp.b12 adsp.b13
+	adsp.b14"
 # SLPI sensor DSP, SLPI.HY.2.2-00083 (OxygenOS 11). The OxygenOS 12-era build
 # 2.2-00121 in LineageOS OTAs never instantiates the LSM6DSM on the OnePlus 7T
 # Pro, so this older build is used on purpose.
@@ -43,7 +49,7 @@ source="30-gpu-firmware.files
 for _f in $_gpu; do
 	source="$source $_f::$_raw/qcom/$_f"
 done
-for _f in $_pd $_modem $_slpi; do
+for _f in $_pd $_modem $_slpi $_adsp; do
 	source="$source $_f::$_raw/qcom/sm8150/oneplus7/$_f"
 done
 
@@ -63,6 +69,12 @@ package() {
 
 	# MPSS modem firmware (required for WCN3990 WiFi via QRTR/WLFW)
 	for f in $_modem; do
+		install -Dm644 "$srcdir/$f" \
+			"$pkgdir/lib/firmware/qcom/sm8150/oneplus7/$f"
+	done
+
+	# ADSP audio DSP firmware (speakers on QUAT_MI2S_RX, microphone on SLIMbus)
+	for f in $_adsp; do
 		install -Dm644 "$srcdir/$f" \
 			"$pkgdir/lib/firmware/qcom/sm8150/oneplus7/$f"
 	done
@@ -161,4 +173,20 @@ cefdecbbdb1db4f3e7cd43682dfe0f3c1b1b5d5e23ae410e06de3fe91f8379e7010a0a3bf7bdad1e
 b7bface959f7f30173b483a75de26a32d5bdcb4ba8768fb7ca22fd16ef0f62f0d6bbbfaf880e7f8a5de49b6134aa4afd48c5761bf3d5cd76baeab271144158bd  slpi.b18
 9401a60bdb7a0c19c4c11a1f45dcfd2cb291a2ce70c4de0fae8539263d85bef823096af33354f4032331eb64cbe8fb986da2811cdecf8678097a1efa4dc07967  slpi.b19
 8a721e82fda212418fb167cb31f310313f66e560e88c88270b83ab447b0e1b68a2442d3256052e42f9876c0bf847a77f07b7f6ea6a77c1cf305398f093dbf5a9  slpi.b20
+f153ecb6c0e564d435b8436a8408da40491501d1fff9bf2db9900649a18e1dedcae5d8a6a94cfe4b626ad2f134aeae8ba52aa75d26a256cd57b28aee3e243119  adsp.mdt
+33664d7437a9eb63e376bfe9eb8f8e2357f82c9f5a0049359cb9674e9d3ff0c44e7bfd9cfc15f57260f99ffde74508e13e817829290eb8c23d99577c1e18ca3c  adsp.b00
+75277293f1bec771662c80e0a6cf2ad990a209fcb775a8b3f6c899ff36aac5bb8f38ee0d0e54822019737941cb85d258c4df551455b14dda5a6ea05363dee4af  adsp.b01
+b5beba9fb56aac0c6c29302396ff11e02ab3dad9e74bbcbc956834fa857cb6727df91986881e532e1a549091c31a75f18be8054f72905280c1ee7355d84025f2  adsp.b02
+4313a64f09279686bb19dcf06100a0df1d2fe65a7fdf9b9d23fd56fa277cbf755f8601a2eecb0a89168fb6db961958e86e8526007f3cd2e3250b69194797ea84  adsp.b03
+5aa412139a1d99df3900d04ee20ba87ec30f6f73970c50a52f54afc016e782c514fc99d6da4b5f7f492a9d7e3d2f94e8a97d412b1036a92da54eb0405d23dd32  adsp.b04
+02f6d164f3632c692374d128a0588338a34fed97dc785d65d3407eac3b395f626d5b6e4f1232c6da3bcab9ada6d826960d903ccc9fefd3305cf1baf8d0203902  adsp.b05
+70a375ddfaf7240b90af0bf70d5b3c0985ab4c4302b5614ff579104b4bc45b80daf76b8c52f3309c2072c8540531dd67e2fffc1ef5f48b6acc87c6c0a123039a  adsp.b06
+fcbbfe3b657c04b2b30aa10a7487140931e6e953ac134e8c1e83ee6811afb3e4667d7ca6dd95ed9d70fcd3f2b130a60b620ed9eb4a522fea96ce7131ca19a4d1  adsp.b07
+907707a75c685d0c46ca21f8e205c44f1fb24793b25feb272239c085ab7e7641d662884b3f5b79afc18ecbcac919db776bbfe16a007594d6a35a184625da518b  adsp.b08
+fb7631602b56c15cfdba123a5f66aaf643cf112be030b80a466093fa803823bdacfcbb99419ccf4a66e505570517d93ace92c683f5854959c696ce3d2f8547b2  adsp.b09
+7605dafc4cd858d03ab2af6cb8a6dcd8f6d70d9f31d5b2ddb1405d649949c02f7a2846d0b02e17c5068aa126f497084f76743f564d39071807f17447766bba51  adsp.b10
+a6e83ce85950ff3bdb4721ab18b69512df34246b4344f853bea63274637d6546c6ddbadd7df9f0ce3faa0fbdc9abb04ae65d70dd6020af605276358c367ffa10  adsp.b11
+ab749d173ca1811b7f9087aee0a0c03cdc3d45b2966c1dab2738d6926d7e4c9b5c8c01a2dbc2f5e7e96aa2a864e1dfb7936772d3e7b824f2ee303757eec0d71a  adsp.b12
+c6785f6f97469b8380a1e88e400842879da286d67f98d70d8554fbbff7b4e0cbd1979e6b4169fab35be7e78be4cef533184a2ea90554d70a5382898d3d9a792c  adsp.b13
+8c74eb35e569dd14a9b599823e8745512ab92c788d3b95240135224dda1ff90008befb9ac7f35bd90dc0b8fd7a5b9ff1dcfed5dd58cf63650adef84c7adcc22e  adsp.b14
 "

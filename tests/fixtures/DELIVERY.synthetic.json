@@ -1,0 +1,9 @@
+{
+  "_comment": "SYNTHETIC manifest for tool self-tests only; not a phone build record.",
+  "release": "7.0.0-synthetic",
+  "i2c_qcom_cci": {
+    "path": "/usr/lib/modules/7.0.0-synthetic/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.zst",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "size": 8950
+  }
+}

@@ -3,6 +3,8 @@
 #   source scripts/envsetup.sh
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$REPO_ROOT/platform-tools:$REPO_ROOT/local/bin:$PATH"
+export LD_LIBRARY_PATH="$REPO_ROOT/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # Ensure ~/.local/bin is on PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then

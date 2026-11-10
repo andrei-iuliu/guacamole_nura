@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+For the current 7.0 rear-camera work, read `docs/WORKSPACE_STATUS.md` and
+`docs/DELIVERY_LIFECYCLE.md` first. The older workflow below describes the
+6.17 baseline; current source and mocked tests also live under `tests/`.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this repo is
@@ -11,7 +15,7 @@ A bringup workspace for running postmarketOS / Nura on the OnePlus 7 Pro (`onepl
 Device-tree work does **not** go through the upstream `dts/*.dts` sources. The loop is:
 
 1. Edit **`base_guacamole_working.dts`**. This is a *flattened, decompiled* DTS (from `dtc -I dtb -O dts`): no `#include`s, no labels for most nodes, and every cross-reference is a raw numeric phandle (`<0xde>`). When you add a node that others reference, give it a `phandle = <0x...>;` that is unused (grep the file for the current maximum) and reference it numerically.
-2. `python3 scripts/patch_dtb.py` applies fix-ups by **exact string replacement** (tab-indented text blocks): it corrects reserved-memory regions, adds the ramoops/bootloader_log/cdsp_sec/param/mtp carve-outs, and injects `qcom,msm-id` / `qcom,board-id` so ABL accepts the DTB. It writes `/tmp/patched_guacamole.dts` and compiles `/tmp/custom_guacamole.dtb`. The `assert` fails if the `rmtfs-mem` block it anchors on is reformatted, so keep that block's exact formatting.
+2. `python3 scripts/patch_dtb.py` applies fix-ups by **exact string replacement** (tab-indented text blocks): it corrects reserved-memory regions, adds the ramoops/bootloader_log/cdsp_sec/param/mtp carve-outs, and injects `qcom,msm-id` / `qcom,board-id` so ABL accepts the DTB. It writes `build/patched_guacamole.dts` and compiles `build/custom_guacamole.dtb`. The `assert` fails if the `rmtfs-mem` block it anchors on is reformatted, so keep that block's exact formatting.
 3. `scripts/build_bootimg.sh` runs step 2. It then packs `build/boot.img` (mkbootimg header v2, offsets matching `deviceinfo`, cmdline with ramoops and `PMOS_NO_OUTPUT_REDIRECT`) and adds an AVB hash footer. The kernel comes from `$KERNEL_DIR/boot/vmlinuz` (default `build/kernel_r6`), or failing that from the pmbootstrap chroot at `~/.local/var/pmbootstrap/chroot_rootfs_oneplus-guacamole`. The initramfs comes from `$INITRAMFS` if set, else `/tmp/device_initramfs_r4` or that same chroot.
 4. `scripts/fastboot_boot.sh [boot.img]` runs `fastboot boot` with the recovery the ABL needs (non-destructive; prefer this). Do not `fastboot flash boot`. The ABL often stalls at `Sending 'boot.img'` or answers `Load Error` while the device still enumerates; the script then resets the USB device from the host (`USBDEVFS_RESET`), runs `fastboot reboot bootloader` and retries, which clears it without touching the phone. `scripts/flash_boot.sh test` is the plain version; wrap it in `timeout 10`. Reboot into the bootloader with `ssh user@172.16.42.1 'sudo reboot bootloader'` (SSH key auth works; `sudo` needs the test password).
 5. After a panic, reboot into TWRP and run `scripts/ramoops.sh` to pull pstore logs into `logs/ramoops_<timestamp>/`.

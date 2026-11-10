@@ -1,0 +1,63 @@
+diff --git a/pmb/commands/__init__.py b/pmb/commands/__init__.py
+index 65627d5..5a8b02d 100644
+--- a/pmb/commands/__init__.py
++++ b/pmb/commands/__init__.py
+@@ -183,7 +183,7 @@ def run_command(args: PmbArgs) -> None:
+         case "test":
+             test(args.action_test)
+         case "netboot":
+-            netboot(args.action_netboot, args.replace)
++            netboot(args.action_netboot, args.replace, args.port)
+         case "newapkbuild":
+             # Passthrough: Strings (e.g. -d "my description")
+             pass_through = []
+diff --git a/pmb/commands/netboot.py b/pmb/commands/netboot.py
+index 4281c82..f7317db 100644
+--- a/pmb/commands/netboot.py
++++ b/pmb/commands/netboot.py
+@@ -48,13 +48,15 @@ def start_nbd_server(device: str, replace: bool, ip: str = "172.16.42.2", port:
+     while True:
+         logging.info("Waiting for postmarketOS device to appear...")
+ 
+-        # Try to bind to the IP ourselves before handing it to nbd-servere
++        # Try to bind to the IP ourselves before handing it to nbd-server.
+         # This is purely to improve the UX as nbd-server just quits when it
+-        # cannot bind to an IP address.
++        # cannot bind to an IP address.  Port 0 keeps the probe off every
++        # fixed NBD port, so a baseline server on 9999 and an isolated
++        # candidate server on another port do not trip over each other.
+         test_socket = socket.socket()
+         while True:
+             try:
+-                test_socket.bind((ip, 9998))
++                test_socket.bind((ip, 0))
+             except OSError as e:
+                 if e.errno != 99:  # Cannot assign requested address
+                     raise
+@@ -74,7 +76,7 @@ def start_nbd_server(device: str, replace: bool, ip: str = "172.16.42.2", port:
+         time.sleep(5)
+ 
+ 
+-def netboot(action_netboot: str, do_replace: bool) -> None:
++def netboot(action_netboot: str, do_replace: bool, port: int = 9999) -> None:
+     if action_netboot == "serve":
+         device = get_context().config.device
+-        start_nbd_server(device, do_replace)
++        start_nbd_server(device, do_replace, port=port)
+diff --git a/pmb/parse/arguments.py b/pmb/parse/arguments.py
+index 6bf6e53..4b3d537 100644
+--- a/pmb/parse/arguments.py
++++ b/pmb/parse/arguments.py
+@@ -709,6 +709,12 @@ def arguments_netboot(
+ 
+     start = sub.add_parser("serve", help="start nbd server")
+     start.add_argument("--replace", action="store_true", help="replace stored netboot image")
++    start.add_argument(
++        "--port",
++        type=int,
++        default=9999,
++        help="NBD TCP port to serve on (default: 9999)",
++    )
+ 
+     return ret
+ 

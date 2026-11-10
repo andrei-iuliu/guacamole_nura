@@ -1,0 +1,59 @@
+# Host-only test run (mocked phone / synthetic clip; no hardware)
+
+Command: python3 -m unittest discover -s tests -p 'test_*.py' -v
+Result: Ran 41 tests in 1.715s — OK
+
+test_cli_end_to_end_labeled_clip (test_analyze_profile.AnalyzeProfileTests.test_cli_end_to_end_labeled_clip) ... ok
+test_denied_log_is_unknown_not_clean (test_analyze_profile.AnalyzeProfileTests.test_denied_log_is_unknown_not_clean) ... ok
+test_ffprobe_tiny_clip (test_analyze_profile.AnalyzeProfileTests.test_ffprobe_tiny_clip) ... ok
+test_gap_frame_times (test_analyze_profile.AnalyzeProfileTests.test_gap_frame_times) ... ok
+test_manifest_release_and_cci_identity (test_analyze_profile.AnalyzeProfileTests.test_manifest_release_and_cci_identity) ... ok
+test_missing_data_is_insufficient_not_pass (test_analyze_profile.AnalyzeProfileTests.test_missing_data_is_insufficient_not_pass) ... ok
+test_missing_ffprobe_and_empty_file_are_graceful (test_analyze_profile.AnalyzeProfileTests.test_missing_ffprobe_and_empty_file_are_graceful) ... ok
+test_missing_manifest_and_bad_manifest_are_unknown (test_analyze_profile.AnalyzeProfileTests.test_missing_manifest_and_bad_manifest_are_unknown) ... ok
+test_missing_video_tool_yields_partial_not_pass (test_analyze_profile.AnalyzeProfileTests.test_missing_video_tool_yields_partial_not_pass) ... ok
+test_mixed_stack (test_analyze_profile.AnalyzeProfileTests.test_mixed_stack) ... ok
+test_nested_manifest_release_is_found (test_analyze_profile.AnalyzeProfileTests.test_nested_manifest_release_is_found) ... ok
+test_observed_error_strings (test_analyze_profile.AnalyzeProfileTests.test_observed_error_strings) ... ok
+test_package_presence_does_not_identify_stack (test_analyze_profile.AnalyzeProfileTests.test_package_presence_does_not_identify_stack) ... ok
+test_private_stack (test_analyze_profile.AnalyzeProfileTests.test_private_stack) ... ok
+test_regression_collection_never_claims_pass (test_analyze_profile.AnalyzeProfileTests.test_regression_collection_never_claims_pass) ... ok
+test_regular_frame_times (test_analyze_profile.AnalyzeProfileTests.test_regular_frame_times) ... ok
+test_requested_fps_mismatch_is_low_rate (test_analyze_profile.AnalyzeProfileTests.test_requested_fps_mismatch_is_low_rate) ... ok
+test_sidecar_sensor_override_and_ambiguity (test_analyze_profile.AnalyzeProfileTests.test_sidecar_sensor_override_and_ambiguity) ... ok
+test_system_stack (test_analyze_profile.AnalyzeProfileTests.test_system_stack) ... ok
+test_too_few_frames (test_analyze_profile.AnalyzeProfileTests.test_too_few_frames) ... ok
+test_triage_uses_thermal_flag_without_inventing_fix (test_analyze_profile.AnalyzeProfileTests.test_triage_uses_thermal_flag_without_inventing_fix) ... ok
+test_uniform_low_rate_is_not_regular (test_analyze_profile.AnalyzeProfileTests.test_uniform_low_rate_is_not_regular) ... ok
+test_unreadable_snapshot_is_reported (test_analyze_profile.AnalyzeProfileTests.test_unreadable_snapshot_is_reported) ... ok
+test_user_supplied_dmesg_resolves_denied_window (test_analyze_profile.AnalyzeProfileTests.test_user_supplied_dmesg_resolves_denied_window) ... ok
+test_watch_flags (test_analyze_profile.AnalyzeProfileTests.test_watch_flags) ... ok
+test_help_needs_no_input (test_collect_profile.CollectProfileTests.test_help_needs_no_input) ... ok
+test_manifest_is_copied_into_bundle (test_collect_profile.CollectProfileTests.test_manifest_is_copied_into_bundle) ... ok
+test_missing_recordings_directory_fails_before_analysis (test_collect_profile.CollectProfileTests.test_missing_recordings_directory_fails_before_analysis) ... ok
+test_requires_snapshot_or_ssh (test_collect_profile.CollectProfileTests.test_requires_snapshot_or_ssh) ... ok
+test_snapshot_and_ssh_are_mutually_exclusive (test_collect_profile.CollectProfileTests.test_snapshot_and_ssh_are_mutually_exclusive) ... ok
+test_snapshot_mode_does_not_call_ssh (test_collect_profile.CollectProfileTests.test_snapshot_mode_does_not_call_ssh) ... ok
+test_ssh_failure_does_not_retry_or_analyze (test_collect_profile.CollectProfileTests.test_ssh_failure_does_not_retry_or_analyze) ... ok
+test_ssh_is_one_batchmode_attempt (test_collect_profile.CollectProfileTests.test_ssh_is_one_batchmode_attempt) ... ok
+test_user_dmesg_is_copied_and_used (test_collect_profile.CollectProfileTests.test_user_dmesg_is_copied_and_used) ... ok
+test_denied_file_is_marked_denied (test_nura_probe.ProbeTests.test_denied_file_is_marked_denied) ... ok
+test_fixture_snapshot (test_nura_probe.ProbeTests.test_fixture_snapshot) ... ok
+test_invalid_watch_value_fails (test_nura_probe.ProbeTests.test_invalid_watch_value_fails) ... ok
+test_missing_file_is_marked_missing (test_nura_probe.ProbeTests.test_missing_file_is_marked_missing) ... ok
+test_no_camera_process_is_not_observed (test_nura_probe.ProbeTests.test_no_camera_process_is_not_observed) ... ok
+test_syntax_and_help (test_nura_probe.ProbeTests.test_syntax_and_help) ... ok
+test_watch_samples_without_starting_capture (test_nura_probe.ProbeTests.test_watch_samples_without_starting_capture) ... ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 1.715s
+
+OK
+
+Notes:
+- The probe tests use a fake /proc and /sys tree and mock commands; they never
+  read the phone or load modules.
+- The video tests generate a tiny local testsrc clip with ffmpeg and skip if
+  ffmpeg/ffprobe are unavailable.
+- No SSH, sudo, chroot, mount, network change, recording or hardware action is
+  performed by the tests.

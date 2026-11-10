@@ -1,0 +1,18 @@
+Subject: [PATCH] arm64: dts: enable the guacamole speaker parent bus
+
+The enabled i2c4 speaker codecs cannot probe while their QUP0 wrapper
+is disabled. Restore the parent status from the working 6.17 tree.
+
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -262,6 +262,10 @@
+ 	vdd-io-supply = <&vreg_s4a_1p8>;
+ };
+ 
++&qupv3_id_0 {
++	status = "okay";
++};
++
+ &i2c4 {
+ 	status = "okay";
+ 	clock-frequency = <100000>;

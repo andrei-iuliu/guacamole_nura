@@ -1,0 +1,26 @@
+maintainer="Aster Boese <asterboese@mailbox.org>"
+pkgname=postmarketos-mkinitfs-hook-netboot
+pkgver=4.2.1
+pkgrel=3
+pkgdesc="Netboot postmarketOS using nbd feature (Nura port 10000 override)"
+url="https://postmarketos.org"
+depends="devicepkg-utils postmarketos-mkinitfs !usb-moded"
+source="
+	netboot.sh
+	netboot.modules
+	"
+arch="noarch"
+license="GPL-2.0-or-later"
+options="!check" # No tests
+
+package() {
+	install -Dm644 "$srcdir"/netboot.sh \
+		"$pkgdir"/usr/share/mkinitfs/hooks/netboot.sh
+	install -Dm644 "$srcdir"/netboot.modules \
+		"$pkgdir"/usr/share/mkinitfs/modules/30-netboot.modules
+}
+
+sha512sums="
+8f8424a3cb77b8b5736983ea3b0997345d080fb1e334e60c63abf52ca7dceb038c539bfa96a56e52812dcb7ac4cb594073c505ca1a3983ce9b3750caf6f212cc  netboot.sh
+3c9c812a6cd25640e6cf4d722cff6c6356d5666ec6009b4c65f89e62211cc406d2cd09e0fdda6b1c1906ee32c3854988ab701cee8811208e3ef666f09e638568  netboot.modules
+"

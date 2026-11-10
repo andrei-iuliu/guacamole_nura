@@ -6,42 +6,46 @@
 # every boot. hexagonrpcd serves /usr/share/qcom/sensors/registry, which this
 # package points at /var/lib/guacamole/sensors/registry. On first boot, copy
 # this unit's own factory registry from persist (read with debugfs, so the
-# partition is never mounted or written); fall back to the packaged snapshot
-# from the development phone if persist is unreadable.
+# partition is never mounted or written). The registry is per-unit factory
+# calibration: if it cannot be read, fail and leave the sensors off rather than
+# serving a snapshot from another phone.
 set -e
 
-dst=/var/lib/guacamole/sensors
-default=/usr/share/guacamole/sensors-registry-default
-persist=/dev/disk/by-partlabel/persist
+state=${GUACAMOLE_SENSORS_STATE:-/var/lib/guacamole/sensors}
+persist=${GUACAMOLE_SENSORS_PERSIST:-/dev/disk/by-partlabel/persist}
+owner=${GUACAMOLE_SENSORS_OWNER:-fastrpc:fastrpc}
 
-if [ ! -d "$dst/registry" ] || [ -z "$(ls -A "$dst/registry" 2>/dev/null)" ]; then
+if [ ! -d "$state/registry" ] || [ -z "$(ls -A "$state/registry" 2>/dev/null)" ]; then
 	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 	if debugfs -R "rdump /sensors/registry $tmp" "$persist" >/dev/null 2>&1 &&
 	   [ -n "$(ls -A "$tmp/registry/registry" 2>/dev/null)" ]; then
 		echo "guacamole-sensors-registry: importing the factory registry from persist"
-		mkdir -p "$dst"
-		cp -r "$tmp/registry/registry" "$dst/registry"
+		mkdir -p "$state"
+		cp -r "$tmp/registry/registry" "$state/registry"
 		for f in sns_reg_version file1 file2; do
-			[ -f "$tmp/registry/$f" ] && cp "$tmp/registry/$f" "$dst/$f"
+			[ -f "$tmp/registry/$f" ] && cp "$tmp/registry/$f" "$state/$f"
 		done
 	else
-		echo "guacamole-sensors-registry: persist unreadable, using the packaged default registry" >&2
-		mkdir -p "$dst"
-		cp -r "$default/registry" "$dst/registry"
+		echo "guacamole-sensors-registry: cannot read this unit's factory sensor" >&2
+		echo "  calibration from $persist (/sensors/registry). Refusing to" >&2
+		echo "  substitute another device's registry; sensors stay disabled." >&2
+		exit 1
 	fi
 	rm -rf "$tmp"
+	trap - EXIT HUP INT TERM
 fi
 
 # The DSP rewrites these; hexagonrpcd cannot create files, only open existing ones.
 for f in sns_reg_version file1 file2; do
-	[ -f "$dst/$f" ] || : > "$dst/$f"
+	[ -f "$state/$f" ] || : > "$state/$f"
 done
 
 # The DSP picks its sensor configuration by the OnePlus project number, which
 # the bootloader passes on the kernel command line (18821 on the 7 Pro).
 prj=$(tr ' ' '\n' < /proc/cmdline | sed -n 's/^androidboot.project_name=//p' | head -1)
-mkdir -p "$dst/project_info"
-printf '%s' "${prj:-18821}" > "$dst/project_info/project_name"
+mkdir -p "$state/project_info"
+printf '%s' "${prj:-18821}" > "$state/project_info/project_name"
 
-chown -R fastrpc:fastrpc "$dst"
-chmod -R u+rwX,go+rX "$dst"
+chown -R "$owner" "$state"
+chmod -R u+rwX,go+rX "$state"
