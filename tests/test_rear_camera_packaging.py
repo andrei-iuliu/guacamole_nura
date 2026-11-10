@@ -111,12 +111,14 @@ class FakePreparer:
                           shlex.quote(sys.executable) + ' "$@"; fi\n'
                           'printf "%s\\n" "$@" >> "$CALLS"\nexit 42\n')
         python.chmod(0o755)
-        if findmnt is not None:
+        if findmnt == 'error':
+            findmnt_body = 'exit 2'
+        elif findmnt is not None:
             if findmnt == 'work':
                 findmnt = str(self.work / 'chroot_native')
             findmnt_body = f'printf "%s\\n" "{findmnt}"'
         else:
-            findmnt_body = 'exit 1'
+            findmnt_body = 'exit 0'
         tool = binaries / 'findmnt'
         tool.write_text(f'#!/bin/sh\n{findmnt_body}\n')
         tool.chmod(0o755)
@@ -197,6 +199,17 @@ class PreparerFailure(unittest.TestCase):
         self.assertEqual((harness.work / 'existing-data').read_text(), 'preserve me')
         self.assertFalse((harness.work / 'version').exists())
         self.assertFalse(list(harness.state.glob('pmbootstrap-work.partial-*')))
+
+    def test_findmnt_failure_refuses_before_moving_the_old_tree(self):
+        harness = self.make(unversioned=True,
+                            findmnt='error')
+        result = harness.run()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('findmnt failed', result.stdout + result.stderr)
+        self.assertFalse(harness.calls.exists())
+        self.assertEqual((harness.work / 'existing-data').read_text(), 'preserve me')
+        self.assertFalse(list(harness.state.glob('pmbootstrap-work.partial-*')))
+        self.assertTrue(harness.export.is_dir())
 
     def test_live_candidate_port_refuses_before_moving_the_old_tree(self):
         harness = self.make(unversioned=True,

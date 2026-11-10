@@ -26,17 +26,21 @@ check_link() {
 }
 
 mounted_below() {
-    local root="${1%/}" target
+    local root="${1%/}" target mounts
     command -v findmnt >/dev/null 2>&1 || {
         echo "ERROR: findmnt is required to verify that $root has no active mounts." >&2
         return 2
     }
+    if ! mounts=$(findmnt -rn -o TARGET); then
+        echo "ERROR: findmnt failed; cannot verify that $root has no active mounts." >&2
+        return 2
+    fi
     while IFS= read -r target; do
         [[ -n $target ]] || continue
         case "${target%/}/" in
             "$root"/*) return 0 ;;
         esac
-    done < <(findmnt -rn -o TARGET 2>/dev/null || true)
+    done <<< "$mounts"
     return 1
 }
 
