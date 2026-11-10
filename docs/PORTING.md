@@ -133,14 +133,20 @@ None of it is large; most of it is glue around generic daemons.
 | `guacamole-bdaddr`, `guacamole-bdaddr.service`, `90-guacamole-bdaddr.rules` | shell + oneshot + udev `SYSTEMD_WANTS` | derives the BT address from the Wi-Fi MAC, waits for the controller to report "missing public-address", runs `btmgmt public-addr` | portable; UT/upstart needs an equivalent trigger on `hci0` |
 | `guacamole-chgctrl` (Python), `.service`, `.confd`, `80-guacamole.preset` | daemon | charge policy: input limit from the PD contract / BC1.2 type / PC port, thermal throttle, charge window, source indicator in `/run/guacamole/charger` | portable (Python 3 stdlib only); `guacamole-chgctrl.initd` for OpenRC |
 | `guacamole-sensors-registry`, `.service` | shell + oneshot | first boot: copies the SLPI sensor registry from `persist` (via `debugfs`) to `/var/lib/guacamole/sensors`, writes `project_info/project_name` from `androidboot.project_name` | portable |
-| `/usr/share/qcom/...` tree (from `guacamole-sensors-<date>.tar.gz`, built by `scripts/extract_sensor_files.sh`) | data | `sensors/config` (61 JSONs from `vendor_b`), `sensors/sns_reg.conf`, `sdsp/` (SLPI libraries from `dsp_b`), `socinfo/`, symlinks to the writable registry | portable data; the registry snapshot is one unit's factory calibration and only a fallback |
+| `/usr/share/qcom/...` tree (from `guacamole-sensors-<date>.tar.gz`, built by `scripts/extract_sensor_files.sh`) | data | `sensors/config` (61 JSONs from `vendor_b`), `sensors/sns_reg.conf`, `dsp/sdsp/` (SLPI libraries from `dsp_b`, the path hexagonrpcd exposes as the DSP's `/usr/lib/qcom/adsp/`; the old `sdsp` path is kept as a compatibility symlink), `socinfo/`, symlinks to the writable registry | portable data; the registry snapshot is one unit's factory calibration and only a fallback |
 | `90-guacamole-sensors.rules` | udev `SYSTEMD_WANTS` | starts the registry import, `hexagonrpcd-sdsp` and `iio-sensor-proxy` when `/dev/fastrpc-sdsp` appears | systemd-specific; port the ordering: registry → hexagonrpcd → (8 s) → iio-sensor-proxy, before the compositor claims sensors |
 | `iio-sensor-proxy-guacamole.conf` | systemd drop-in | `After=hexagonrpcd-sdsp.service`, `ConditionPathExists=/dev/fastrpc-sdsp`, 8 s delay | systemd-specific |
 | `61-guacamole-accel-mount-matrix.rules` | udev | `ACCEL_MOUNT_MATRIX="-1, 0, 0; 0, -1, 0; 0, 0, 1"` on the FastRPC nodes (IMU rotated 180°) | portable udev |
 | `90-wifi-wowlan.conf`, `90-ath10k-wowlan.rules`, `10-wifi-wowlan` | NM conf, udev, dispatcher | WoWLAN (untested) | NetworkManager-specific |
-| `guacamole-mpss.initd` | OpenRC | starts the modem remoteproc after `rmtfs` (systemd boots it automatically through the in-kernel pd-mapper and `rmtfs.service`) | OpenRC only |
+| `guacamole-mpss-start`, `guacamole-mpss.service`, `guacamole-mpss.initd` | shell + systemd oneshot + OpenRC | starts the modem remoteproc after `rmtfs`, `tqftpserv` and IPA readiness; resolves MPSS by DT compatible/sysmon name instead of a hardcoded `remoteproc0` | systemd unit is packaged but deliberately not enabled; see the note below |
 | `sxmo_deviceprofile-oneplus-guacamole.sh` | Sxmo | button profile | pmOS/Sxmo only |
 | `deviceinfo` | pmOS | boot image parameters | pmOS only (translate to the distro's boot tooling) |
+
+The SM8150 MPSS PAS descriptor has `auto_boot = false`, so the modem stays
+offline until a starter writes `start`. On the systemd image the unit is
+installed but not in `80-guacamole.preset`; activate it only after reviewing
+modem power-domain and suspend behaviour:
+`systemctl enable --now guacamole-mpss.service`.
 
 ### Configuration done by hand on the test phone (not packaged)
 

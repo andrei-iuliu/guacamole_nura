@@ -4,7 +4,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=12
+pkgrel=13
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -39,6 +39,8 @@ source="
 	deviceinfo
 	$pkgname-openrc.post-install
 	guacamole-mpss.initd
+	guacamole-mpss-start
+	guacamole-mpss.service
 	guacamole-chgctrl.initd
 	guacamole-chgctrl.daemon
 	guacamole-chgctrl.confd
@@ -110,15 +112,27 @@ package() {
 	install -Dm644 "$srcdir/80-guacamole.preset" \
 		"$pkgdir/usr/lib/systemd/system-preset/80-guacamole.preset"
 
+	# Modem: the SM8150 MPSS PAS descriptor has auto_boot=false. The OpenRC
+	# unit and the opt-in systemd unit share this resolver/bounded-wait helper;
+	# the systemd unit is deliberately not in the preset (see its header).
+	install -Dm755 "$srcdir/guacamole-mpss-start" \
+		"$pkgdir/usr/libexec/guacamole-mpss-start"
+	install -Dm644 "$srcdir/guacamole-mpss.service" \
+		"$pkgdir/usr/lib/systemd/system/guacamole-mpss.service"
+
 	# Sensors: the SLPI sensor DSP is served its configuration, registry and
 	# libraries by hexagonrpcd from /usr/share/qcom. The registry is per unit
 	# and rewritten by the DSP, so it lives under /var/lib and is imported
 	# from persist on first boot by guacamole-sensors-registry.
 	local q="$pkgdir/usr/share/qcom" sd="$srcdir/$_sensors"
-	mkdir -p "$q/sensors" "$q/socinfo"
+	mkdir -p "$q/sensors" "$q/socinfo" "$q/dsp"
 	cp -r "$sd/sensors/config" "$q/sensors/config"
 	install -m644 "$sd/sensors/sns_reg.conf" "$q/sensors/sns_reg.conf"
-	cp -r "$sd/sdsp" "$q/sdsp"
+	# hexagonrpcd's default root is /usr/share/qcom; it maps <root>/dsp/<dsp>
+	# to the DSP's /usr/lib/qcom/adsp. Keep the old <root>/sdsp path as a
+	# compatibility symlink only.
+	cp -r "$sd/sdsp" "$q/dsp/sdsp"
+	ln -s dsp/sdsp "$q/sdsp"
 	printf MTP > "$q/socinfo/hw_platform"
 	printf 339 > "$q/socinfo/soc_id"
 	printf Unknown > "$q/socinfo/platform_subtype"
@@ -166,12 +180,14 @@ openrc() {
 sha512sums="
 927c74ae59c13d7d5c5e5acd5f88e876274ac03c29f677c009a572ea3f6da21ad5adfdf1e2e3cec84a990f8bbb5396122d8306440274e5faa351c1afe1e5df77  deviceinfo
 f97ee1223a887911aeb144bf0ab0c4a102d6d6c9a2a5ba7d4571c7b040196fb6acec848a460cda26b006806dc4e42f1da0c07d1fc47ed8b5be6e926fcb725ba6  device-oneplus-guacamole-openrc.post-install
-769e72e3f074f7515dfa3dd05fae88643fabfb2e6ed6c5f0b28fa5089e830bcbffeceb5a1d0c5ab41f809764261a20bc35074de59774606fc53c51e1a09a05fc  guacamole-mpss.initd
+43df1c09407a170b5c76aa0b9b252ac2fe7adc0ce324d5324095c5430b559cfca7d9e85b225724e6cd9e54edf8c014e25903d60b75483785e3fbc959af712fb5  guacamole-mpss.initd
+8fe13b17e9fc49d6b78d82e394b44f524068ca1bf225a38e9cd029360de89083d6b33fea0dece79d92745567e1743baf12d97e7807f969b0a88b9712de534715  guacamole-mpss-start
+e6865de7f3d4eea9462bc59ee70a053a13d0a348fd94a21e437357d4dd171897906828ddcc102c9683d47c24a4055077ba087c37b64d24b405a8931299d4e3ad  guacamole-mpss.service
 9da8768a3c86029b90bd54b433b688d5c91410116cc00b6d9650ab15697e5ec0ff9e44b81d83b70cfac34187c2fac525ddea427a12d48ea0df8498597bc5d494  guacamole-chgctrl.initd
 28d025ced2d1f9d80f10ab48e5a200ad853992c8ec82033ed475c29d9615dc43e848c4c6586184d7d13846a0e6dcdbdaf5d7c6b9de0a251d5cdcec8f15dae33f  guacamole-chgctrl.daemon
 67167a447037b041d05e12191ce3e881c6c5e76e5a5a71f5914daccf048aa732bac8b33f48f861ec6460545e36835af0e9e85e2545a2f37e16cae4c51aed17b7  guacamole-chgctrl.confd
 450c485ba61fbe40ba3117ea3843af781928c59ab7a1b6298966c98c059633521d4ed796ce5854d1225713fd042e1db6b3a7ec9200758005b632ec34e71950b3  guacamole-chgctrl.service
-3fa6abde06c56dc48d354adea626af2d3347abf778a9ec12456f5313d9d7ccd00ca5a86103793fde5866930cc74ae2d8e9ce3f49685ea4d27844348d1e895244  80-guacamole.preset
+77bad4237af6081f9bdf094def889ff6b7303d63770da489c30d75e7104303d341cdea375e5d4e0fc26a61830590618b7c52747ef7d8f9a95e4630d75810c1f8  80-guacamole.preset
 c32b679c7d9cc8745ab6ca538473fa46dc96122e2b99823fe54aed06701fb921708c4e2f9d115d1d6c01588c100deeb9f410fd80439b8b6ad6724b8d33b6a53e  sxmo_deviceprofile-oneplus-guacamole.sh
 7fe009a4b2389ac56e1ff4380dd7ce90b21e0a435ebd72615e9683c6959c35024e7d2d39f62156359f74043b2c2e6f3a4a84a95a7195b6cc9943e718d342c9c3  90-wifi-wowlan.conf
 940aedbb0a39179ecde436980b27762a3690009c60f9878b4ab0f54d81e7e3e35098cabbf664effdf9aafe835ce65228ebcf97766eb45081d9cbc2cdcd320020  90-ath10k-wowlan.rules

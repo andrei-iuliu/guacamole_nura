@@ -1,1 +1,4 @@
+# guacamole-mpss.service is intentionally not enabled here: the SM8150 modem
+# power-domain/suspend behaviour still needs review. See its unit header for
+# the activation command.
 enable guacamole-chgctrl.service
