@@ -110,10 +110,20 @@ class PatchedSources(unittest.TestCase):
                 dst = cls.root / rel
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(SRC / rel, dst)
-            subprocess.run(
-                ["patch", "-p1", "--fuzz=0", "--no-backup-if-mismatch",
-                 "-s", "-d", str(cls.root), "-i", str(RECIPE / name)],
-                check=True, capture_output=True, text=True)
+            args = ["patch", "-p1", "--fuzz=0", "--dry-run", "--batch", "--forward", "-s",
+                    "-d", str(cls.root), "-i", str(RECIPE / name)]
+            forward = subprocess.run(args, capture_output=True, text=True)
+            if forward.returncode == 0:
+                subprocess.run(args[:3] + args[4:], check=True,
+                               capture_output=True, text=True)
+            else:
+                reverse = subprocess.run(args[:1] + ["-R"] + args[1:],
+                                         capture_output=True, text=True)
+                if reverse.returncode != 0:
+                    raise AssertionError(
+                        f"{name} neither applies cleanly nor is already applied:\n"
+                        f"{forward.stdout}{forward.stderr}"
+                        f"{reverse.stdout}{reverse.stderr}")
         for paths in PATCHES.values():
             for rel in paths:
                 cls.files[rel] = (cls.root / rel).read_text()
