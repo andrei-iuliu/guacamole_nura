@@ -1,5 +1,10 @@
 # Nura oneplus-guacamole rootfs preparation
 
+> This document describes the older 6.17 baseline. For the current
+> `7.0.0-sm8150-rear1` rear-camera candidate, use
+> `bash scripts/rootfs_prepare_rear_camera.sh` as documented in
+> `docs/REAR_CAMERA_7_0_BRINGUP.md`.
+
 Status: **package inputs, sensor payload and host checks ready; rootfs image,
 initramfs and boot image are still missing**. No rootfs build, mount, chroot,
 netboot or hardware action was performed while preparing this document. The

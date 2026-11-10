@@ -963,9 +963,13 @@ cmd_package() {
     cat <<'EOF'
 
 This command is privileged and user-run; camera_build.sh does not execute it.
-It builds/installs packages through pmbootstrap (sudo, mounts, chroots),
-rebuilds the candidate rootfs image + initramfs, and rewrites
-build/rear-camera/packaging-inputs.json.
+It refuses a live port-10001 server or active mounts, preserves the known
+partial work tree and old boot/manifests/export, then builds/installs packages
+through pmbootstrap (sudo, mounts, chroots), compares the installed module
+payload with the staged kernel, rebuilds the candidate rootfs image +
+initramfs + boot image, and rewrites build/rear-camera/packaging-inputs.json,
+DELIVERY.json and APK-SHA256SUMS. It prints Candidate prepared only after
+scripts/camera_build.sh check passes.
 
 After it succeeds run scripts/camera_serve.sh, which refreshes the netboot
 cache from that new rootfs image and verifies the served image before READY.

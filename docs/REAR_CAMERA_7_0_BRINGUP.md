@@ -308,8 +308,8 @@ Image/module/DTB inputs. No dummy or baseline-release initramfs was substituted.
 
 | Artifact (under `build/rear-camera`) | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `Image` | 44411392 | `4e798093d18fceb8d4708565e85203866ed80db06b2eef9ec8f00cf12c9883d4` |
-| `kernel-package/boot/vmlinuz` | 16985044 | `455023be1092fca8e34911b4db9a7e3d518f2403d75cafd7c2d21cc638bd5a45` |
+| `Image` | 44411392 | `ceb3a2603e0f6c702ea55d629f937048a17c116d96d149ae9d46a7072c635e92` |
+| `kernel-package/boot/vmlinuz` | 16986307 | `0ce4d7afd1e73112817aba710dd1acb7a7a36076d9900fa3f90a8589daa27df3` |
 | `kernel-package/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb` | 114058 | `f9e1ae14950c88858487feefb1425775c7d4bb4fecd276af466770460427a74d` |
 | `temporary-dtbo/custom_guacamole-abl-quarantine.dtb` | 128439 | `3992b3c61d721a0b14a48059745ceee5d30fe30629527bbaf1134e52265d6255` |
 | `libcamera-stage/opt/nura-rear-camera/bin/cam` | 275312 | `15edaf9a49c98f3b78b56537b2762ec35544726048f481f858eaca8f126f1435` |
@@ -329,17 +329,35 @@ From this worktree, with sufficient space for a second rootfs:
 bash scripts/rootfs_prepare_rear_camera.sh
 ```
 
+The preparer refuses while TCP 10001 is listening or while the work tree has
+active mounts. The canonical `.work/rear-camera/pmbootstrap-work` is the known
+partial copied inspection tree without a version marker; the script renames it
+to `pmbootstrap-work.partial-<timestamp>` (it is never deleted, migrated,
+chowned or entered) and initializes a fresh work directory with pmbootstrap's
+work version 8. Previous boot/manifests are copied to
+`build/rear-camera/rollback-<timestamp>/`; the old `rootfs/export` is moved to
+`rootfs/export.before-<timestamp>/` with its links retargeted to the preserved
+work tree, so the fresh export cannot inherit stale links.
+
 This packages the already-built kernel with envkernel, builds the local
 firmware/device/sensor userspace recipes plus the port-10001 hook and private
 libcamera APK, and pins the exact three local kernel/hook/libcamera versions
 in the new install. It records local APK SHA-256s, verifies the installed
-kernel/DTB/module releases and ramdisk's port, exports a separate image and
-initramfs, then invokes the guarded rootless boot packer. It refuses ambiguous APK selections. Before each envkernel rebuild, older
+kernel/DTB/module releases and ramdisk's port, compares every staged `.ko*`
+payload byte-for-byte with the installed rootfs (decompressing only when the
+compression suffix differs), and ties the built-in SLIMbus/display/SMB5
+changes to the staged `vmlinuz`. It exports a separate image and initramfs,
+invokes the guarded rootless boot packer, writes `DELIVERY.json`, and runs
+`camera_build.sh check`; only then does it print `Candidate prepared`.
+It refuses ambiguous APK selections. Before each envkernel rebuild, older
 candidate kernel APKs are retained under
 `.work/rear-camera/rootfs/previous-kernels/` (moving from a root-owned package
 directory requests sudo); the working baseline's packages are untouched.
 The receipt will be `build/rear-camera/packaging-inputs.json` and
 `APK-SHA256SUMS`. No package hash is claimed before this stage runs.
+
+The existing `build/rear-camera/boot.img` and `rootfs/export` remain the old
+candidate until this command succeeds; do not treat them as the new build.
 
 Candidate results will be:
 

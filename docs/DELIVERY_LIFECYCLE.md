@@ -22,7 +22,7 @@ fault analysis there are unchanged.
 | `scripts/camera_usb_net.sh` | canonical helper | `172.16.42.2/24`, finite wait, ownership record |
 | `scripts/serve_rear_camera.sh` | superseded for verified delivery | simple port-10001 `netboot serve`; keeps working, but does not refresh or prove the cache |
 | `scripts/boot_rear_camera.sh` | superseded for verified delivery | simple Android/fastboot `fastboot boot`; no identity gate |
-| `scripts/build_rear_camera_kernel.sh`, `rootfs_prepare_rear_camera.sh` | unchanged | build/package helpers called by `camera_build.sh` |
+| `scripts/build_rear_camera_kernel.sh`, `rootfs_prepare_rear_camera.sh` | helper | build/package helpers; the rootfs preparer is user-run, preserves old work/export and runs the final manifest/check |
 
 Do not delete the superseded scripts in this patch. Use them only as a
 fallback with the user's existing workflow; the four `camera_*` entrypoints are
