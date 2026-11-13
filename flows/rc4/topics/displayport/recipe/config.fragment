@@ -1,0 +1,45 @@
+# rc4 displayport: kernel config fragment (advisory, for the parent to merge)
+#
+# File: device/testing/rc4/linux-postmarketos-qcom-sm8150/config-postmarketos-qcom-sm8150.aarch64
+# (copy of the rc3 config, one line changed)
+#
+# ---- change: kernel release name -------------------------------------------
+# rc3 has:
+#   CONFIG_LOCALVERSION="-sm8150-rc3"
+# rc4 must have:
+CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"
+# That yields the required release 7.0.0-sm8150-guacamole-rc4 (pkgver=7.0.0).
+# Do not relabel or reuse an older image name.
+#
+# ---- verified: no other config change is needed ----------------------------
+# Checked against device/testing/rc3/linux-postmarketos-qcom-sm8150/
+# config-postmarketos-qcom-sm8150.aarch64 (line numbers in that file):
+#
+#   CONFIG_DRM_AUX_HPD_BRIDGE=y      L4859   HPD bridge from qcom_pmic_typec
+#   CONFIG_DRM_MSM=y                 L4919
+#   CONFIG_DRM_MSM_DP=y              L4927   the DP controller driver
+#   CONFIG_SND_SOC_HDMI_CODEC=m      L5626   codec DAI for the DP audio link
+#   CONFIG_TYPEC_MUX_FSA4480=y       L6306   fsa4480.c (SBU/AUX switch)
+#   CONFIG_TYPEC_DP_ALTMODE=m        L6320   typec_displayport.ko
+#   CONFIG_PHY_QCOM_QMP_COMBO=y      L8060   usb_1_qmpphy DP lanes + aux bridge
+#
+# and the drivers exist in the 7.0.0-sm8150 tree:
+#   drivers/gpu/drm/msm/dp/             (dp_drm.c registers .dp_audio_prepare)
+#   drivers/usb/typec/mux/fsa4480.c     (Kconfig TYPEC_MUX_FSA4480)
+#   drivers/usb/typec/altmodes/displayport.c (Kconfig TYPEC_DP_ALTMODE)
+#   drivers/phy/qualcomm/phy-qcom-qmp-combo.c
+#   sound/soc/codecs/hdmi-codec.c
+#
+# So the displayport topic requires exactly one config line change (above).
+# If the parent decides to run the DP audio experiment with the codec built in
+# instead of as a module, CONFIG_SND_SOC_HDMI_CODEC=y also works; nothing in
+# the patches depends on it being a module.
+#
+# ---- DP audio is off by default, and that is a DT decision ----------------
+# No config symbol selects or deselects the DP audio link.  It ships as
+# dp-dai-link with status = "disabled" in the devicetree patch, so the ALSA
+# card is built from exactly the rc3 links; enabling the experiment is a
+# one-line DT edit plus a rebuild (see recipe/APKBUILD.fragment, "OPTIONAL
+# EXPERIMENT").  Keeping it out of Kconfig is deliberate: a config toggle in a
+# shared pmOS config would be merged by everyone and would not express
+# "experiment, not supported".

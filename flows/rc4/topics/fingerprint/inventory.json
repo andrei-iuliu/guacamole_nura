@@ -1,0 +1,447 @@
+{
+  "schema": "nura.rc4.topic.inventory/v1",
+  "topic": "fingerprint",
+  "generated": "2026-11-13",
+  "canonical_repository": "runtime-workspace",
+  "owned_directory": "flows/rc4/topics/fingerprint",
+  "supplied_root": "bringup-notes/Patches/fingerprint",
+  "baseline": {
+    "kernel_release": "7.0.0-sm8150-rc3",
+    "kernel_source": ".work/rc3-kernel/linux-v7.0.0-sm8150",
+    "kernel_source_marker_sha256": "58c61162e8536e29617157564ef10b6de467be572b1b8d23a8b282abf6ac82ca",
+    "recipe": "device/testing/rc3/linux-postmarketos-qcom-sm8150",
+    "recipe_apkbuild_sha256": "58c61162e8536e29617157564ef10b6de467be572b1b8d23a8b282abf6ac82ca",
+    "recipe_config_sha256": "0366edffd67aeed6ec9751592e7664cb9b6a88068acf4d248717d019a5be8e6c",
+    "existing_patch_range": "0001-0041",
+    "config_path": "device/testing/rc3/linux-postmarketos-qcom-sm8150/config-postmarketos-qcom-sm8150.aarch64"
+  },
+  "requested_release": "7.0.0-sm8150-guacamole-rc4",
+  "supplied_files": [
+    {
+      "path": "README.md",
+      "sha256": "94aef307e9441f6a92a9c752ccdf5018a7d0ee6703cfb3f8783871a5dee71ad0",
+      "disposition": "integrated",
+      "outputs": [
+        "README.md",
+        "original/README.md"
+      ],
+      "notes": "Research handoff absorbed into the topic README with a claim/evidence/verdict table. Several claims were corrected or marked unverified; the original is retained byte-for-byte.",
+      "dependencies": [
+        "7.0 kernel source",
+        "rc3 config",
+        "LineageOS sm8150 stock sources for ABI checks"
+      ]
+    },
+    {
+      "path": "docs/findings.md",
+      "sha256": "683b65736f2f3ba6f8614444cd9d29c41bd0e782af6fc916beaad66c631af1b6",
+      "disposition": "integrated",
+      "outputs": [
+        "original/docs/findings.md",
+        "README.md"
+      ],
+      "notes": "Evidence kept unchanged as the historical handoff; the topic README separates verified source facts from unverified hardware expectations.",
+      "dependencies": [
+        "LineageOS android_kernel_oneplus_sm8150 lineage-23.2",
+        "Stock guacamole DTS and config"
+      ]
+    },
+    {
+      "path": "dts/goodix-fp.dtsi",
+      "sha256": "1c0f5bc7e167603b5415dc842dec8523bd1ce7d0d366216930fa811bd487462d",
+      "disposition": "gated",
+      "outputs": [
+        "patches/0055-arm64-dts-guacamole-fingerprint.patch",
+        "dts/sm8150-oneplus-guacamole-fingerprint.dtsi",
+        "original/dts/goodix-fp.dtsi"
+      ],
+      "notes": "Rebased to the 7.0 guacamole include point as patch 0055 (0052 is reserved for popup). Added input-enable to match stock pinctrl, and status = 'disabled' so gate 1 cannot probe before gate 0. The include is after the nura delta and before the rear-camera include, leaving the end-of-file slot for popup. The node is included by all four guacamole DTBs.",
+      "dependencies": [
+        "7.0 sm8150-oneplus-guacamole.dts include point",
+        "tlmm label and IRQ_TYPE_EDGE_RISING from the main DTS include chain",
+        "driver compatible goodix,goodix_fp from 0051"
+      ]
+    },
+    {
+      "path": "gate0/config.fragment",
+      "sha256": "a32b9cc97f95ccddc836654371d624b50cbb655bbd287ba0662c5c4d6adc855d",
+      "disposition": "integrated",
+      "disposition_detail": {
+        "already_present": [
+          "CONFIG_TEE=y",
+          "CONFIG_QCOM_TZMEM=y",
+          "CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y",
+          "# CONFIG_QCOM_TZMEM_MODE_GENERIC is not set"
+        ],
+        "new": [
+          "CONFIG_QCOMTEE=m"
+        ]
+      },
+      "outputs": [
+        "config/gate0.fragment",
+        "original/gate0/config.fragment"
+      ],
+      "notes": "Only QCOMTEE=m is new. TEE=y, QCOM_TZMEM=y and QCOM_TZMEM_MODE_SHMBRIDGE=y are already in the rc3 config; therefore the fragment does not switch the allocator mode. TEE must stay y because QCOMTEE does not declare a depends on TEE.",
+      "dependencies": [
+        "drivers/tee/qcomtee/Kconfig",
+        "drivers/firmware/qcom/qcom_scm.c qcom_scm_qtee_init",
+        "rc3 config baseline"
+      ]
+    },
+    {
+      "path": "gate0/gate0-check.sh",
+      "sha256": "40d59e01c2b7da4db7ba724779d2287c1ee3e1f8bab338d78f38bda7203b8812",
+      "disposition": "gated",
+      "outputs": [
+        "scripts/gate0-check.sh",
+        "original/gate0/gate0-check.sh"
+      ],
+      "notes": "Passive by default: no modprobe and no smcinvoke_client. --load and --diagnostics are explicit secure-world opt-ins and were not run. The passive check is valid on the current rc3 boot because qcom_scm probes QTEE at every boot. QCOMTEE=m is not globally passive: qcomtee has a platform:qcomtee modalias and may be autoloaded by udev/systemd.",
+      "dependencies": [
+        "config/gate0.fragment for the qcomtee driver",
+        "optional qualcomm/minkipc smcinvoke_client for --diagnostics",
+        "root for dmesg"
+      ]
+    },
+    {
+      "path": "kernel/0034-input-misc-add-goodix-fp.patch",
+      "sha256": "5598563aab9336a30e9d3a43dbbdc30a3e931aaf9d42aef63a79bb358f36e29f",
+      "disposition": "integrated",
+      "outputs": [
+        "patches/0051-input-misc-add-goodix-fp.patch",
+        "src/goodix_fp.c",
+        "src/Makefile",
+        "original/kernel/0034-input-misc-add-goodix-fp.patch"
+      ],
+      "notes": "Renumbered 0051 because rc3 already has 0034-fastrpc-freezable-wait.patch. Rebased to 7.0/rc3 with no fuzz. Repaired ioctl access_ok validation, file/device lifetime across unbind, the threaded-IRQ disable deadlock (nosync under g->lock, sync outside, ops_lock serialization), netlink port-id registration, and added the allow_power activation gate. The downstream ioctl numbers, netlink protocol 25, 32-byte payload, event values and /proc names are retained.",
+      "dependencies": [
+        "rc3 drivers/input/misc/Kconfig and Makefile",
+        "7.0 kzalloc_obj, pde_data, devm_free_irq, netlink_kernel_create, compat_ptr_ioctl",
+        "DT node from 0055 for probe (disabled by default)"
+      ]
+    }
+  ],
+  "produced": [
+    {
+      "path": "patches/0051-input-misc-add-goodix-fp.patch",
+      "sha256": "b00f160f1356bf0aff0e3a9a05938c2717f5856c88626e2ac83f0b7b2a83e9f3",
+      "sha512": "5feb1d6208f4f6d4bc239f4286f163266370dbd7024de3c063ee6cc29dbddb1e8235a800ce2aa78c066c74a1da6d1e4881f171873d9581107dd7596b4ce862d9",
+      "kind": "kernel-patch",
+      "source": "kernel/0034-input-misc-add-goodix-fp.patch",
+      "notes": "Apply before 0055; adds Kconfig/Makefile entries and drivers/input/misc/goodix_fp.c. Includes the threaded-IRQ deadlock fix and ops_lock serialization."
+    },
+    {
+      "path": "patches/0055-arm64-dts-guacamole-fingerprint.patch",
+      "sha256": "e1eaf1835f1ade6febdf6f97a6895f921541700ebebc6d1296bcc1274dfd5234",
+      "sha512": "74d290d5ccf5eedbbe4e742384087d2807f3dd0be03a6e7c0c6209df28f749127eadca19b2551ea25af3ee9d2edd6de72ea09d3904d62c5ec5b9ab2de634a3d5",
+      "kind": "dt-patch",
+      "source": "dts/goodix-fp.dtsi",
+      "notes": "Adds sm8150-oneplus-guacamole-fingerprint.dtsi and its include after the nura delta, before the rear-camera include. 0052 is reserved for popup; the end-of-file include slot is left free. Node status disabled."
+    },
+    {
+      "path": "config/gate0.fragment",
+      "sha256": "cdd95d7b52cbb66646482c5fe0b53b961b5d3e7e9d3c1fd099829b79b86ea4b0",
+      "kind": "kconfig-fragment",
+      "notes": "QCOMTEE=m; TEE and SHMBRIDGE already present. Not passive by itself: qcomtee has a platform:qcomtee modalias and can be autoloaded/bound by udev/systemd; its probe issues the QTEE feature/version query."
+    },
+    {
+      "path": "config/gate1.fragment",
+      "sha256": "fdff7fc33fa0aba14dce5ba7120654195242a6422e771f4a28b9e04a2641adf4",
+      "kind": "kconfig-fragment",
+      "notes": "INPUT_GOODIX_FP=m; requires 0051 and DT patch 0055."
+    },
+    {
+      "path": "config/release-name.fragment",
+      "sha256": "dc414734dd37cf9deab79f3db6b426f999d3307ad8ec361ea52926b182b528f4",
+      "kind": "kconfig-fragment",
+      "notes": "Sets LOCALVERSION to -sm8150-guacamole-rc4."
+    },
+    {
+      "path": "dts/sm8150-oneplus-guacamole-fingerprint.dtsi",
+      "sha256": "58154d830a535642548ba4dca15353715be43213179d2d429ad1e000789706ec",
+      "kind": "dts-source",
+      "source": "dts/goodix-fp.dtsi"
+    },
+    {
+      "path": "src/goodix_fp.c",
+      "sha256": "60978dd4647995b2f6e93d198b0aee0e8f7d9c2f6339d17d8a89969a1c9be721",
+      "kind": "driver-source",
+      "source": "kernel/0034-input-misc-add-goodix-fp.patch"
+    },
+    {
+      "path": "src/Makefile",
+      "sha256": "a9eefb06dffe1814926ff056ba0afcaa9952304a7b8e74c9004d1fb410aeecb6",
+      "kind": "compile-check-makefile",
+      "notes": "Only for the external-module compile check; the merged recipe uses the in-tree Kconfig/Makefile hunks."
+    },
+    {
+      "path": "scripts/gate0-check.sh",
+      "sha256": "200daf665f47b88892d93d29ffd2413c1f179ee1d328004d20265e60be1df492",
+      "kind": "diagnostic-script",
+      "source": "gate0/gate0-check.sh"
+    },
+    {
+      "path": "scripts/gate1-check.sh",
+      "sha256": "7341c8cf29edd929913b6991f32dc16e167a0de82ea2e626643bd292a6ff8ea2",
+      "kind": "diagnostic-script",
+      "notes": "Read-only; never powers or resets the sensor."
+    },
+    {
+      "path": "recipe/APKBUILD.additions",
+      "sha256": "9fb50755b1a0e4f7f9e815ceef58368fd2dd94b62c21cd287162b11967d4b895",
+      "kind": "recipe-fragment",
+      "notes": "Source names and sha512 values for the parent's rc4 recipe."
+    },
+    {
+      "path": "recipe/README.md",
+      "sha256": "58889ce28fb82a8c3704b6ca44fd8c1268716bc965f168dc96e6c606b4cf8987",
+      "kind": "recipe-doc"
+    },
+    {
+      "path": "recipe/check_recipe.sh",
+      "sha256": "6dc72ebe9b3cfa497df9ed439770e9f9fa35c873ec7864bb73ef7cb35b4b448c",
+      "kind": "recipe-check",
+      "notes": "Read-only; validated against a synthetic merged recipe and the untouched rc3 recipe."
+    },
+    {
+      "path": "service/fingerprint-gate0.service",
+      "sha256": "aadec73bcc80b1481affc37b29e44f2c1576e08307b7f74786295d358f46b398",
+      "kind": "service-template",
+      "notes": "Disabled template; passive gate-0 check only, requires /etc/guacamole/fingerprint-gate0-enabled."
+    },
+    {
+      "path": "service/README.md",
+      "sha256": "6108e1d04c721b81b2c5eccefb8c86354c263338a9cf7c4f300d83f899cc2092",
+      "kind": "service-doc",
+      "notes": "No HAL, supplicant or PAM service is integrated."
+    },
+    {
+      "path": "README.md",
+      "sha256": "10979cdb429ee4d843001f1a09d26460e97866de7e7c70d639d5ffc25b491fab",
+      "kind": "topic-doc",
+      "notes": "Integration steps, corrected claim table, actual check results, blockers."
+    },
+    {
+      "path": "checks/README.md",
+      "sha256": "3e52f304cef4527e332382bc6ba9ca38aa4262545419fecedad41cf0bea5f37f",
+      "kind": "evidence-doc",
+      "notes": "Index of the actual check logs."
+    },
+    {
+      "path": "checks/check_lock_order.py",
+      "sha256": "43fda6423327f6cfa6ccab59e01277db5561f07496a7b3a5c69c082afb438551",
+      "kind": "static-check",
+      "notes": "Lock-order regression and --self-test; rejects synchronous IRQ teardown under g->lock and misc_mtx/ops_lock ABBA."
+    }
+  ],
+  "evidence": [
+    {
+      "path": "checks/apply-sequence-final.log",
+      "sha256": "44f095c10883fe802341927589c4815841125407dc6a2b501541b0ac4d4b6af0",
+      "result": "0051 and 0055 applied to a reflinked rc3 source copy with --fuzz=0; both exit 0."
+    },
+    {
+      "path": "checks/checkpatch-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "result": "checkpatch.pl --no-tree --terse --file src/goodix_fp.c exited 0 with no output."
+    },
+    {
+      "path": "checks/config-merge.log",
+      "sha256": "70071f09fd1c7ce9ad4868e5784fa326276631fbc1891c86bfd97d60ee58c267",
+      "result": "merge_config.sh applied gate0/gate1/release-name fragments; only expected QCOMTEE and LOCALVERSION redefinition warnings."
+    },
+    {
+      "path": "checks/config-olddefconfig.log",
+      "sha256": "6b26cee926826c06a99dbbe3399f538101f62fe1a20e9b00150dcc60f351e1c6",
+      "result": "olddefconfig exited 0."
+    },
+    {
+      "path": "checks/config-symbols.txt",
+      "sha256": "c4e734ca0348f02142edf7509a7b3d0f99022a8cda29fb4d32a1c293d6213483",
+      "result": "QCOMTEE=m, INPUT_GOODIX_FP=m, TEE=y, SHMBRIDGE=y, GENERIC unset, binderfs/sg unset."
+    },
+    {
+      "path": "checks/kernelrelease.txt",
+      "sha256": "400899352e2939a1f0e005e97a409f8b41e17f047707c97f9f067d8230fddc20",
+      "result": "7.0.0-sm8150-guacamole-rc4"
+    },
+    {
+      "path": "checks/config-final.diff",
+      "sha256": "2e4eb5a0ad7829700fcfc2ad5af5c539947125155d3f846ff732b11c6448947b",
+      "result": "Exactly three changes from rc3 config: LOCALVERSION, INPUT_GOODIX_FP=m, QCOMTEE=m."
+    },
+    {
+      "path": "checks/in-tree-compile.log",
+      "sha256": "bae0a4b6f785d375a649939241955d55c826c7009dca24397ba47aaa23b62ed2",
+      "result": "In-tree build of goodix_fp.o and all four guacamole DTBs exited 0 after the deadlock fix."
+    },
+    {
+      "path": "checks/in-tree-driver-final.log",
+      "sha256": "58eb05899fec7560298ba656499b3e946951dadec669eeefc421017b25362d00",
+      "result": "Final driver source object target checked against the merged rc4 config; exit 0."
+    },
+    {
+      "path": "checks/module-build-final.log",
+      "sha256": "f079a891db4dd358b01f7d27d4f2d9538a0f8e69a95ca9da7331070ac0fd1017",
+      "result": "goodix_fp.ko external build exited 0 against the rc4 config plus rc3 Module.symvers; BTF skipped because no vmlinux exists in the config-only output."
+    },
+    {
+      "path": "checks/qcomtee-module-build.log",
+      "sha256": "df2ee71ba1f2a79bd3a19ee8205aaf78d64a27a064022eaf5171c287384c1f2b",
+      "result": "qcomtee.ko built against the merged rc4 config; exit 0."
+    },
+    {
+      "path": "checks/modinfo.txt",
+      "sha256": "fe773efd8ebdd5761ea1a14368f8abccdeddb0e6555ab0bd37cff67123fc892f",
+      "result": "goodix_fp vermagic 7.0.0-sm8150-guacamole-rc4, alias goodix,goodix_fp, allow_power parameter."
+    },
+    {
+      "path": "checks/dt-fingerprint.txt",
+      "sha256": "276219f12e947fefeb77781056ef9db382f5cfe0fcf508ec72ee4f773222972a",
+      "result": "Decoded node: tlmm 118 edge rising, 131 active low, 101 active high, pinctrl input-enable; status disabled in all four DTBs."
+    },
+    {
+      "path": "checks/lock-order-check.log",
+      "sha256": "e6d7bdb7a4568cbc2a4661174b7b60293aacb68abae77b226a1b804ef6c768ec",
+      "result": "Static checker self-test PASS and source check PASS; rejects synchronous disable/sync under g->lock and misc_mtx/ops_lock ABBA."
+    },
+    {
+      "path": "checks/recipe-check.log",
+      "sha256": "18500fe8d4a57a99cac73cfb5bd5ac1add929e9ddb077ecd734d0c860aa87ec4",
+      "result": "Synthetic merged recipe passes; untouched rc3 recipe fails with the expected missing additions."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/goodix_fp.ko",
+      "sha256": "c841518b19167dfcae229c586743d2cef5bfdfd7e63bf185af544b81984b85c6",
+      "kind": "module",
+      "notes": "Out-of-tree check build with rc4 vermagic; not packaged."
+    },
+    {
+      "path": "artifacts/goodix_fp.o",
+      "sha256": "b7f0e7f7cd7af96efc380748db960e1c2a2123e96e33fda3f8bb251351d88481",
+      "kind": "object",
+      "notes": "In-tree object built with merged rc4 config."
+    },
+    {
+      "path": "artifacts/sm8150-oneplus-guacamole.dtb",
+      "sha256": "3ee3b91aa9701a6494e8be71647f61bd3a6d4f2b0d0061feb2948a0d3ece50c1",
+      "kind": "dtb"
+    },
+    {
+      "path": "artifacts/sm8150-oneplus-guacamole-rear-main.dtb",
+      "sha256": "297862bdc40c9d29fe4e5d1232834bda2623f8729f4af851be87cadc5c8040e6",
+      "kind": "dtb"
+    },
+    {
+      "path": "artifacts/sm8150-oneplus-guacamole-rear-tele.dtb",
+      "sha256": "e7d69774c8b0bb3f51e518c1ea0fd8a6d28ed4572af5881d593c39fafd6ee3ac",
+      "kind": "dtb"
+    },
+    {
+      "path": "artifacts/sm8150-oneplus-guacamole-rear-wide.dtb",
+      "sha256": "6830d36b71659e5705a0043e12dbc88e12b6a3599177955ffc8cbca863d7acd3",
+      "kind": "dtb"
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "patches/0051-input-misc-add-goodix-fp.patch",
+      "on": "device/testing/rc3/linux-postmarketos-qcom-sm8150 and .work/rc3-kernel/linux-v7.0.0-sm8150",
+      "type": "apply-time",
+      "note": "Kconfig and Makefile context; driver directory. No dependency on 0055 at apply time."
+    },
+    {
+      "from": "patches/0055-arm64-dts-guacamole-fingerprint.patch",
+      "on": "sm8150-oneplus-guacamole.dts include point after the nura dtsi",
+      "type": "apply-time",
+      "note": "Uses tlmm and IRQ_TYPE_EDGE_RISING labels already included by the main DTS; independent of 0051 at apply time. 0052 is reserved for popup, whose end-of-file include slot is left free."
+    },
+    {
+      "from": "config/gate1.fragment",
+      "on": "patches/0051-input-misc-add-goodix-fp.patch",
+      "type": "Kconfig",
+      "note": "CONFIG_INPUT_GOODIX_FP does not exist until 0051 is applied."
+    },
+    {
+      "from": "config/gate0.fragment",
+      "on": "7.0 drivers/tee/qcomtee and drivers/firmware/qcom/qcom_scm.c",
+      "type": "Kconfig/runtime",
+      "note": "TEE=y and SHM-bridge mode already exist in rc3; QCOMTEE=m adds the driver. The module has a platform:qcomtee modalias and can be autoloaded/bound by udev/systemd, so the config is not passive by itself."
+    },
+    {
+      "from": "scripts/gate0-check.sh",
+      "on": "config/gate0.fragment and optionally qualcomm/minkipc",
+      "type": "runtime",
+      "note": "No module load or secure-world query unless --load/--diagnostics is passed."
+    },
+    {
+      "from": "scripts/gate1-check.sh",
+      "on": "0051, 0055, config/gate1.fragment",
+      "type": "runtime",
+      "note": "Read-only; a disabled DT node is expected to show no /dev/goodix_fp."
+    },
+    {
+      "from": "recipe/APKBUILD.additions",
+      "on": "patches/0051 and 0055",
+      "type": "packaging",
+      "note": "sha512 values must match the files in patches/."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "gate0-smcinvoke-command-mismatch",
+      "severity": "blocking-gate0",
+      "summary": "Mainline qcom_scm uses QCOM_SCM_SMCINVOKE_INVOKE (0x02, fnid 0x0602); stock SM8150 uses SMCINVOKE_INVOKE_CMD 0x32000600 (fnid 0x0600). qcom_scm_qtee_init only checks -EIO and does not fall back to QCOM_SCM_SMCINVOKE_INVOKE_LEGACY.",
+      "evidence": [
+        ".work/rc3-kernel/linux-v7.0.0-sm8150/drivers/firmware/qcom/qcom_scm.h:164-166",
+        ".work/rc3-kernel/linux-v7.0.0-sm8150/drivers/firmware/qcom/qcom_scm.c:2404-2405",
+        "LineageOS android_kernel_oneplus_sm8150 lineage-23.2 drivers/soc/qcom/smcinvoke.c: SMCINVOKE_INVOKE_CMD 0x32000600"
+      ],
+      "action": "Run the passive gate-0 check on the current boot. If no /sys/bus/platform/devices/qcomtee* exists, gate 0 fails as shipped. A legacy-probe fallback is a separate secure-world experiment and was not added."
+    },
+    {
+      "id": "qcomtee-autoload-not-passive",
+      "severity": "blocking-passive-assumption",
+      "summary": "QCOMTEE=m builds a module with a platform:qcomtee modalias. qcom_scm registers the platform device at boot, so udev/systemd can autoload and bind qcomtee.ko; qcomtee_probe() then issues a QTEE feature/version query. Compiling =m does not load it, but the configuration is not passive on a normal udev system.",
+      "action": "For a passive gate-0 check, omit qcomtee.ko from the installed modules tree or boot with module_blacklist=qcomtee, then load it manually only for the deliberate test. Do not describe QCOMTEE=m alone as passive."
+    },
+    {
+      "id": "no-hardware-results",
+      "severity": "blocking-feature",
+      "summary": "No phone, boot, sensor power/reset, IRQ count, HBM or HAL test was performed. No fingerprint authentication is claimed.",
+      "action": "Parent reviews and runs the combined rc4 on hardware only after gate 0."
+    },
+    {
+      "id": "gate3-4-dependencies-absent",
+      "severity": "future-work",
+      "summary": "CONFIG_ANDROID_BINDERFS and CONFIG_CHR_DEV_SG are unset; qcom_qseecom cannot load an app or serve listeners; no ion shim, RPMB listener, stock HAL chroot or persist backup exists.",
+      "action": "Do not enable or advertise gates 3-6."
+    },
+    {
+      "id": "proc-abi-divergence",
+      "severity": "review",
+      "summary": "0051 exposes /proc/fp_id read-only (0444 vs stock 0666) and /proc/tee_bind_core root-only (0200 vs stock 0666).",
+      "action": "Deliberate gate-1 restriction; restore parity only if the gate-4 HAL is observed to need writes."
+    },
+    {
+      "id": "full-package-build-not-run",
+      "severity": "review",
+      "summary": "Only the touched object, four DTBs and external modules were built. No full Image, APK, boot image or rootfs.",
+      "action": "Parent builds the combined rc4 and validates the payload."
+    }
+  ],
+  "unverified_claims": [
+    "Gate 1 hardware behavior (reset-time interrupt, IRQ count).",
+    "Gate 2 HBM sequences, spot coordinates and color.",
+    "Gate 3 legacy QSEECom app load/listener transport.",
+    "Gate 4 stock HIDL HAL in a chroot; binderfs/ion behavior.",
+    "Gate 5 keymaster/gatekeeper auth token.",
+    "Gate 6 Phosh/PAM integration.",
+    "Stock libQSEEComAPI's /dev/ion requirement was not inspected in the blob.",
+    "The current lock-screen crash is not shown to be caused by suspend/resume.",
+    "Modem/ADSP/SLPI behavior after loading qcomtee.ko was not tested; SHM-bridge mode is already enabled on rc3."
+  ],
+  "verification_note": "Source-level clean apply, config olddefconfig, object/DT compile, external module link and checkpatch are verified. None of those is a hardware result. See README.md for the exact commands and the claim/evidence/verdict table."
+}

@@ -1,0 +1,18 @@
+# Disabled-by-default template.  See service/README.md before installing.
+# This unit is passive: no --load and no --diagnostics, so it does not issue
+# a secure-world query, power the sensor, touch persist/RPMB or start a HAL.
+[Unit]
+Description=Guacamole fingerprint gate-0 passive check (opt-in)
+Documentation=file:///usr/share/doc/guacamole-fingerprint/README.md
+ConditionPathExists=/etc/guacamole/fingerprint-gate0-enabled
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/guacamole/fingerprint/gate0-check.sh
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

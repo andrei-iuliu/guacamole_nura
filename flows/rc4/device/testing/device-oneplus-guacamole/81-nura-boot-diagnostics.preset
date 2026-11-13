@@ -1,0 +1,4 @@
+# Enable the boot snapshot and the one-shot late snapshot.  Installed by
+# device-oneplus-guacamole; the preset is applied by the user-run image build.
+enable nura-boot-diagnostics.service
+enable nura-boot-diagnostics.timer

@@ -1,0 +1,9 @@
+# 80-guacamole.preset: no change is required for the suspend-fixes topic.
+#
+# guacamole-mss-release.service is installed but must stay disabled: enabling
+# it on the phone is the opt-in for the runtime mss.lvl release (topic README
+# section 6).  Do not add an "enable" line here.
+#
+#    systemctl enable --now guacamole-mss-release.service
+#
+#enable guacamole-mss-release.service

@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * OnePlus 7 Pro (guacamole) Goodix optical fingerprint sensor, for kernel
+ * patch 0051 (goodix_fp).
+ *
+ * Pins and names from the stock device tree, LineageOS
+ * android_kernel_oneplus_sm8150 (lineage-23.2),
+ * arch/arm64/boot/dts/18821/sm8150-mtp.dtsi (oplus_fp_common, goodix_fp) and
+ * sm8150-pinctrl.dtsi (gpio_goodix_irq_default):
+ *   GPIO 90  sensor variant ID, pull-up input (not consumed by 0051)
+ *   GPIO 101 supply enable, high = on (power-mode 2)
+ *   GPIO 118 interrupt, rising edge, 2 mA, no bias
+ *   GPIO 131 reset, low = held in reset
+ *
+ * The include is placed after the nura delta and before the rear-camera
+ * include, so the end-of-file slot stays free for the popup-camera include.
+ *
+ * GATE 1 IS DISABLED ON PURPOSE. Leave status = "disabled" until gate 0
+ * (QCOMTEE/QTEE) has been verified on the phone. To run the gate-1 test,
+ * change status to "okay" AND load goodix_fp with allow_power=1. Both steps
+ * are required; either one alone cannot power or reset the sensor.
+ */
+/ {
+	fingerprint {
+		compatible = "goodix,goodix_fp";
+		status = "disabled";
+		interrupts-extended = <&tlmm 118 IRQ_TYPE_EDGE_RISING>;
+		reset-gpios = <&tlmm 131 GPIO_ACTIVE_LOW>;
+		power-gpios = <&tlmm 101 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&fp_irq_default>;
+		pinctrl-names = "default";
+
+		/* /proc/fp_id and /proc/lcd_type, read by the stock HAL */
+		oplus,chip-name = "G_OPTICAL_18821_G2_4";
+		oplus,lcd-type = "samsung";
+	};
+};
+
+&tlmm {
+	fp_irq_default: fp-irq-default-state {
+		pins = "gpio118";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+};

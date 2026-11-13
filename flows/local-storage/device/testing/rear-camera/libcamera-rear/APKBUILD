@@ -1,0 +1,91 @@
+# Rear-camera test stack only; never replaces Nura's 0.8 ABI used by PipeWire.
+maintainer="Nura local bring-up <nura@example.invalid>"
+pkgname=libcamera-rear
+pkgver=0.7.2
+pkgrel=0
+pkgdesc="Isolated Nura rear-camera software ISP test stack"
+url="https://libcamera.org/"
+arch="aarch64"
+license="LGPL-2.1-or-later AND GPL-2.0-or-later"
+depends="bash"
+makedepends="coreutils meson ninja py3-jinja2 py3-yaml py3-ply gnutls-dev libevent-dev
+	eudev-dev yaml-dev mesa-dev openssl linux-headers"
+# Keep Meson's post-install IPA signatures valid: no subsequent stripping.
+# The isolated local test stack deliberately lives under /opt.
+options="!strip !check !fhs"
+# Let abuild trace our private 0.7 libraries without a global loader change.
+ldpath="/opt/nura-rear-camera/lib"
+source="https://gitlab.freedesktop.org/camera/libcamera/-/archive/v$pkgver/libcamera-v$pkgver.tar.gz
+	0002-libcamera-simple-Skip-hwISP-formats-if-swISP-is-acti.patch
+	0003-libcamera-add-Samsung-S5K3M5-sensor-data.patch
+	0004-libcamera-add-Sony-IMX586-sensor-data.patch
+	0005-libcamera-software-isp-add-contrast-autofocus.patch
+	0006-libcamera-add-Sony-IMX481-sensor-data.patch
+	0008-libcamera-software-isp-responsive-3a-and-af-windows.patch
+	0009-libcamera-software-isp-preserve-requested-agc-state.patch
+	0010-libcamera-software-isp-tighten-automatic-controls.patch
+	0011-libcamera-dma-buf-allocator-fall-back-to-the-system-heap.patch
+	0012-libcamera-software-isp-gather-GPU-statistics-over-the-visible-input.patch
+	0013-libcamera-software-isp-let-the-lens-settle-before-autofocus-samples.patch
+	0014-libcamera-software-isp-take-contrast-and-saturation-defaults-from-tuning.patch
+	0015-libcamera-software-isp-keep-exposure-and-white-balance-across-configurations.patch
+	0016-libcamera-software-isp-fit-the-autofocus-peak-between-fine-samples.patch
+	0017-libcamera-software-isp-keep-focus-across-configurations.patch
+	0018-libcamera-software-isp-keep-highlights-with-exposure-headroom-and-digital-gain.patch
+	0019-libcamera-software-isp-keep-highlights-clipped-in-every-channel-white.patch
+	0020-libcamera-software-isp-steadier-continuous-autofocus.patch
+	0021-libcamera-software-isp-start-autofocus-scans-on-settled-exposure.patch
+	cam-rear
+	imx586.yaml
+	imx481.yaml
+	s5k3m5.yaml
+"
+builddir="$srcdir/libcamera-v$pkgver"
+
+build() {
+	abuild-meson --prefix=/opt/nura-rear-camera --libdir=lib \
+		--bindir=bin --sbindir=sbin --libexecdir=libexec --includedir=include \
+		--datadir=share --mandir=share/man --infodir=share/info \
+		--localedir=share/locale --sysconfdir=etc \
+		-Dpipelines=simple -Dipas=simple -Dsoftisp-gpu=enabled \
+		-Dcam=enabled -Dcam-output-kms=disabled -Dcam-output-sdl2=disabled \
+		-Dcam-jpeg=disabled -Dapps-output-dng=disabled \
+		-Dqcam=disabled -Dgstreamer=disabled -Dpycamera=disabled \
+		-Ddocumentation=disabled -Dlc-compliance=disabled -Dtracing=disabled \
+		-Dv4l2=false -Dtest=false -Dlibdw=disabled -Dlibunwind=disabled \
+		-Dwerror=false . output
+	meson compile -C output
+}
+
+package() {
+	install -Dm755 "$srcdir"/cam-rear "$pkgdir"/usr/bin/cam-rear
+	DESTDIR="$pkgdir" meson install --no-rebuild -C output
+	install -Dm644 -t "$pkgdir"/opt/nura-rear-camera/share/libcamera/ipa/simple \
+		"$srcdir"/imx586.yaml "$srcdir"/imx481.yaml "$srcdir"/s5k3m5.yaml
+}
+sha512sums="
+b317cdc96f61682ee0bf26dfb7c4d6441db9a9c5b93ab53528121a8cd44862b3d59cbaa3881bb0837e3e381564c184c7b742124aef4267eea754c6083de353c1  libcamera-v0.7.2.tar.gz
+191dfa09cfd08bcdf0d0d07410d17af590cf78b8bc8f8b7587fd2dc1c645a9ca07f2926b5d98381c011319b1f4e1d6195dd0d6dba65fd8c723882e6be0d6117d  0002-libcamera-simple-Skip-hwISP-formats-if-swISP-is-acti.patch
+7493ea7a9d654b122c8f077e26b4fd8ad6036cba615572f2b13309bd7cf1347204fffdfe9bec66a5c4c1fd2ebd4bdb4e88e7b140e433622e70be96f9aaf10952  0003-libcamera-add-Samsung-S5K3M5-sensor-data.patch
+5175312b79827ad3a87d5c5a1d1a8e23680bcd789d5d522f07943bcc7750a885f9639a8758e78505e66e6ff1a4f7bb1e0553f3bc318bfe5307514be68a5ad7dc  0004-libcamera-add-Sony-IMX586-sensor-data.patch
+3dbc7aa9fba65798c26569b612545d501484417a06d408d9af0a63bb9f2b9a8c93ec3f0967e3153f01043944e8e58ec1d94f092d6ab233a10b7d9d0c37c6b73d  0005-libcamera-software-isp-add-contrast-autofocus.patch
+81582b83d865d364544fc845f2c02c319aa97c3a4c92b602772cf9c80351cf0bb65c91623c7caad2d6d16f621596f30ec0d4d515d9e3ab5118b4d57508dbb600  0006-libcamera-add-Sony-IMX481-sensor-data.patch
+1f8b92c20d49274118f8658d17b126c9fabc3fa130ef2a3008749e692bb402d21226d755d46118ba1d702174040df67bea967795fee527c77aa5112c82223dbd  0008-libcamera-software-isp-responsive-3a-and-af-windows.patch
+9ac3ff1edbbb7de39f49551b0a3ff8650a969df20e4d7f30add9723bfffe3b2112d7fc7a0544c5b207c6bd869035cd8a8dfac3371b06990f1cdaef5aa6afef61  0009-libcamera-software-isp-preserve-requested-agc-state.patch
+5a0814183ce5dcfa3d4bb890247207cd38c0e0acb6be18a279a38e20622f9f87bb51b3ec90bd5eae1a9d3c7a5fbf82029e49b9f07f74b729f858a27a86bef193  0010-libcamera-software-isp-tighten-automatic-controls.patch
+6d79fa3db881746dd5eeee4eb667239e704f271578b036b6756cb048e0ed0ae2dd499f97a0ec84ef15b27c54a3057674e282d3fbc047bc81975cbd55506ca02b  0011-libcamera-dma-buf-allocator-fall-back-to-the-system-heap.patch
+e1ac858250c8363521b0d0705388ae08d8843a01db1379e56b327d8b101650172cd41321f0d9f76c5a3583cdda829910d915073b85ee8e3937394ec19a5bffd3  0012-libcamera-software-isp-gather-GPU-statistics-over-the-visible-input.patch
+8abdb92c3d04b5aee5fd3f2f7bfab22240cc67adb910c00b2eded6995d37e132bcae5b4a6ea995b613310763ed9ee83523ee67450c8304f1f057d3448295ef2a  0013-libcamera-software-isp-let-the-lens-settle-before-autofocus-samples.patch
+f53389c598e0bad7f09862f6031ef9c4a7e3d62e6cb66a2d3df1d24019b774cb253ab3ed31d1e45fe42b788b3011c000451e778486cd631056563452eb21bd7d  0014-libcamera-software-isp-take-contrast-and-saturation-defaults-from-tuning.patch
+fd97ba5506a3d17b7884b166d0903f6dd9c2ee1917c650f3822d289e1f2c496e3d2f5268e0a6260339d442107692a0588e356cfe2ffb76cdaf72fcc49e6520fd  0015-libcamera-software-isp-keep-exposure-and-white-balance-across-configurations.patch
+5b04e0a02a640c6f5f6a5e122c578e5f99143c43e2706fb932056f3d938e33a841d049dfa5d10ca2ed6e99de504bd7a7ffac5f38afa6ce55971f6190d5e1db07  0016-libcamera-software-isp-fit-the-autofocus-peak-between-fine-samples.patch
+e95bd9bec482efc6e065a05e8663dd88e07e181f828a3d24134021d02da8eda473edc1d77c320d348d27bb02c121a849cc7539dc0375593fbd2cc5e8cedbed7e  0017-libcamera-software-isp-keep-focus-across-configurations.patch
+a63cf1c28ae62bccedfbd9998f237708ce1d36910d178bd981d433c4830e3a25a51b8105e4212780b6f54d11beab0a28b12a244eb6a0bdd0bc240e97641657b0  0018-libcamera-software-isp-keep-highlights-with-exposure-headroom-and-digital-gain.patch
+057f14a66078084bdb9799fd535f7f8d3b832bff6518c3de0be3811e6df4707a26cd8e858050301d5cc2ec8eecec88c89a8f74f94d09891835c7c0a93237fecf  0019-libcamera-software-isp-keep-highlights-clipped-in-every-channel-white.patch
+aed89e39dc6f4e85c8a828ff2a7787ffc2afeacd91e3b39cc5692ba5eafb906dbfa5e5dd42a4bf1aca4f5679dd97778e806391a288485ce37e7bf239de6538d7  0020-libcamera-software-isp-steadier-continuous-autofocus.patch
+bf969357e4f5c62a69d822e883b735ed726b3d1bae7bad04b5594a3f2aed8f70253177342fbb67bb2b3b0cb9c87ccd9844e57d8785a38c72917f72935facc068  0021-libcamera-software-isp-start-autofocus-scans-on-settled-exposure.patch
+3c861f6a9773e01b560fe4e1db0ef3f6001a95f113272718356372191277a7a03bfecea59ac04132b9abb9161cdb84d1cdfefb3d60c966d916cca019af0bcf16  cam-rear
+f3be359178cf7c5e8dff0858606332760d38051df2c65049d04e3e8fc32e4efe16fd3ded93cd30b6f1379988af03248be9272d49a2a7ead622a04d052c5b13ba  imx586.yaml
+799733eb9a1f35597c738fcfa778d44be3209655308b3f222286b65b6876bf1ad87e6f85e3bf4749989f65050115091c54707287c1a0dd7bf18069e06fb7650f  imx481.yaml
+c464a54645c41ca2b8d8da1cec1fa202c52bc0315cf6fda4c03e0a3e61aa14b3fa4a62c254f2cca4550816be85cc89ef1839f9a7c47ea8070685b28142dc5b6c  s5k3m5.yaml
+"

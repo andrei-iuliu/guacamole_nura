@@ -1,0 +1,554 @@
+{
+  "topic": "rc4 integration",
+  "release": "7.0.0-sm8150-guacamole-rc4",
+  "generated_by": "flows/rc4/scripts/make_inventory.py",
+  "input_root": "bringup-notes/Patches",
+  "supplied_root": "bringup-notes/Patches",
+  "summary": {
+    "supplied_files": 38,
+    "by_topic": {
+      "displayport": 10,
+      "fingerprint": 6,
+      "popup-camera": 6,
+      "suspend-fixes": 16
+    },
+    "by_disposition": {
+      "already present": 4,
+      "blocked": 3,
+      "gated": 8,
+      "integrated": 23
+    }
+  },
+  "recipe": {
+    "path": "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150",
+    "patches": [
+      "0001-enable-ufs.patch",
+      "0002-libbpf-Fix-UAF-in-strset__add_str.patch",
+      "0003-xiaomi-vayu-fix-otg.patch",
+      "0004-drm-msm-enable-native-guacamole-dsc-panel.patch",
+      "0005-input-s6sy761-add-optional-reset-gpio.patch",
+      "0006-i2c-qcom-geni-fifo-mode.patch",
+      "0007-asoc-codecs-add-tfa9874-speaker-amplifier-driver.patch",
+      "0008-asoc-sm8150-add-quaternary-mi2s-speaker-backend.patch",
+      "0009-ath10k-wcn3990-skip-quiet-mode.patch",
+      "0010-ufs-qcom-cap-sm8150-at-hs-g3.patch",
+      "0011-power-supply-qcom-smbx-smb5-limits-and-aicl.patch",
+      "0012-power-supply-bq27xxx-report-full-only-while-supplied.patch",
+      "0015-net-ipa-bound-gsi-trans-commit-wait.patch",
+      "0017-misc-fastrpc-allocate-sensors-messages-from-the-reserved-pool.patch",
+      "0018-power-supply-qcom-smbx-select-usb3-sdp-current.patch",
+      "0019-power-supply-qcom-smbx-expose-input-current-limit.patch",
+      "0020-power-supply-qcom-smbx-continuous-5v-to-12v-input-window.patch",
+      "0021-usb-typec-qcom-pmic-typec-count-vbus-above-vsafe0v-as-present.patch",
+      "0022-power-supply-qcom-smbx-follow-the-type-c-source-current-limit.patch",
+      "0024-usb-typec-qcom-pmic-typec-exit-the-sink-state-on-cc-only.patch",
+      "0025-dt-name-the-sm8150-ipa-node-after-its-reg.patch",
+      "0026-arm64-dts-add-the-nura-guacamole-board-delta.patch",
+      "0027-arm64-dts-enable-guacamole-speaker-bus.patch",
+      "0028-media-camss-sm8150-rebase.patch",
+      "0029-media-guacamole-rear-sensors-and-lenses.patch",
+      "0030-arm64-dts-guacamole-three-rear-cameras.patch",
+      "0031-i2c-qcom-cci-initialize-all-master-completions.patch",
+      "0032-smb5-readback.patch",
+      "0033-slim-ngd-work-init.patch",
+      "0034-fastrpc-freezable-wait.patch",
+      "0035-s6sy761-resume-irq.patch",
+      "0036-dsi-phy-pm.patch",
+      "0037-dsi-cmd-frame-sync.patch",
+      "0038-arm64-dts-guacamole-rear-flash-bringup.patch",
+      "0039-input-aw8697-kconfig-makefile.patch",
+      "0040-input-aw8697-haptics.patch",
+      "0041-arm64-dts-guacamole-haptics-alert-slider.patch",
+      "0044-soc-qcom-guacamole-mss-vote.patch",
+      "0045-ath10k-snoc-wmi-key-ack.patch",
+      "0046-asoc-q6afe-dai-displayport-rx-input-widget.patch",
+      "0047-asoc-sm8150-accept-displayport-backend.patch",
+      "0048-asoc-sm8150-prepare-dp-codec-dai-before-afe-start.patch",
+      "0049-asoc-qdsp6-q6afe-split-port-config-and-start-errors.patch",
+      "0050-asoc-qdsp6-q6afe-send-dp-stream-and-controller-index.patch",
+      "0051-input-misc-add-goodix-fp.patch",
+      "0052-iio-magnetometer-add-mxm1120.patch",
+      "0053-media-i2c-add-imx471.patch",
+      "0054-media-qcom-add-oneplus-hotdog-popup-motor.patch",
+      "0055-arm64-dts-guacamole-fingerprint.patch",
+      "0056-arm64-dts-guacamole-popup-camera.patch",
+      "0057-arm64-dts-guacamole-displayport-video.patch",
+      "0058-arm64-dts-guacamole-displayport-audio-link.patch"
+    ],
+    "recipe_patch_count": 52,
+    "new_patch_numbers": "0044-0058",
+    "rc3_retained": "0001-0041 byte-identical"
+  },
+  "gates": [
+    "MSS release helper installed, unit not enabled in 80-guacamole.preset, no mpss-start hook",
+    "system suspend policy disabled (logind HandleSuspendKey=ignore, PowerDevil AutoSuspendAction=0)",
+    "DP video enabled, DP audio DAI link status=\"disabled\"",
+    "front sensor and CAMSS port@2 absent together unless CAMERA_POPUP_SENSOR; motor node disabled",
+    "fingerprint DT node status=\"disabled\", goodix_fp.allow_power defaults to false",
+    "QCOMTEE=m but module_blacklist=qcomtee on the rc4 boot cmdline"
+  ],
+  "supplied_files": [
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/README.md",
+      "sha256": "4b2979b733a5722d740800d77a19834ed398943f0565f1e25102ea3fcee3ee0d",
+      "bytes": 5224,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/popup-camera/README.md",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/docs/01-video.md",
+      "sha256": "66e45f9d1f48db3c76e0c041118c74bbf12c43583ad396c5731d1b1b0ec629c0",
+      "bytes": 6589,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/displayport/docs/reference/01-video.md",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/docs/02-audio.md",
+      "sha256": "2e51ca0dca8d46ad6fbd18898cb15af456334b0c488a14501dc37db674695804",
+      "bytes": 9652,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/displayport/docs/reference/02-audio.md",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/dts/0001-dt-displayport-video.diff",
+      "sha256": "f665b66a80340b4b824535f67403401cd5dddba8242d44c79a2c85a9f7308db1",
+      "bytes": 2316,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0057-arm64-dts-guacamole-displayport-video.patch (rewritten as a 7.0 dtsi)",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/dts/0002-dt-displayport-audio-link.diff",
+      "sha256": "7aa5f0eb8d7d51b34941acdf829c91aed4a42e3574cc5de9b98be076ff36815f",
+      "bytes": 543,
+      "disposition": "gated",
+      "rc4_artifact": "recipe 0058-...-displayport-audio-link.patch: dp-dai-link ships status=\"disabled\"",
+      "docs": [
+        "docs/NURA_RC4.md#gates",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/kernel/0029-asoc-q6afe-dai-displayport-rx-playback-widget.patch",
+      "sha256": "93760bf7cd60d7917c969f2965c14d3182004b940d1db673b9f50657fdf7e993",
+      "bytes": 2197,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0046-asoc-q6afe-dai-displayport-rx-input-widget.patch",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/kernel/0030-asoc-sm8150-accept-displayport-backend.patch",
+      "sha256": "994f41990a6c1fdff9c49f362fb0972f87d9a3aedeebc44423bfcc253074fea1",
+      "bytes": 2035,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0047-asoc-sm8150-accept-displayport-backend.patch",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/kernel/0031-asoc-sm8150-enable-dp-audio-before-afe-start.patch",
+      "sha256": "30ed3c858c9fb01d7c77a0719d7a700c4691e36ae2b3454f17c15bfcc21254f2",
+      "bytes": 2483,
+      "disposition": "gated",
+      "rc4_artifact": "recipe 0048-asoc-sm8150-prepare-dp-codec-dai-before-afe-start.patch (inert while the link is disabled)",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/kernel/0032-asoc-q6afe-split-config-and-start-errors.patch",
+      "sha256": "17abd09812251053aa53b72e3458ccfe45f3ad4a0a362bfdd994793f03b5c906",
+      "bytes": 1605,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0049-asoc-qdsp6-q6afe-split-port-config-and-start-errors.patch",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "displayport",
+      "path": "Patches/displayport/kernel/0033-asoc-q6afe-send-dp-stream-and-controller-index.patch",
+      "sha256": "77dcbc6fe754f038278626c3abd9587b1699d840b2dcbcdb90bb3e0468cc4fe4",
+      "bytes": 3463,
+      "disposition": "gated",
+      "rc4_artifact": "recipe 0050-asoc-qdsp6-q6afe-send-dp-stream-and-controller-index.patch (experiment)",
+      "docs": [
+        "docs/NURA_RC4.md#displayport",
+        "flows/rc4/topics/displayport/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/README.md",
+      "sha256": "94aef307e9441f6a92a9c752ccdf5018a7d0ee6703cfb3f8783871a5dee71ad0",
+      "bytes": 10767,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/popup-camera/README.md",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/docs/findings.md",
+      "sha256": "683b65736f2f3ba6f8614444cd9d29c41bd0e782af6fc916beaad66c631af1b6",
+      "bytes": 9345,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/fingerprint/original/docs/findings.md",
+      "docs": [
+        "docs/NURA_RC4.md#fingerprint",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/dts/goodix-fp.dtsi",
+      "sha256": "1c0f5bc7e167603b5415dc842dec8523bd1ce7d0d366216930fa811bd487462d",
+      "bytes": 1215,
+      "disposition": "gated",
+      "rc4_artifact": "recipe 0055-arm64-dts-guacamole-fingerprint.patch: node status=\"disabled\"",
+      "docs": [
+        "docs/NURA_RC4.md#gates",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/gate0/config.fragment",
+      "sha256": "a32b9cc97f95ccddc836654371d624b50cbb655bbd287ba0662c5c4d6adc855d",
+      "bytes": 691,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/integration/config.fragment (CONFIG_QCOMTEE=m)",
+      "docs": [
+        "docs/NURA_RC4.md#fingerprint",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/gate0/gate0-check.sh",
+      "sha256": "40d59e01c2b7da4db7ba724779d2287c1ee3e1f8bab338d78f38bda7203b8812",
+      "bytes": 1285,
+      "disposition": "gated",
+      "rc4_artifact": "flows/rc4/topics/fingerprint/scripts/gate0-check.sh (not shipped in the rootfs)",
+      "docs": [
+        "docs/NURA_RC4.md#fingerprint",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "fingerprint",
+      "path": "Patches/fingerprint/kernel/0034-input-misc-add-goodix-fp.patch",
+      "sha256": "5598563aab9336a30e9d3a43dbbdc30a3e931aaf9d42aef63a79bb358f36e29f",
+      "bytes": 18231,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0051-input-misc-add-goodix-fp.patch (repaired, allow_power defaults to false)",
+      "docs": [
+        "docs/NURA_RC4.md#fingerprint",
+        "flows/rc4/topics/fingerprint/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/README.md",
+      "sha256": "b18f62c755941fb66c413e639c3542c27c100ddfcdf54971841f8ec8f3518cd5",
+      "bytes": 10729,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/popup-camera/README.md",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/docs/motor-procedure.md",
+      "sha256": "faed5bd65c3688fca4a10b14833caa2a4b31e6cc892f1f4e9f1417bb441ec664",
+      "bytes": 5626,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/popup-camera/docs/motor-procedure.md",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/dts/0001-guacamole-camera-add-popup-front.diff",
+      "sha256": "7a5fa6bee187e6ff462872607d4c4b2fb51d10bdce9e8d4223b81f38b598ef10",
+      "bytes": 8148,
+      "disposition": "gated",
+      "rc4_artifact": "recipe 0056-arm64-dts-guacamole-popup-camera.patch: motor disabled, sensor+CAMSS endpoint absent by default",
+      "docs": [
+        "docs/NURA_RC4.md#gates",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/kernel/0035-iio-magnetometer-add-mxm1120.patch",
+      "sha256": "348a3594306f89b77d99fec81c3dc05bdd7ba36f2da50697e2d77466e5f9f62b",
+      "bytes": 9945,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0052-iio-magnetometer-add-mxm1120.patch",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/kernel/0036-media-i2c-add-imx471.patch",
+      "sha256": "dccec873980c62e432f19c25e81a6541fe7b08a78fcf374cc7b08cdedf8367dd",
+      "bytes": 35498,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0053-media-i2c-add-imx471.patch",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "popup-camera",
+      "path": "Patches/popup-camera/kernel/0037-media-qcom-add-oneplus-popup-motor.patch",
+      "sha256": "53b7e2226a0a438e2dc37e3ca320a4dcb9314cd6ff436450b216df3384c26922",
+      "bytes": 30046,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0054-media-qcom-add-oneplus-hotdog-popup-motor.patch (driver built, DT node disabled)",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/popup-camera/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/README.md",
+      "sha256": "bbc2160a02d65f7cdd8962b6223a0ca211faaf2edaec035fb116c0fc7fbc8001",
+      "bytes": 8999,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/popup-camera/README.md",
+      "docs": [
+        "docs/NURA_RC4.md#popup-camera",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/device/90-guacamole-modem-recovery.rules",
+      "sha256": "04c5dfdd03612f1b6e56703799ab0facf5ceee21294c50177a5977c607196b7d",
+      "bytes": 450,
+      "disposition": "gated",
+      "rc4_artifact": "not installed; diagnostic-only udev rule, see the topic INSTALL.md",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/device/device-package.diff",
+      "sha256": "8a827d83d887e443ac35190868216bcdeacc4071d1b80553b7367600ed9abd32",
+      "bytes": 1880,
+      "disposition": "blocked",
+      "rc4_artifact": "targets the 6.17 pkgrel-11/12 OpenRC-only package",
+      "docs": [
+        "docs/NURA_RC4.md#rejected-inputs",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/device/guacamole-mss-release",
+      "sha256": "080b0483d7c810c13688e6bc4d7cbacd88e0209649b92c2cd95e72f68a295dcf",
+      "bytes": 875,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/device/testing/device-oneplus-guacamole/guacamole-mss-release",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/device/guacamole-mss-release.service",
+      "sha256": "3a3bfccb211184ea38c1769c936746c6318810e27e49e4144d924e7d284fd55d",
+      "bytes": 379,
+      "disposition": "gated",
+      "rc4_artifact": "installed in the rc4 device package, NOT enabled in 80-guacamole.preset",
+      "docs": [
+        "docs/NURA_RC4.md#gates",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/docs/00-diagnose.md",
+      "sha256": "3294638c99489b087475157c328f648bd222b7adea3a327cfc2359ec21b93ca9",
+      "bytes": 6777,
+      "disposition": "integrated",
+      "rc4_artifact": "flows/rc4/topics/suspend-fixes/docs/supplied/00-diagnose.md",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/docs/0025-fastrpc-freezable-wait.md",
+      "sha256": "52aea5c0ec41125c7c1768d19abc2259956679bd058ffbf6026991f0f25a0621",
+      "bytes": 3096,
+      "disposition": "already present",
+      "rc4_artifact": "rc3 0034-fastrpc-freezable-wait.patch",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/docs/0026-s6sy761-resume-irq.md",
+      "sha256": "cbdf96fb4e400a3154e961d8942c9f6eeec933593109576b24c934f73bde67e3",
+      "bytes": 3299,
+      "disposition": "already present",
+      "rc4_artifact": "rc3 0035-s6sy761-resume-irq.patch",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/docs/0027-guacamole-mss-vote.md",
+      "sha256": "88f4d165bdfb6b871fb96ff6a3ac241dc59433e893539761c0663eec3fa3ecf8",
+      "bytes": 8185,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0044",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/docs/0028-ath10k-snoc-wmi-key-ack.md",
+      "sha256": "537e3d6a95c04e0a7128cb0da6048f52d2e14ef1100dbe214d500dd9dd8a9276",
+      "bytes": 4025,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0045",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/0025-misc-fastrpc-freezable-invoke-wait.patch",
+      "sha256": "79f03c29dcd0d179516daba2e69a39f515a3c238205425ba4f88aeca7927d478",
+      "bytes": 1732,
+      "disposition": "already present",
+      "rc4_artifact": "rc3 0034-fastrpc-freezable-wait.patch",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/0026-input-s6sy761-enable-irq-after-resume-restart.patch",
+      "sha256": "9c964c033121e249160c5cafec87131755c2e110a18d6982408e3b7f2cacb585",
+      "bytes": 1680,
+      "disposition": "already present",
+      "rc4_artifact": "rc3 0035-s6sy761-resume-irq.patch (superset)",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/0027-soc-qcom-guacamole-mss-vote.patch",
+      "sha256": "544d4c7441c92924c90acd0f5c7549b3a809f8814bc24173245d341f030cd155",
+      "bytes": 9678,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0044-soc-qcom-guacamole-mss-vote.patch",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/0028-ath10k-snoc-wmi-key-ack.patch",
+      "sha256": "e159db58fd2890af6b31c8016502f048ccef61140e5776a17e62d41622fbb8b5",
+      "bytes": 8253,
+      "disposition": "integrated",
+      "rc4_artifact": "recipe 0045-ath10k-snoc-wmi-key-ack.patch",
+      "docs": [
+        "docs/NURA_RC4.md#suspend-fixes",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/APKBUILD.diff",
+      "sha256": "ac898bc6525420eedad98d3cccec12d561774ea1b98f0679073f38f41ea43f1c",
+      "bytes": 771,
+      "disposition": "blocked",
+      "rc4_artifact": "targets 6.17/pkgrel 25-26; replaced by the rc4 recipe",
+      "docs": [
+        "docs/NURA_RC4.md#rejected-inputs",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    },
+    {
+      "topic": "suspend-fixes",
+      "path": "Patches/suspend-fixes/kernel/config.diff",
+      "sha256": "a78d20ab84b2a82ee58ac93523b001f39f438fb1b5ba19177fc6a0ddad2fad82",
+      "bytes": 755,
+      "disposition": "blocked",
+      "rc4_artifact": "stale 6.17 fragment; replaced by flows/rc4/integration/config.fragment",
+      "docs": [
+        "docs/NURA_RC4.md#rejected-inputs",
+        "flows/rc4/topics/suspend-fixes/README.md"
+      ]
+    }
+  ],
+  "documentation": {
+    "release": "docs/NURA_RC4.md",
+    "integration": "flows/rc4/README.md",
+    "review": "flows/rc4/REVIEW.md",
+    "local_storage_flow": "flows/rc4/local-storage/README.md"
+  }
+}

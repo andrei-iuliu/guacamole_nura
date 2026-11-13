@@ -1,0 +1,7 @@
+# Gate 1: power/reset/IRQ groundwork for the Goodix optical sensor.
+#
+# Apply patch 0051 and the DT patch 0055 before this fragment, otherwise
+# the Kconfig symbol does not exist.  The module is built but stays inert:
+# the DT node ships status = "disabled" and the driver refuses power/reset
+# unless loaded with goodix_fp.allow_power=1.
+CONFIG_INPUT_GOODIX_FP=m

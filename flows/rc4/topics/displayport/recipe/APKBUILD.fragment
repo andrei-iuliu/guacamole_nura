@@ -1,0 +1,89 @@
+# rc4 displayport: APKBUILD fragment (advisory, for the parent to merge)
+#
+# This is NOT a full APKBUILD.  It lists exactly what the displayport topic adds
+# to device/testing/rc4/linux-postmarketos-qcom-sm8150/APKBUILD, which the
+# parent copies from device/testing/rc3/linux-postmarketos-qcom-sm8150/.
+#
+# ============================================================================
+# DEFAULT INTEGRATION (merge this; DP video only in terms of behaviour)
+# ============================================================================
+#
+# 1. pkgrel: bump by one (rc3 is pkgrel=4).
+#
+# 2. Header comment: change the first line to
+#    "Nura rc4 candidate; kernel release 7.0.0-sm8150-guacamole-rc4."
+#    and append to the "This copy adds for rc3:" list:
+#      0046/0047/0049/0050 q6afe/sm8150 DP audio plumbing and diagnostics
+#      (inert unless the DP audio link is enabled: it ships status="disabled")
+#      0048 sm8150 DP codec-first prepare (experiment, same condition)
+#      0001/0002 guacamole DisplayPort video nodes + a disabled DP audio link
+#
+# 3. Append these lines to the end of source="..." (numeric order after 0041;
+#    0042-0045 are left free for the other rc4 topics):
+#
+#	0046-asoc-q6afe-dai-displayport-rx-input-widget.patch
+#	0047-asoc-sm8150-accept-displayport-backend.patch
+#	0048-asoc-sm8150-prepare-dp-codec-dai-before-afe-start.patch
+#	0049-asoc-qdsp6-q6afe-split-port-config-and-start-errors.patch
+#	0050-asoc-qdsp6-q6afe-send-dp-stream-and-controller-index.patch
+#	0001-arm64-dts-guacamole-displayport-video.patch
+#	0002-arm64-dts-guacamole-displayport-audio-link.patch
+#
+#    The two dts patches carry no kernel-series number on purpose; rename them
+#    only if another rc4 topic needs the same names.  Patch order matters only
+#    between 0047->0048 (same function in sm8150.c) and 0049->0050 (same
+#    function in q6afe.c); the order above applies at zero fuzz.
+#
+# 4. Regenerate checksums in the package directory:
+#      pmbootstrap checksum linux-postmarketos-qcom-sm8150
+#    (or `abuild checksum` inside the package dir) and verify the sha512sums
+#    block gained one line per new patch.
+#
+# Why this default cannot regress audio:
+#
+#   - 0001 is devicetree-only and touches nothing outside the DP controller,
+#     the FSA4480 on i2c4 and the Type-C connector's altmode/SBU nodes.
+#   - 0002 ships dp-dai-link with status = "disabled".  qcom_snd_parse_of()
+#     walks for_each_available_child_of_node() and sizes the link array with
+#     of_get_available_child_count(), so the disabled link is not part of the
+#     sound card at all: card->num_links is exactly what rc3 has (measured: 11
+#     available links, dp-dai-link the only disabled child).
+#   - 0046-0050 are all reachable only through a DISPLAY_PORT_RX stream, i.e.
+#     only when that link exists.  0049 additionally renames AFE error
+#     messages; that is log text on other ports, nothing else.
+#
+#   If the DP controller ever failed to probe while the link were enabled,
+#   snd_soc_add_pcm_runtime() would return -EPROBE_DEFER and the entire
+#   "OnePlus 7 Pro" card would never register.  That is exactly what the
+#   disabled default prevents.
+#
+# ============================================================================
+# OPTIONAL EXPERIMENT (do not merge for the release build; requires a rebuild)
+# ============================================================================
+#
+# Two levels, both explicit:
+#
+#   A. Diagnostic build, DP audio link still off.  Nothing to change: 0049
+#      gives you the split "AFE config / TDM slot mapping / set param / start"
+#      messages on every other path for free.
+#
+#   B. DP audio attempt.  Apply this one-line change to
+#      arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi:
+#
+#          -		status = "disabled";
+#          +		status = "okay";
+#
+#      (in the dp-dai-link node; the comment above it says the same).  Rebuild
+#      and follow the DP audio ladder in README.md.  Expected result: the DSP
+#      times out on port 0x6020 and the split messages say where.  Nothing is
+#      known to produce sound.
+#
+#      To isolate patch 0048, drop 0048 from source= (and from the checksums)
+#      for that build; 0046/0047/0049/0050 stay applicable without it.
+#
+#      To isolate patch 0050, drop 0050 instead.  Both variants still need the
+#      status = "okay" flip; without it there is no DP audio stream at all.
+#
+# Never ship a build with status = "okay" as the "release" image: an enabled
+# link makes the whole card depend on the DP controller probing, and DP audio
+# is not a supported feature.

@@ -1,0 +1,51 @@
+#!/bin/sh
+# Populate the writable sensor registry served to the SLPI by hexagonrpcd.
+#
+# The sensor DSP keeps its registry (sensor placement, factory calibration,
+# runtime calibration) on the persist partition and rewrites parts of it at
+# every boot. hexagonrpcd serves /usr/share/qcom/sensors/registry, which this
+# package points at /var/lib/guacamole/sensors/registry. On first boot, copy
+# this unit's own factory registry from persist (read with debugfs, so the
+# partition is never mounted or written). The registry is per-unit factory
+# calibration: if it cannot be read, fail and leave the sensors off rather than
+# serving a snapshot from another phone.
+set -e
+
+state=${GUACAMOLE_SENSORS_STATE:-/var/lib/guacamole/sensors}
+persist=${GUACAMOLE_SENSORS_PERSIST:-/dev/disk/by-partlabel/persist}
+owner=${GUACAMOLE_SENSORS_OWNER:-fastrpc:fastrpc}
+
+if [ ! -d "$state/registry" ] || [ -z "$(ls -A "$state/registry" 2>/dev/null)" ]; then
+	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+	if debugfs -R "rdump /sensors/registry $tmp" "$persist" >/dev/null 2>&1 &&
+	   [ -n "$(ls -A "$tmp/registry/registry" 2>/dev/null)" ]; then
+		echo "guacamole-sensors-registry: importing the factory registry from persist"
+		mkdir -p "$state"
+		cp -r "$tmp/registry/registry" "$state/registry"
+		for f in sns_reg_version file1 file2; do
+			[ -f "$tmp/registry/$f" ] && cp "$tmp/registry/$f" "$state/$f"
+		done
+	else
+		echo "guacamole-sensors-registry: cannot read this unit's factory sensor" >&2
+		echo "  calibration from $persist (/sensors/registry). Refusing to" >&2
+		echo "  substitute another device's registry; sensors stay disabled." >&2
+		exit 1
+	fi
+	rm -rf "$tmp"
+	trap - EXIT HUP INT TERM
+fi
+
+# The DSP rewrites these; hexagonrpcd cannot create files, only open existing ones.
+for f in sns_reg_version file1 file2; do
+	[ -f "$state/$f" ] || : > "$state/$f"
+done
+
+# The DSP picks its sensor configuration by the OnePlus project number, which
+# the bootloader passes on the kernel command line (18821 on the 7 Pro).
+prj=$(tr ' ' '\n' < /proc/cmdline | sed -n 's/^androidboot.project_name=//p' | head -1)
+mkdir -p "$state/project_info"
+printf '%s' "${prj:-18821}" > "$state/project_info/project_name"
+
+chown -R "$owner" "$state"
+chmod -R u+rwX,go+rX "$state"

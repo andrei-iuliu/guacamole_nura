@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:01 +0000
+Subject: [PATCH 47/50] ASoC: sm8150: accept the DisplayPort back end
+
+A DisplayPort back end reaches the machine driver with a DAI id (104,
+DISPLAY_PORT_RX) that none of its three switches list, so opening, configuring
+and closing a stream to an external display each log an "invalid dai id" error.
+The streams are not rejected - those default branches only print - but the log
+is misleading.
+
+The DisplayPort controller configures its own audio path, so there is nothing
+for the machine driver to do beyond not complaining.
+
+Source: hotdog-linux-bringup
+aports/device/testing/linux-oneplus-hotdog-mainline616/0051-asoc-sm8150-accept-the-displayport-backend.patch
+(https://github.com/Sr-0w/hotdog-linux-bringup); rebased onto this tree, where
+0008 already moved QUATERNARY_MI2S_RX into its own shutdown case.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ sound/soc/qcom/sm8150.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/sound/soc/qcom/sm8150.c b/sound/soc/qcom/sm8150.c
+index 93294d6..459f7ea 100644
+--- a/sound/soc/qcom/sm8150.c
++++ b/sound/soc/qcom/sm8150.c
+@@ -209,6 +209,9 @@ static int sm8150_snd_hw_params(struct snd_pcm_substream *substream,
+ 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
+ 		ret = sm8150_slim_snd_hw_params(substream, params);
+ 		break;
++	case DISPLAY_PORT_RX:
++		/* the DP controller configures its own audio path */
++		break;
+ 	default:
+ 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
+ 		break;
+@@ -335,6 +338,7 @@ static int sm8150_snd_startup(struct snd_pcm_substream *substream)
+ 		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
+ 		break;
+ 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
++	case DISPLAY_PORT_RX:
+ 		break;
+ 	default:
+ 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
+@@ -366,6 +370,8 @@ static void sm8150_snd_shutdown(struct snd_pcm_substream *substream)
+ 			Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
+ 			0, SNDRV_PCM_STREAM_PLAYBACK);
+ 		break;
++	case DISPLAY_PORT_RX:
++		break;
+ 	default:
+ 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
+ 		break;
+-- 
+2.47.0
+

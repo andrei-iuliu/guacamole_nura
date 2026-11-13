@@ -1,0 +1,17 @@
+{
+  "scripts/rootfs_prepare_plasma.sh": {
+    "copy": "scripts/rootfs_prepare_local.sh",
+    "sha256": "820a7f272e3b5d5c410681a7734d70362ae24e986839e0e126d6130eb0264add",
+    "origin": "flows/local-storage/scripts/rootfs_prepare_local.sh"
+  },
+  "scripts/check_plasma_candidate.py": {
+    "copy": "scripts/check_local_candidate.py",
+    "sha256": "97313230401035bbf440be510ef81a078dbb16a6aee2703e8b85ab72c6fcaaf1",
+    "origin": "flows/local-storage/scripts/check_local_candidate.py"
+  },
+  "scripts/build_bootimg_rear_camera.sh": {
+    "copy": "scripts/build_local_bootimg.sh",
+    "sha256": "29733f847695318013a179a8175f5ce2a59ccff1c24b2fa25c7f960bb1862583",
+    "origin": "flows/local-storage/scripts/build_local_bootimg.sh"
+  }
+}

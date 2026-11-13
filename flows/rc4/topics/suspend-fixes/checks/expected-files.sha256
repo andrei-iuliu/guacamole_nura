@@ -1,0 +1,10 @@
+# Expected sha256 of the files produced by patches/0044 and 0045 on top of the
+# rc3-patched 7.0.0-sm8150 sources.  Used by checks/patch_apply_check.sh.
+b977b1fcec42bf72a518c0bb41acc9f22c72c10fdca923ee2f7d208ef4211e1d  drivers/soc/qcom/Kconfig
+37b155f05d6c6698305d88f05fbcca1910497e84be9d2cfb2e0e8b2ccc6df32a  drivers/soc/qcom/Makefile
+60cc32600d347107e95b6093c99f85f4d92b5e0f70e4a803cd84a9c72af739ce  drivers/soc/qcom/guacamole_mss_vote.c
+636c723294aea58ee4de2c4dbc33397331e55124fb1c478f75d7e3f1ad2da223  drivers/net/wireless/ath/ath10k/core.c
+6a317223ef3986e9763e0e7c79b02ca414abdd333f788b4cb25e2e6185901e49  drivers/net/wireless/ath/ath10k/core.h
+f2105a6b77ac1a6465f675a5d1819f0a720e9de1601b5ff10eca7c807e72cd07  drivers/net/wireless/ath/ath10k/mac.c
+10eb309ff647b98c5ca627cf89e1c9c9b058e3d2428827d8ddf76bfd29acabb7  drivers/net/wireless/ath/ath10k/wmi-tlv.c
+48961460a427c13ecb2126cdbc49a04e31d2a24f19fe60839641143d5b74dd19  drivers/net/wireless/ath/ath10k/wmi-tlv.h

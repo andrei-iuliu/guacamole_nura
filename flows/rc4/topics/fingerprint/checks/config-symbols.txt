@@ -1,0 +1,15 @@
+=== config symbols (final, after olddefconfig) ===
+CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"
+# CONFIG_LOCALVERSION_AUTO is not set
+CONFIG_QCOM_SCM=y
+CONFIG_QCOM_TZMEM=y
+# CONFIG_QCOM_TZMEM_MODE_GENERIC is not set
+CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y
+# CONFIG_CHR_DEV_SG is not set
+CONFIG_INPUT_GOODIX_FP=m
+# CONFIG_ANDROID_BINDERFS is not set
+CONFIG_TEE=y
+CONFIG_QCOMTEE=m
+
+=== kernelrelease ===
+7.0.0-sm8150-guacamole-rc4

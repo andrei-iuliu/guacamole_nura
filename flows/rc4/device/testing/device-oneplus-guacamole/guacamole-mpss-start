@@ -1,0 +1,150 @@
+#!/bin/sh
+# Start the SM8150 MPSS remoteproc and wait, with a bound, for "running".
+#
+# The SM8150 PAS descriptor (drivers/remoteproc/qcom_q6v5_pas.c,
+# mpss_resource_init) sets auto_boot=false, so the modem stays offline until a
+# user-space starter asks the remoteproc core to start it. This is the shared
+# OpenRC/systemd starter. It deliberately does not use remoteproc0: class
+# indices depend on probe order and have differed between boots on this board.
+#
+# The GUACAMOLE_* paths and timeouts exist for the fake-sysfs tests. Production
+# uses the defaults; systemd ordering provides rmtfs/tqftpserv readiness.
+set -u
+
+class=${GUACAMOLE_REMOTEPROC_CLASS:-/sys/class/remoteproc}
+ipa_module=${GUACAMOLE_MPSS_IPA_MODULE:-/sys/module/ipa}
+ipa_driver=${GUACAMOLE_MPSS_IPA_DRIVER:-/sys/bus/platform/drivers/ipa}
+compatible=${GUACAMOLE_MPSS_COMPATIBLE:-qcom,sm8150-mpss-pas}
+name=${GUACAMOLE_MPSS_NAME:-modem}
+ipa_timeout=${GUACAMOLE_MPSS_IPA_TIMEOUT:-30}
+start_timeout=${GUACAMOLE_MPSS_START_TIMEOUT:-30}
+poll=${GUACAMOLE_MPSS_POLL_INTERVAL:-1}
+
+log() {
+	printf 'guacamole-mpss-start: %s\n' "$*"
+}
+
+die() {
+	printf 'guacamole-mpss-start: %s\n' "$*" >&2
+	exit 1
+}
+
+read_value() {
+	[ -r "$1" ] || return 1
+	_read_value=
+	IFS= read -r _read_value < "$1" || [ -n "$_read_value" ] || return 1
+	printf '%s\n' "$_read_value"
+}
+
+matches_compatible() {
+	[ -r "$1/device/of_node/compatible" ] || return 1
+	tr '\0' '\n' < "$1/device/of_node/compatible" | grep -Fxq "$compatible"
+}
+
+# The modem data path needs IPA bound before MPSS starts. Waiting for the
+# module alone is not enough: probe can still be in flight.
+ipa_ready() {
+	[ -d "$ipa_module" ] || return 1
+	[ -d "$ipa_driver" ] || return 1
+	for dev in "$ipa_driver"/*; do
+		case ${dev##*/} in
+			bind|unbind|uevent|module)
+				continue
+				;;
+		esac
+		[ -d "$dev" ] && return 0
+	done
+	return 1
+}
+
+by_compatible=
+by_compatible_count=0
+by_name=
+by_name_count=0
+for entry in "$class"/*; do
+	[ -d "$entry" ] || continue
+	if matches_compatible "$entry"; then
+		by_compatible=${by_compatible:-$entry}
+		by_compatible_count=$((by_compatible_count + 1))
+	elif entry_name=$(read_value "$entry/name") && [ "$entry_name" = "$name" ]; then
+		by_name=${by_name:-$entry}
+		by_name_count=$((by_name_count + 1))
+	fi
+done
+
+if [ "$by_compatible_count" -eq 1 ]; then
+	rproc=$by_compatible
+elif [ "$by_compatible_count" -gt 1 ]; then
+	die "multiple remoteprocs match $compatible under $class"
+elif [ "$by_name_count" -eq 1 ]; then
+	rproc=$by_name
+elif [ "$by_name_count" -gt 1 ]; then
+	die "multiple remoteprocs are named $name under $class"
+else
+	die "no remoteproc named $name or compatible with $compatible under $class"
+fi
+
+state=$(read_value "$rproc/state") || die "cannot read state from $rproc"
+case $state in
+	running)
+		log "MPSS already running ($rproc)"
+		exit 0
+		;;
+	offline)
+		;;
+	crashed)
+		die "MPSS is crashed ($rproc); refusing to restart it automatically"
+		;;
+	*)
+		die "MPSS is '$state' ($rproc); refusing to start from an unexpected state"
+		;;
+esac
+
+if ! ipa_ready; then
+	log "waiting up to ${ipa_timeout}s for IPA"
+	deadline=$(( $(date +%s) + ipa_timeout ))
+	while ! ipa_ready; do
+		if [ "$(date +%s)" -ge "$deadline" ]; then
+			die "IPA is not ready after ${ipa_timeout}s (need $ipa_module and a device bound to $ipa_driver)"
+		fi
+		sleep "$poll"
+	done
+fi
+
+# IPA loading can take long enough for something else to start MPSS.
+state=$(read_value "$rproc/state") || die "cannot read state from $rproc"
+case $state in
+	running)
+		log "MPSS already running ($rproc)"
+		exit 0
+		;;
+	offline)
+		;;
+	crashed)
+		die "MPSS is crashed ($rproc); refusing to restart it automatically"
+		;;
+	*)
+		die "MPSS is '$state' ($rproc); refusing to start from an unexpected state"
+		;;
+esac
+
+log "starting MPSS ($rproc)"
+printf 'start\n' > "$rproc/state" || die "cannot write 'start' to $rproc/state"
+
+deadline=$(( $(date +%s) + start_timeout ))
+while :; do
+	state=$(read_value "$rproc/state") || state=unknown
+	case $state in
+		running)
+			log "MPSS is running ($rproc)"
+			exit 0
+			;;
+		crashed)
+			die "MPSS crashed while starting ($rproc)"
+			;;
+	esac
+	if [ "$(date +%s)" -ge "$deadline" ]; then
+		die "MPSS did not reach running within ${start_timeout}s (state: $state, $rproc)"
+	fi
+	sleep "$poll"
+done

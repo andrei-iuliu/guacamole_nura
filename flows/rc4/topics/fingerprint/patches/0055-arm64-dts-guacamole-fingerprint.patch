@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: guacamole_nura rc4 proposal <nura-rc4@example.invalid>
+Date: Fri, 13 Nov 2026 12:00:00 +0000
+Subject: [PATCH] arm64: dts: guacamole: add gated goodix fingerprint node
+
+Add the Goodix under-display fingerprint node and its IRQ pinctrl state
+for the OnePlus 7 Pro. The node keeps the stock pin assignment (GPIO 101
+supply, 118 interrupt, 131 reset) and the downstream chip/lcd names read
+by /proc/fp_id and /proc/lcd_type.
+
+The node is deliberately status = "disabled": rc4 ships gate-1
+groundwork, not authentication. Leave it disabled until gate 0
+(QCOMTEE/QTEE) is verified on the phone, then change it to "okay" and
+load goodix_fp with allow_power=1 for the gate-1 reset test.
+
+GPIO 90 is the stock sensor-variant ID strap. This driver does not read
+it; the chip name comes from the node. GPIOs 90, 101, 118 and 131 are
+unused in the 7.0 guacamole tree; 90 and 101 only appear in default
+pinctrl states of unused QUP SPI groups.
+
+Signed-off-by: guacamole_nura rc4 proposal <nura-rc4@example.invalid>
+---
+
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
+@@ -133,4 +133,6 @@
+ 
+ #include "sm8150-oneplus-guacamole-nura.dtsi"
+ 
++#include "sm8150-oneplus-guacamole-fingerprint.dtsi"
++
+ #include "sm8150-oneplus-guacamole-rear.dtsi"
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-fingerprint.dtsi
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * OnePlus 7 Pro (guacamole) Goodix optical fingerprint sensor, for kernel
++ * patch 0051 (goodix_fp).
++ *
++ * Pins and names from the stock device tree, LineageOS
++ * android_kernel_oneplus_sm8150 (lineage-23.2),
++ * arch/arm64/boot/dts/18821/sm8150-mtp.dtsi (oplus_fp_common, goodix_fp) and
++ * sm8150-pinctrl.dtsi (gpio_goodix_irq_default):
++ *   GPIO 90  sensor variant ID, pull-up input (not consumed by 0051)
++ *   GPIO 101 supply enable, high = on (power-mode 2)
++ *   GPIO 118 interrupt, rising edge, 2 mA, no bias
++ *   GPIO 131 reset, low = held in reset
++ *
++ * The include is placed after the nura delta and before the rear-camera
++ * include, so the end-of-file slot stays free for the popup-camera include.
++ *
++ * GATE 1 IS DISABLED ON PURPOSE. Leave status = "disabled" until gate 0
++ * (QCOMTEE/QTEE) has been verified on the phone. To run the gate-1 test,
++ * change status to "okay" AND load goodix_fp with allow_power=1. Both steps
++ * are required; either one alone cannot power or reset the sensor.
++ */
++/ {
++	fingerprint {
++		compatible = "goodix,goodix_fp";
++		status = "disabled";
++		interrupts-extended = <&tlmm 118 IRQ_TYPE_EDGE_RISING>;
++		reset-gpios = <&tlmm 131 GPIO_ACTIVE_LOW>;
++		power-gpios = <&tlmm 101 GPIO_ACTIVE_HIGH>;
++		pinctrl-0 = <&fp_irq_default>;
++		pinctrl-names = "default";
++
++		/* /proc/fp_id and /proc/lcd_type, read by the stock HAL */
++		oplus,chip-name = "G_OPTICAL_18821_G2_4";
++		oplus,lcd-type = "samsung";
++	};
++};
++
++&tlmm {
++	fp_irq_default: fp-irq-default-state {
++		pins = "gpio118";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		input-enable;
++	};
++};

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * OnePlus 7 Pro (guacamole) Goodix optical fingerprint sensor, for
+ * kernel/0034 (goodix_fp). Include from sm8150-oneplus-guacamole.dts on the
+ * 7.0 tree (needs <dt-bindings/gpio/gpio.h> and
+ * <dt-bindings/interrupt-controller/irq.h>).
+ *
+ * Pins and names from the stock device tree, LineageOS
+ * android_kernel_oneplus_sm8150 (lineage-23.2),
+ * arch/arm64/boot/dts/18821/sm8150-mtp.dtsi L100-L132 (oplus_fp_common,
+ * goodix_fp) and sm8150-pinctrl.dtsi (gpio_goodix_irq_default).
+ * Stock drives reset low to hold the sensor in reset and the power GPIO high
+ * to power it (power-mode 2, default poweron-level 1).
+ */
+
+/ {
+	fingerprint {
+		compatible = "goodix,goodix_fp";
+		interrupts-extended = <&tlmm 118 IRQ_TYPE_EDGE_RISING>;
+		reset-gpios = <&tlmm 131 GPIO_ACTIVE_LOW>;
+		power-gpios = <&tlmm 101 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&fp_irq_default>;
+		pinctrl-names = "default";
+
+		/* /proc/fp_id and /proc/lcd_type, read by the stock HAL */
+		oplus,chip-name = "G_OPTICAL_18821_G2_4";
+		oplus,lcd-type = "samsung";
+	};
+};
+
+&tlmm {
+	fp_irq_default: fp-irq-default-state {
+		pins = "gpio118";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

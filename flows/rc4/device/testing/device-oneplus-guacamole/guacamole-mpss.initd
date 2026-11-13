@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+name="MPSS remoteproc"
+description="Start Qualcomm MPSS modem processor for WCN3990 WiFi"
+
+depend() {
+	need rmtfs
+	after pd-mapper tqftpserv
+}
+
+start() {
+	ebegin "Booting MPSS remoteproc"
+	/usr/libexec/guacamole-mpss-start
+	eend $?
+}

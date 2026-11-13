@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:05 +0000
+Subject: [PATCH] arm64: dts: qcom: guacamole: enable DisplayPort alt mode video
+
+Add USB-C DisplayPort output: the FSA4480 SBU/AUX switch on QUP0 SE4 with its
+EN# pin, the DP controller enabled with two lanes, and the DisplayPort
+alternate mode advertised on the PM8150B Type-C connector.
+
+The node set is the one the stock 18821 device tree uses (fsa4480@42 on
+qupv3_se4_i2c, fsa_usbc_ana_en on TLMM GPIO 100, sde_dp with two lanes), and it
+matches the upstream sm8150-hdk.dts layout for the same SoC and PMIC, including
+the altmode VDO and the SBU endpoint on port@2.
+
+The DP HPD path itself needs no property: qcom_pmic_typec registers a DRM DP
+HPD bridge on the connector node, and typec_displayport feeds it through
+drm_connector_oob_hotplug_event().
+
+This patch adds video only.  The DP audio link is a separate patch and is
+disabled by default there, because an enabled DAI link whose codec never
+registers defers the whole sound card.
+
+Kept in a separate file so the video and audio parts can be reviewed and
+dropped independently; sm8150-oneplus-guacamole-nura.dtsi includes it.
+
+Compiled as part of the rc4 integration with the kernel's own dtc: 0 errors and
+no new warnings versus the unpatched tree.  Not booted on hardware.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi  | 83 ++++++++++++
+ arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi         |  2 +
+ 2 files changed, 85 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi
+new file mode 100644
+index 0000000..5f2709d
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi
+@@ -0,0 +1,83 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * DisplayPort Alt Mode for the OnePlus 7 Pro (guacamole), kernel v7.0.0-sm8150.
++ *
++ * USB-C DisplayPort output needs four things on top of the SoC description in
++ * sm8150.dtsi: the FSA4480 SBU/AUX switch on QUP0 SE4, that switch's enable
++ * pin, the DP controller enabled with two lanes (the other two carry USB3),
++ * and the DisplayPort alternate mode advertised on the PM8150B Type-C
++ * connector.  HPD then reaches the DP driver through the DRM HPD bridge that
++ * qcom_pmic_typec registers on the connector node; no extra property is
++ * needed for it.
++ *
++ * Stock references: arch/arm64/boot/dts/18821/sm8150-audio.dtsi fsa4480@42,
++ * sm8150-pinctrl.dtsi fsa_usbc_ana_en, guacamole_t0.dtsi sde_dp tuning.
++ * Mainline analogue for the same SoC and PMIC: sm8150-hdk.dts.
++ */
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/sound/qcom,q6afe.h>
++
++&tlmm {
++	/* FSA4480 EN# (active low) */
++	fsa_usbc_ana_en: fsa-usbc-ana-en-state {
++		pins = "gpio100";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		output-low;
++	};
++};
++
++&i2c4 {
++	/*
++	 * FSA4480 USB-C SBU/AUX switch, next to the TFA9874 speaker amps.
++	 * The driver requests no interrupt, so EN# is held by the pinctrl
++	 * default state above.
++	 */
++	typec-mux@42 {
++		compatible = "fcs,fsa4480";
++		reg = <0x42>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&fsa_usbc_ana_en>;
++		mode-switch;
++		orientation-switch;
++
++		port {
++			fsa4480_sbu_mux: endpoint {
++				remote-endpoint = <&pm8150b_sbu_mux_in>;
++			};
++		};
++	};
++};
++
++&mdss_dp {
++	status = "okay";
++};
++
++/* Two lanes: the DP+USB pin assignment carries USB3 on the other two. */
++&mdss_dp_out {
++	data-lanes = <0 1>;
++};
++
++&pm8150b_typec {
++	connector {
++		altmodes {
++			displayport {
++				svid = /bits/ 16 <0xff01>;
++				vdo = <0x00001c46>;
++			};
++		};
++
++		ports {
++			/* port@2 is the SBU pair, routed through the FSA4480 */
++			port@2 {
++				reg = <2>;
++
++				pm8150b_sbu_mux_in: endpoint {
++					remote-endpoint = <&fsa4480_sbu_mux>;
++				};
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+index a8c7805..aafda21 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -660,3 +660,5 @@
+ 		led-max-microamp = <70000>;
+ 	};
+ };
++
++#include "sm8150-oneplus-guacamole-displayport.dtsi"
+-- 
+2.47.0
+

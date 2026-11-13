@@ -1,0 +1,44 @@
+From: Nura local device port
+Subject: [PATCH] Input: add the Awinic AW8697 LRA haptics driver
+
+The OnePlus 7 Pro and 7T Pro use an AW8697 at i2c 0x5a.  The 7.0 tree
+only has the register-incompatible AW86927 driver, whose compatible and
+chip ID differ, so the haptics part never binds.  Add the AW8697 driver
+ported from the reviewed OnePlus 7T Pro (hotdog) bring-up work; it exposes
+FF_RUMBLE through input_ff_create_memless and reprograms the stock 170 Hz
+actuator profile.
+
+Source-only port: not compiled in this source change.
+
+--- a/drivers/input/misc/Kconfig
++++ b/drivers/input/misc/Kconfig
+@@ -137,6 +137,19 @@
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called aw86927.
+ 
++config INPUT_AW8697
++	tristate "Awinic AW8697 LRA haptics driver"
++	depends on I2C && INPUT
++	select INPUT_FF_MEMLESS
++	select REGMAP_I2C
++	help
++	  Say Y here if you have an Awinic AW8697 haptic chip.  This is
++	  the part used by the OnePlus 7 Pro and 7T Pro; it is not
++	  register-compatible with the AW86927 driver above.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called aw8697_haptics.
++
+ config INPUT_BBNSM_PWRKEY
+ 	tristate "NXP BBNSM Power Key Driver"
+ 	depends on ARCH_MXC || COMPILE_TEST
+--- a/drivers/input/misc/Makefile
++++ b/drivers/input/misc/Makefile
+@@ -23,6 +23,7 @@
+ obj-$(CONFIG_INPUT_ATLAS_BTNS)		+= atlas_btns.o
+ obj-$(CONFIG_INPUT_ATMEL_CAPTOUCH)	+= atmel_captouch.o
+ obj-$(CONFIG_INPUT_AW86927)		+= aw86927.o
++obj-$(CONFIG_INPUT_AW8697)		+= aw8697_haptics.o
+ obj-$(CONFIG_INPUT_BBNSM_PWRKEY)	+= nxp-bbnsm-pwrkey.o
+ obj-$(CONFIG_INPUT_BMA150)		+= bma150.o
+ obj-$(CONFIG_INPUT_CM109)		+= cm109.o

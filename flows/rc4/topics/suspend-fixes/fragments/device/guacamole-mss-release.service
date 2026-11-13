@@ -1,0 +1,25 @@
+# Opt-in unit for the runtime mss.lvl release.  It is the only integration:
+# there is deliberately no guacamole-mpss-start hook, because remoteproc
+# state=running proves the modem booted, not that the proxy MSS power domains
+# were handed over (topic README section 6).
+#
+# Enabling it on the phone is the opt-in:
+#
+#     systemctl enable --now guacamole-mss-release.service
+#
+# It is not enabled by 80-guacamole.preset.  With no modem running it waits
+# MSS_WAIT_TIMEOUT (120 s) and then fails; the boot must not hinge on the modem.
+[Unit]
+Description=OnePlus 7 Pro: release the AP vote on the modem rail
+After=rmtfs.service guacamole-mpss.service
+ConditionPathIsDirectory=/sys/class/remoteproc
+
+[Service]
+# exec, not oneshot: the script waits up to 120 s for the modem and must not
+# hold up multi-user.target meanwhile.
+Type=exec
+RemainAfterExit=yes
+ExecStart=/usr/libexec/guacamole-mss-release
+
+[Install]
+WantedBy=multi-user.target

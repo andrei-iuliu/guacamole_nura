@@ -1,0 +1,13 @@
+# Gate 0 + gate 1 kernel options, on top of the postmarketOS 7.0.0 sm8150 config
+# (gitlab.postmarketos.org/soc/qualcomm-sm8150/linux v7.0.0-sm8150).
+# 6.17 has no drivers/tee/qcomtee: gate 0 needs 7.0.
+CONFIG_TEE=y
+CONFIG_QCOMTEE=m
+# QCOMTEE selects SHM-bridge mode for the TrustZone memory allocator. If the
+# firmware has no SHM bridge, qcom_tzmem falls back by itself (-EOPNOTSUPP).
+# This changes the allocator for every qcom_scm user (PAS firmware loading,
+# QSEECOM/uefisecapp): check that the modem, ADSP and SLPI still boot.
+# CONFIG_QCOM_TZMEM_MODE_GENERIC is not set
+CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y
+# Gate 1: kernel/0034-input-misc-add-goodix-fp.patch
+CONFIG_INPUT_GOODIX_FP=m

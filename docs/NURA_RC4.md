@@ -1,0 +1,208 @@
+# Nura rc4 (source candidate): 7.0.0-sm8150-guacamole-rc4
+
+**Status: source candidate only. Nothing here is built, packaged, booted or
+tested on hardware by this work, and it must not be described as fixed or
+boot-ready until the full build and the parent's review are done.**
+
+This document describes what the rc4 source candidate changes relative to the
+booted rc3 (`7.0.0-sm8150-rc3`) and what still has to be verified on the phone.
+The integration lives in `flows/rc4/` (see `flows/rc4/README.md` for the exact
+build commands and `flows/rc4/REVIEW.md` for the review record).
+
+## 0. rc4b: hardware results and corrections (2026-11-13)
+
+rc4 was built and RAM-booted (`fastboot boot`, nothing flashed) on the phone
+with the local-userdata rootfs. Three findings changed the recipe; the result
+is **rc4b** (APKBUILD `pkgrel=6`, same `uname -r` `7.0.0-sm8150-guacamole-rc4`).
+
+| Finding on hardware | Evidence | rc4b change |
+| --- | --- | --- |
+| Boots, panel stays black | The only display difference vs the rc3 DTB is `displayport-controller@ae90000` `okay`; the same image with that node `disabled` showed the panel. **But the cause was `0036` (next row), not DP:** rc4b (without `0036`) with DP `okay` binds DSI *and* DP (`bound ae94000.dsi`, `bound ae90000.displayport-controller`), panel up, `devices_deferred` empty | none: `0057` stays as supplied (`mdss_dp` `okay`). A temporary `disabled` edit was tested and reverted |
+| Hard hang on unlock (screen unblank) | `dsi0_phy_pll_out_dsiclk: Zero divisor` (WARN `clk-divider.c:147`, kwin atomic commit) → `Failed to set rate pixel clk, -22` → panel init `-22` → DPU IRQ storm (`no registered cb`) → hang. The PLL divider read 0, consistent with the PHY register clock/power being off | `0036-dsi-phy-pm` **removed** (kept in `flows/rc4-reverted/`). rc4b: 3 lock/unlock cycles clean, 0 DSI errors, ~3 h 40 min stable |
+| DisplayPort to a dock/monitor | DP itself works: DP alt mode `ff01` entered, AUX/EDID (3440x1440 monitor, DPCD 1.4), link training at HBR2 ×2 succeeds, 3440×1440@60 24 bpp stream starts (`mainlink READY`). Then the **USB-PD session** drops: powered docks request `PR_SWAP` and the phone never receives the dock's `PS_RDY` → `ERROR_RECOVERY`/`PORT_RESET`; with `preferred_role=sink` the phone misses `Source_Capabilities`/`PS_RDY` → hard-reset loop; an unpowered HDMI adapter sticks in `SRC_ATTACH_WAIT` (tcpm requires `vbus_vsafe0v`, `tcpm.c:4821`). Suspects: pdphy RX in sink role and the nura VBUS-detection patches `0021`/`0023`/`0024` | none yet: USB-PD (`qcom_pmic_typec`) work for rc5 |
+| Microphone captures exact zeros on some boots | Full WCD934x DAPM path on, MCLK hold did not help, `SLIM TX0` list not stale (toggle test); codec TX0 only `Port Closed … value 4`, never the healthy `underflow … value 6`. Boot logs `QMI wait timeout` | `0059` (new): omarchy's 5 s QMI wait. **Not a proven fix**: the timeout still appears after 5 s on rc4b; the mic worked on the first rc4b boot, but the failure is intermittent |
+
+Notes:
+
+* Evidence (logs, DAPM snapshot, MCLK test): `flows/rc4/evidence-rc4b-20261113/`.
+* Rebuilding the kernel invalidates **every** module on the rootfs (BTF:
+  `failed to validate module [...] BTF: -22`) even with an identical release
+  string. The rc4b module tree must be installed with the rc4b Image; the
+  phone keeps the rc4 set in `/usr/lib/modules/rc4-original-modules`.
+* Rollback inputs: `flows/rc4/build-source/kernel-output.rc4-original/`,
+  `flows/rc4-recipe-backup-20261113/`,
+  `build-source/kernel-state/linux-v7.0.0-sm8150.rc4-original/`.
+* rc4b DTB was regenerated in place after re-enabling DP (DT-only change);
+  the kernel `Image` is unchanged, so the installed rc4b modules stay valid.
+* Also seen while docking: WCD934x headset detection WARNs
+  `ln_bb_clk2 already disabled/unprepared` from `__wcd934x_cdc_mclk_enable`
+  (MCLK refcount imbalance in the MBHC micbias path).
+* Still open: USB-PD with docks (above), the mic's intermittent mechanism,
+  GPU hangcheck in `plasmashell` at boot, Bluetooth `Frame reassembly failed`.
+
+## 1. What is in the candidate
+
+| Area | Change | Default state in rc4 |
+| --- | --- | --- |
+| Kernel identity | `CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"` → `uname -r` = `7.0.0-sm8150-guacamole-rc4` | — |
+| Suspend fixes | 0044 `guacamole_mss_vote` (MSS rail release) and 0045 ath10k SNOC key ack; 0042/0043 were already rc3 0034/0035 | module built; release unit installed but **not enabled**; no mpss-start hook |
+| Suspend policy | untouched | automatic suspend stays **disabled** (logind/PowerDevil) |
+| DisplayPort | 0057/0058 devicetree (FSA4480 + DP controller + SBU), 0046-0050 ASoC plumbing | DP video **enabled** (candidate), DP audio DAI link **`status="disabled"`** |
+| Fingerprint | 0051 goodix_fp driver (repaired), 0055 devicetree | driver built; DT node **`disabled`**; `goodix_fp.allow_power` defaults to **false**; QCOMTEE built but blacklisted |
+| Pop-up camera | 0052 MXM1120 Hall sensors, 0053 IMX471, 0054 motor/PM domain, 0056 devicetree | Hall sensors and LPG described; motor node **`disabled`**; front sensor node and CAMSS CSIPHY2 endpoint **not emitted** |
+| QCOMTEE / gate 0 | `CONFIG_QCOMTEE=m` | **`module_blacklist=qcomtee`** on the boot cmdline: the module cannot be autoloaded *or* explicitly loaded |
+| Rear cameras | unchanged from rc3 | three bindable CAMSS connections, all rear sensors and lenses as in rc3 |
+| Audio | unchanged except the disabled DP link | 11 available sound links, exactly as rc3 |
+
+Patch numbers: rc3 keeps `0001-0041` byte-for-byte; the rc4 additions are
+`0044-0058` (`0042`/`0043` are the rc3 equivalents of the two suspend patches
+and are **not** reapplied). The full map, including the two DisplayPort
+devicetree patches that deliberately carry numbers outside the DP block
+(`0057`/`0058`), is in `flows/rc4/README.md`.
+
+## 2. Corrections applied to the supplied material
+
+The input trees under `bringup-notes/Patches` were
+written against other baselines (6.17, other kernel trees, other package
+versions). These are the corrections the rc4 integration applies; each topic
+README has the full claim/evidence table.
+
+* **suspend-fixes**: 0025/0026 are already in rc3 (as 0034/0035) and were not
+  reapplied. 0027/0028 became 0044/0045. 0044 keeps its logic but prints why it
+  declines; 0045 gains a `running_fw` guard and latches after a timeout instead
+  of failing every later key operation with `-EIO`. The supplied APKBUILD and
+  device diffs target 6.17 and are replaced. The MSS release is **opt-in**: the
+  unit is installed but not in the preset, and there is no automatic hook,
+  because `state=running` does not prove that the proxy MSS power domains were
+  handed over (topic README §6).
+* **displayport**: the two supplied devicetree diffs edit the flattened 6.17
+  tree and cannot apply to 7.0; they were rewritten as
+  `sm8150-oneplus-guacamole-displayport.dtsi` (included from the board delta),
+  modelled on `sm8150-hdk.dts`. The audio DAI link is `status="disabled"`
+  because an enabled link whose DP codec never registers would defer the whole
+  sound card (no speakers, no mic). 0046 is a consistency fix, not the fix for
+  `-110`; 0048 is the only structural hypothesis and is inert while the link is
+  disabled.
+* **fingerprint**: 0034 was rebased and repaired (ioctl validation, IRQ
+  deadlock, file lifetime, netlink portid) and became 0051; the DT node became
+  0055 with `status="disabled"`. Gate 0's "passive by configuration" claim was
+  corrected: `qcomtee` has a platform modalias and would be autoloaded, hence
+  the kernel cmdline blacklist. `QCOMTEE` does not switch the TZMEM allocator on
+  this baseline (SHM-bridge is already set).
+* **popup-camera**: 0035/0036/0037 became 0052/0053/0054 (two Kconfig/Makefile
+  hunks moved past 7.0/rc3 entries; no driver code changed); the overlay became
+  0056, a static dtsi. Two claims were contradicted while integrating: the IMX471
+  is on CCI1 **master 1** (stock `cci-master = <1>`), and a CAMSS endpoint whose
+  remote sensor is disabled stalls `camss_subdev_notifier_complete()` and
+  removes **all** camera video nodes. The fragment therefore emits the sensor
+  node and the CAMSS endpoint only together, behind
+  `-DCAMERA_POPUP_SENSOR`, and the shipped DTB has neither.
+
+## 3. Deliberate gates
+
+These are properties of the candidate, checked rootlessly
+(`flows/rc4/scripts/rc4.sh check`):
+
+1. **MSS release**: `/usr/libexec/guacamole-mss-release` and
+   `guacamole-mss-release.service` are installed; the unit is **not** in
+   `80-guacamole.preset`; `guacamole-mpss-start` has no hook. Enabling it on the
+   phone is the opt-in:
+   `systemctl enable --now guacamole-mss-release.service`.
+2. **Suspend**: automatic suspend remains disabled in the rootfs policy
+   (`HandleSuspendKey=ignore`, `AutoSuspendAction=0`). 0042/0043 (already in
+   rc3) would only run if a suspend actually happened.
+3. **DisplayPort**: video enabled; `dp-dai-link` **disabled**. Do not ship the
+   `status="okay"` experiment as a release image.
+4. **Fingerprint**: DT node `disabled`; the driver refuses
+   `GF_IOC_ENABLE_POWER`/`GF_IOC_RESET` unless loaded with
+   `goodix_fp.allow_power=1`.
+5. **Pop-up camera**: motor node `disabled`; the front sensor and the CAMSS
+   CSIPHY2 endpoint are absent together by default. The motor must not be
+   enabled before the Hall thresholds of this unit are measured
+   (`flows/rc4/topics/popup-camera/docs/motor-procedure.md`).
+6. **QCOMTEE**: built as a module so gate 0 can be tested, but
+   `module_blacklist=qcomtee` is on the boot cmdline. That parameter is enforced
+   in `early_mod_check()` (`kernel/module/main.c`) for every load, not just
+   autoload, so a `modprobe qcomtee` will fail with "Module qcomtee is
+   blacklisted". A deliberate gate-0 test therefore needs a boot image without
+   that parameter; a modprobe.d file would not be enough.
+
+## 4. What is *not* claimed
+
+* rc4 is a **source candidate**. No kernel package, rootfs, boot image or APK
+  was built from it here, and no part of it has been booted.
+* The lock-screen crash the user saw after a successful local boot is **not
+  explained** by this candidate. Suspend/resume is a hypothesis (and the rootfs
+  policy does not suspend automatically), so the honest statement is: the crash
+  is reproducible on the booted local image, the cause is unknown, and none of
+  these patches is claimed to fix it.
+* The DisplayPort video path has never been booted. It compiles and mirrors an
+  upstream board; that is all.
+* DisplayPort audio does not work as far as anyone knows. The shipped default
+  makes sure it cannot break the working audio card.
+* The pop-up camera cannot move: the motor node is disabled and the sensor is
+  not in the default DTB.
+* The fingerprint sensor cannot authenticate. This is power/reset/IRQ
+  groundwork plus a gated probe path, nothing more.
+* QCOMTEE/QTEE behaviour on SM8150 is unverified: mainline uses
+  `qcom_scm` fnid `0x0602` while stock uses `0x32000600` (cmd `0x00`), and the
+  SM8150 firmware may or may not accept both.
+
+## 5. Hardware tests still required (after a full build and review)
+
+Run these in this order; each one has a "stop" condition. Nothing here is a
+substitute for the parent's review of the built artifacts.
+
+1. **Boot and identify**: `uname -r` must be `7.0.0-sm8150-guacamole-rc4`;
+   `dmesg | grep -iE 'qcomtee|blacklist'` must show no qcomtee load.
+2. **Regression sweep on the default image** (no opt-ins): three rear cameras
+   (`cam`/libcamera), speakers, internal mic, haptics, alert slider, modem
+   (`mmcli -m any`), clock, boot diagnostics. Any regression here stops the
+   trial before the optional features are touched.
+3. **QCOMTEE gate 0 (passive)**: `lsmod | grep qcomtee` must be empty. Only for
+   the deliberate probe, rebuild the boot image without the blacklist and load
+   it by hand; expect `-EIO` or a feature query, not authentication.
+4. **DisplayPort video**: dock with a monitor, check
+   `/sys/class/typec/port0-partner/*/svid` = `ff01`, `card*-DP-1/status` =
+   `connected`, and 60 Hz output (two lanes; 120 Hz is unverified). Then unplug
+   and confirm USB gadget SSH and the speakers still work.
+5. **MSS release (opt-in)**: enable `guacamole-mss-release.service`, expect
+   `proxy handover observed` and `mss.lvl corner 0`, then 5-10 minutes
+   screen-off with the modem online. Do **not** unload the module with the modem
+   running (it re-votes corner 9). Rollback: `systemctl disable --now` and reboot.
+6. **Fingerprint gate 1 (opt-in, doubly gated)**: flip the DT node to `okay`
+   *and* load `goodix_fp` with `allow_power=1`; only a reset-time interrupt is
+   meaningful. Authentication is out of scope (no HAL, no TrustZone transport).
+7. **Pop-up camera**: measure the Hall values first
+   (`flows/rc4/topics/popup-camera/docs/motor-procedure.md`), then a bounded
+   pulse, then courses. Never with the sensor enabled and the motor disabled.
+8. **The lock-screen crash**: reproduce it with `dmesg -w` attached, record
+   `/sys/class/remoteproc/*/{name,state}`, `/sys/power/suspend_stats/*` and the
+   last frames before the freeze. That log is the only way to turn the
+   suspend/resume hypothesis into a diagnosis.
+
+## 6. Next user-run command
+
+```bash
+# 0. read-only verification of the source candidate (writes nothing)
+bash flows/rc4/scripts/rc4.sh check
+
+# 0b. executable proof of the kernel -> rootfs contract (fake builder, rootless)
+bash flows/rc4/scripts/rc4.sh contract
+
+# 1. build the rc4 kernel package (rootless, isolated under flows/rc4)
+#    leaves build-source/kernel-state/output, kernel-output/kernel-package,
+#    kernel-output/Image and kernel-output/kernel-inputs.json
+bash flows/rc4/scripts/rc4.sh kernel
+
+# 2. after reviewing the kernel output, build the local-rootfs image
+bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
+
+# 3. repack the boot image only (optional, after a rootfs rebuild)
+bash flows/rc4/scripts/rc4.sh bootimg
+```
+
+None of these commands flashes, boots, mounts, repartitions or restarts
+anything, and the userdata upgrade path is deliberately not automated: the
+user already has a local Linux on `userdata`, and the delivery method for the
+candidate is the parent's decision after reviewing the actual build.

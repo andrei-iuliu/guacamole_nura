@@ -1,0 +1,9 @@
+filename:       runtime-workspace/flows/rc4/topics/fingerprint/artifacts/goodix_fp.ko
+description:    Goodix optical fingerprint sensor power/IRQ (OnePlus downstream ABI)
+license:        GPL
+name:           goodix_fp
+depends:        
+alias:          of:N*T*Cgoodix,goodix_fp
+alias:          of:N*T*Cgoodix,goodix_fpC*
+vermagic:       7.0.0-sm8150-guacamole-rc4 SMP preempt mod_unload aarch64
+parm:           allow_power:Allow userspace to power/reset the sensor (gate 1 opt-in) (bool)
