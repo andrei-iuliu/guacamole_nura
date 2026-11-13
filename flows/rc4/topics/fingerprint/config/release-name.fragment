@@ -1,0 +1,3 @@
+# New rc4 kernel identity.  Do not relabel or overwrite rc3 artifacts.
+CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"
+# CONFIG_LOCALVERSION_AUTO is not set

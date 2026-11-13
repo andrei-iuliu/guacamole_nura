@@ -1,0 +1,27 @@
+# Tiny startup snapshot written to the persistent journal.  There is no
+# StateDirectory and no file output: stdout is the journal, which supplies
+# _BOOT_ID and __MONOTONIC_TIMESTAMP.  The kernel journal is already persisted
+# separately; this unit does not copy or filter it.  See
+# docs/NURA_BOOT_DIAGNOSTICS.md.
+[Unit]
+Description=Nura bounded boot diagnostics snapshot
+After=local-fs.target systemd-journald.service
+Wants=systemd-journald.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nura-boot-diagnostics
+StandardOutput=journal
+TimeoutStartSec=15
+# The snapshot only reads /proc, /sys and the journal.  It must not gain
+# privileges, write files, see home directories or load modules.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

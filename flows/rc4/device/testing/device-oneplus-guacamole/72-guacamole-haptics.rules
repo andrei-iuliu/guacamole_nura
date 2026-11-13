@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Haptics and alert-slider input devices on the OnePlus 7 Pro (guacamole).
+#
+# feedbackd only uses input devices tagged FEEDBACKD_TYPE=vibra, and its
+# own 72-feedbackd.rules matches a fixed list of input names that does not
+# include the AW8697 driver's name.  This file must sort before
+# 73-seat-late.rules so TAG+="uaccess" is applied to the event device; the
+# Plasma session runs as the normal user and is not in the feedbackd group.
+#
+# The ATTRS{name} values must match the driver input names exactly:
+#   drivers/input/misc/aw8697-haptics.c : "Awinic AW8697 haptics"
+#   sm8150-oneplus-guacamole-nura.dtsi  : label = "Alert slider"
+
+ACTION=="remove", GOTO="guacamole_haptics_end"
+
+# Awinic AW8697 LRA haptics (FF_RUMBLE)
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT}=="1", SUBSYSTEMS=="input", \
+  ATTRS{name}=="Awinic AW8697 haptics", TAG+="uaccess", ENV{FEEDBACKD_TYPE}="vibra"
+
+# Three-position alert slider (ABS_SND_PROFILE)
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT}=="1", SUBSYSTEMS=="input", \
+  ATTRS{name}=="Alert slider", TAG+="uaccess", ENV{FEEDBACKD_TYPE}="alert-slider"
+
+LABEL="guacamole_haptics_end"

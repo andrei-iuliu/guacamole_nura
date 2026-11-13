@@ -1,0 +1,563 @@
+{
+  "topic": "popup-camera",
+  "status": "source-only; rebased, compiled, DT-verified; no hardware result",
+  "task_id": "task_123136fa6744",
+  "dispatch_id": "ctx_f649452b9580",
+  "generated_utc": "2026-11-13T13:21:14Z",
+  "owned_root": "flows/rc4/topics/popup-camera",
+  "toolchain": "clang 23.1.4 / ld.lld; kernel v7.0.0-sm8150 + rc3 0001-0041",
+  "baseline": {
+    "repository": "runtime-workspace",
+    "recipe": "runtime-workspace/device/testing/rc3/linux-postmarketos-qcom-sm8150",
+    "recipe_highest_existing_patch": "0041-arm64-dts-guacamole-haptics-alert-slider.patch",
+    "kernel_source": "bringup-notes/nura-rc3-20261112/kernel-device/work/linux-v7.0.0-sm8150",
+    "kernel_source_note": "v7.0.0-sm8150 + rc3 patches 0001-0041, no popup patches; not a git repo, no .config",
+    "kernel_config": "runtime-workspace/device/testing/rc3/linux-postmarketos-qcom-sm8150/config-postmarketos-qcom-sm8150.aarch64",
+    "new_patch_numbers": [
+      "0052",
+      "0053",
+      "0054"
+    ],
+    "reserved_for_other_topics": "0042-0051",
+    "desired_release": "7.0.0-sm8150-guacamole-rc4",
+    "release_mechanism": "CONFIG_LOCALVERSION=\"-sm8150-guacamole-rc4\" (rc3 uses -sm8150-rc3)"
+  },
+  "supplied_files": [
+    {
+      "path": "bringup-notes/Patches/popup-camera/README.md",
+      "sha256": "b18f62c755941fb66c413e639c3542c27c100ddfcdf54971841f8ec8f3518cd5",
+      "bytes": 10729,
+      "source": "README.md",
+      "disposition": "integrated",
+      "disposition_detail": "Handoff instructions consolidated into README.md + docs/rc4-device-notes.md. Contradicted claims are not carried (CCI master, 0036 applying on rc3, ~90 fps); see README section 6. The 6.17 Phase-0/overlay/libcamera plan is not reproduced: rc4 already has the camera foundation and no overlay loader.",
+      "derived": [
+        "README.md",
+        "docs/rc4-device-notes.md"
+      ]
+    },
+    {
+      "path": "bringup-notes/Patches/popup-camera/docs/motor-procedure.md",
+      "sha256": "faed5bd65c3688fca4a10b14833caa2a4b31e6cc892f1f4e9f1417bb441ec664",
+      "bytes": 5626,
+      "source": "docs/motor-procedure.md",
+      "disposition": "integrated",
+      "disposition_detail": "Copied byte-identically to docs/motor-procedure.md; rc4 deltas in docs/rc4-device-notes.md. No step executed.",
+      "derived": [
+        "docs/motor-procedure.md",
+        "docs/rc4-device-notes.md"
+      ]
+    },
+    {
+      "path": "bringup-notes/Patches/popup-camera/dts/0001-guacamole-camera-add-popup-front.diff",
+      "sha256": "7a5fa6bee187e6ff462872607d4c4b2fb51d10bdce9e8d4223b81f38b598ef10",
+      "bytes": 8148,
+      "source": "dts/0001-guacamole-camera-add-popup-front.diff",
+      "disposition": "integrated",
+      "disposition_detail": "Rebased from an omarchy-mobile runtime overlay into dt/sm8150-oneplus-guacamole-popup.dtsi. Node content, pin states, GPIOs, supplies, CSIPHY2 port carried; #ifdef slot mechanics and build_camera_overlay.sh variant dropped. Corrections: cci1 master 1 (stock cci-master=<1>) and qupv3_id_0 enabled.",
+      "derived": [
+        "dt/sm8150-oneplus-guacamole-popup.dtsi",
+        "fragments/guacamole-dts-include.txt",
+        "fragments/rear-dtsi-cci1-gate.diff",
+        "fragments/config.fragment"
+      ]
+    },
+    {
+      "path": "bringup-notes/Patches/popup-camera/kernel/0035-iio-magnetometer-add-mxm1120.patch",
+      "sha256": "348a3594306f89b77d99fec81c3dc05bdd7ba36f2da50697e2d77466e5f9f62b",
+      "bytes": 9945,
+      "source": "kernel/0035-iio-magnetometer-add-mxm1120.patch",
+      "disposition": "integrated",
+      "disposition_detail": "Renumbered 0052; Kconfig+Makefile hunks moved past MMC5633. Driver/binding bytes unchanged.",
+      "derived": [
+        "patches/0052-iio-magnetometer-add-mxm1120.patch",
+        "src/mxm1120.c"
+      ]
+    },
+    {
+      "path": "bringup-notes/Patches/popup-camera/kernel/0036-media-i2c-add-imx471.patch",
+      "sha256": "dccec873980c62e432f19c25e81a6541fe7b08a78fcf374cc7b08cdedf8367dd",
+      "bytes": 35498,
+      "source": "kernel/0036-media-i2c-add-imx471.patch",
+      "disposition": "integrated",
+      "disposition_detail": "Renumbered 0053; Kconfig hunk moved past the IMX481/IMX586 entries added by rc3 0029. Driver bytes unchanged.",
+      "derived": [
+        "patches/0053-media-i2c-add-imx471.patch",
+        "src/imx471.c"
+      ]
+    },
+    {
+      "path": "bringup-notes/Patches/popup-camera/kernel/0037-media-qcom-add-oneplus-popup-motor.patch",
+      "sha256": "53b7e2226a0a438e2dc37e3ca320a4dcb9314cd6ff436450b216df3384c26922",
+      "bytes": 30046,
+      "source": "kernel/0037-media-qcom-add-oneplus-popup-motor.patch",
+      "disposition": "integrated",
+      "disposition_detail": "Renumbered 0054 only; applies unchanged. Driver bytes unchanged. Compiled, not tested.",
+      "derived": [
+        "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch",
+        "src/hotdog-popup-motor.c"
+      ]
+    }
+  ],
+  "derived_files": [
+    {
+      "path": "patches/0052-iio-magnetometer-add-mxm1120.patch",
+      "sha256": "21af9acbb8b24cf8935e1501e5d158e103c898f6aa127119db369555b2c9bed3",
+      "bytes": 9542,
+      "kind": "kernel-patch",
+      "purpose": "MXM1120 Hall driver + binding + Kconfig/Makefile, rebased on rc3",
+      "depends_on": [
+        "kernel/0035-iio-magnetometer-add-mxm1120.patch"
+      ]
+    },
+    {
+      "path": "patches/0053-media-i2c-add-imx471.patch",
+      "sha256": "bc699e2bc40ae0a88474f446e594ed498b2e85d37014bb88482af9b2676b37d6",
+      "bytes": 35375,
+      "kind": "kernel-patch",
+      "purpose": "IMX471 front sensor driver + Kconfig/Makefile, rebased on rc3",
+      "depends_on": [
+        "kernel/0036-media-i2c-add-imx471.patch"
+      ]
+    },
+    {
+      "path": "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch",
+      "sha256": "bfd5188c5aadca3c2277b572b21c39d7d7d8fc72780b82470b2a40c4e2fb7d8b",
+      "bytes": 29709,
+      "kind": "kernel-patch",
+      "purpose": "Motor driver, binding, PM domain provider; unchanged from 0037",
+      "depends_on": [
+        "kernel/0037-media-qcom-add-oneplus-popup-motor.patch"
+      ]
+    },
+    {
+      "path": "dt/sm8150-oneplus-guacamole-popup.dtsi",
+      "sha256": "358dd23533f38c8544f0b74127a1d5e693b729fd1d7d4f1b32a4a0cfff6cd3c4",
+      "bytes": 10865,
+      "kind": "devicetree-fragment",
+      "purpose": "Static board description (halls on i2c1, PM8009 LDO3, motor node + PMIC pin states, CSIPHY2 port@2, IMX471 on cci1 master 1); motor and sensor status=disabled; non-isolate DTB only",
+      "depends_on": [
+        "dts/0001-guacamole-camera-add-popup-front.diff",
+        "patches/0052-iio-magnetometer-add-mxm1120.patch",
+        "patches/0053-media-i2c-add-imx471.patch",
+        "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch"
+      ]
+    },
+    {
+      "path": "fragments/config.fragment",
+      "sha256": "38359890d0138f04213626a4a137c5c05c07b619439eacaada12fa85444d0b17",
+      "bytes": 1841,
+      "kind": "build-fragment",
+      "purpose": "CONFIG_MXM1120=m, CONFIG_VIDEO_IMX471=m, CONFIG_VIDEO_QCOM_HOTDOG_POPUP=m + dependency audit",
+      "depends_on": [
+        "patches/0052-iio-magnetometer-add-mxm1120.patch",
+        "patches/0053-media-i2c-add-imx471.patch",
+        "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch"
+      ]
+    },
+    {
+      "path": "fragments/APKBUILD.sources.txt",
+      "sha256": "910f66ab3ce671327569b30278fc505a4146e1bf633c65465c8f1e9c8d6719a1",
+      "bytes": 798,
+      "kind": "build-fragment",
+      "purpose": "Three source= lines for the rc4 APKBUILD, in apply order",
+      "depends_on": [
+        "patches/0052-iio-magnetometer-add-mxm1120.patch",
+        "patches/0053-media-i2c-add-imx471.patch",
+        "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch"
+      ]
+    },
+    {
+      "path": "fragments/guacamole-dts-include.txt",
+      "sha256": "361541b8436fc785fb5fc4c8c053846935f32141e87fc2e2bee6907db8b4be4c",
+      "bytes": 622,
+      "kind": "build-fragment",
+      "purpose": "Single #include line to append to sm8150-oneplus-guacamole.dts",
+      "depends_on": [
+        "dt/sm8150-oneplus-guacamole-popup.dtsi"
+      ]
+    },
+    {
+      "path": "fragments/rear-dtsi-cci1-gate.diff",
+      "sha256": "5fd1942438a318f47f2affcb76ec9246a29e3d89a55da55b3899944a57ed5c9c",
+      "bytes": 1084,
+      "kind": "optional-patch",
+      "purpose": "Optional one-line cci1 gate widening for a popup-only isolate build",
+      "depends_on": [
+        "dt/sm8150-oneplus-guacamole-popup.dtsi"
+      ]
+    },
+    {
+      "path": "docs/motor-procedure.md",
+      "sha256": "faed5bd65c3688fca4a10b14833caa2a4b31e6cc892f1f4e9f1417bb441ec664",
+      "bytes": 5626,
+      "kind": "documentation",
+      "purpose": "Byte-identical copy of the supplied procedure",
+      "depends_on": [
+        "docs/motor-procedure.md"
+      ]
+    },
+    {
+      "path": "docs/rc4-device-notes.md",
+      "sha256": "024f18f6b82b0a18f12a0350d3be847ab1fd2615995a0b7a776e329d8c8ef272",
+      "bytes": 8986,
+      "kind": "documentation",
+      "purpose": "rc4 deltas: node enable edits per phase, supply/MCLK caveats, open risks, contradicted claims",
+      "depends_on": [
+        "docs/motor-procedure.md",
+        "dt/sm8150-oneplus-guacamole-popup.dtsi"
+      ]
+    },
+    {
+      "path": "src/mxm1120.c",
+      "sha256": "ddbafd34268de430d43c6bc0ad744574049a9c0b609141494571daacd113150f",
+      "bytes": 4921,
+      "kind": "review-copy",
+      "purpose": "Driver source as 0052 leaves it",
+      "depends_on": [
+        "patches/0052-iio-magnetometer-add-mxm1120.patch"
+      ]
+    },
+    {
+      "path": "src/imx471.c",
+      "sha256": "3522aae4e13c1184222094361cd98cb23c6c07abb7f57504e0501ab1b59847df",
+      "bytes": 31642,
+      "kind": "review-copy",
+      "purpose": "Driver source as 0053 leaves it",
+      "depends_on": [
+        "patches/0053-media-i2c-add-imx471.patch"
+      ]
+    },
+    {
+      "path": "src/hotdog-popup-motor.c",
+      "sha256": "f42c597a3e98e072d76206813828b2a658b3ff37702eb03e047ce05851f6ae4b",
+      "bytes": 23287,
+      "kind": "review-copy",
+      "purpose": "Driver source as 0054 leaves it",
+      "depends_on": [
+        "patches/0054-media-qcom-add-oneplus-hotdog-popup-motor.patch"
+      ]
+    },
+    {
+      "path": "src/README.md",
+      "sha256": "f9f7498e823d7e9b9587f1d3dfda9742b465680fc9d20745e60b56723f985ddd",
+      "bytes": 1194,
+      "kind": "review-copy-index",
+      "purpose": "Explains the review copies and their hashes",
+      "depends_on": []
+    },
+    {
+      "path": "checks/run_all.sh",
+      "sha256": "70be429ce27242cc876eba4fe56f7b607719ffebae7eee0a0262a158333f79c1",
+      "bytes": 10961,
+      "kind": "check",
+      "purpose": "Reproducible rootless checks: apply both ways, compile, build DTBs, DTB regression, static checks",
+      "depends_on": []
+    },
+    {
+      "path": "checks/static_checks.py",
+      "sha256": "1c06e9df1ea6f03c22ab4f953b6ecf98bf55cc659958dec9c92d050723b78e3c",
+      "bytes": 12171,
+      "kind": "check",
+      "purpose": "54 source-level assertions (DT switch matrix via cpp, thresholds, LPG map, mode timing, config, rc3 prerequisites)",
+      "depends_on": []
+    },
+    {
+      "path": "checks/dtb_regression.py",
+      "sha256": "97dc88c0f187cae2bcc154f12026609deff2af44e3068c4c7ec14617f5316a01",
+      "bytes": 7102,
+      "kind": "check",
+      "purpose": "Phandle-normalising DTB comparison",
+      "depends_on": []
+    },
+    {
+      "path": "checks/toolshim/bc",
+      "sha256": "e6e16154733aa7b3c29a196d29f72173cece2a62ba39cb4944a5dc8bb1c9025b",
+      "bytes": 3831,
+      "kind": "check-tool",
+      "purpose": "Python timeconst.bc replacement; HZ=1000 output byte-identical to a bc-generated header",
+      "depends_on": []
+    },
+    {
+      "path": "README.md",
+      "sha256": "4f5fb21aafcad5f2d62c62d1ac3ea64ac498cf89315392eeac09e25a536f7ebe",
+      "bytes": 25414,
+      "kind": "documentation",
+      "purpose": "Integration steps, rebase record, safety review, claim/evidence/verdict table, checks, blockers",
+      "depends_on": []
+    },
+    {
+      "path": "checks/artifacts/SHA256SUMS",
+      "sha256": "e8c9a86a58cfd8c887cc37ac2dbbf3cc5cd73978296b4e8c704e1824ca801824",
+      "bytes": 529,
+      "kind": "check-artifact",
+      "purpose": "Hashes of the compiled objects and DTBs",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/apply-original-rc3.log",
+      "sha256": "0ae10ae3946f6c0132925ec7dfe7961ad39450ba0426d4fc3bc87156c6c0c382",
+      "bytes": 1238,
+      "kind": "check-log",
+      "purpose": "Which hunks of the supplied patches fail on rc3",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/apply-git.log",
+      "sha256": "9b6c240cae15fec543a9a612b55d58e5b01df322370c3eedbc1bd25d5b0edd9b",
+      "bytes": 1838,
+      "kind": "check-log",
+      "purpose": "git apply of 0052-0054 on rc3-patched sources",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/apply-patch.log",
+      "sha256": "922ca9a00f273e1e78c0cbfbdec7b3fb93cc9226c13cfc949cdc0f1a4e17dcc6",
+      "bytes": 5796,
+      "kind": "check-log",
+      "purpose": "patch -p1 --fuzz=0 of the same series",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/apply-trees-equal.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "kind": "check-log",
+      "purpose": "Both apply methods yield identical trees",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/compile-w1.log",
+      "sha256": "92cf2f5b1f455371020d60dc65a983574485b7dd763566635053d03edbfc993d",
+      "bytes": 17186,
+      "kind": "check-log",
+      "purpose": "W=1 compile of the three new objects",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/dtb-build.log",
+      "sha256": "2a4f8545772c73205f1b876423f8f864dec3baa0a46609b65ff113bc96797042",
+      "bytes": 3322,
+      "kind": "check-log",
+      "purpose": "Full + three isolate DTB builds",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/dtb-regression.log",
+      "sha256": "59b41b80bfb04e568f608ac756c0b713d31890c03cedc65728b3abc941b2e646",
+      "bytes": 3025,
+      "kind": "check-log",
+      "purpose": "Full DTB structural diff; isolate DTBs byte-identical",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/static-checks.log",
+      "sha256": "6db3ffb796f330cbbf6a6ab6861f2458b35fe47ee4b54f01287089d742f3bdd5",
+      "bytes": 3674,
+      "kind": "check-log",
+      "purpose": "54/54 assertions pass",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/bc-shim-note.log",
+      "sha256": "175448f825b83c64c39dae09eb40219ce581a4fdc1a1e810dd8f707cace1ac70",
+      "bytes": 199,
+      "kind": "check-log",
+      "purpose": "Why timeconst.h was generated by checks/toolshim/bc",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/rejects/",
+      "kind": "check-log",
+      "purpose": "Rejected hunks of the supplied patches on rc3",
+      "depends_on": [
+        "kernel/0035-iio-magnetometer-add-mxm1120.patch",
+        "kernel/0036-media-i2c-add-imx471.patch"
+      ],
+      "files": [
+        "checks/logs/rejects/drivers/iio/magnetometer/Kconfig.rej",
+        "checks/logs/rejects/drivers/iio/magnetometer/Makefile.rej",
+        "checks/logs/rejects/drivers/media/i2c/Kconfig.rej"
+      ]
+    },
+    {
+      "path": "checks/camss_async_audit.py",
+      "sha256": "35d8fb95256abe66178062e6b79988630205789f6eda08d047289ab2ead8c47c",
+      "bytes": 5951,
+      "kind": "check",
+      "purpose": "Lists every CAMSS async connection a DTB makes the notifier wait for, flags unbindable ones (disabled/missing remote device), and compares two DTBs",
+      "depends_on": [
+        "dt/sm8150-oneplus-guacamole-popup.dtsi"
+      ]
+    },
+    {
+      "path": "checks/logs/camss-async-audit-prefix.log",
+      "sha256": "fee1958b6720f29a9021981d6188b752d99ebd63986cb430092aa7a8dda9b423",
+      "bytes": 950,
+      "kind": "check-log",
+      "purpose": "Negative result: the pre-fix full DTB queued 4 connections, one unbindable (port@2 -> camera@10 status=disabled), exit 2. Evidence for README C22.",
+      "depends_on": [
+        "checks/artifacts/pre-fix/harmful-full.dtb"
+      ]
+    },
+    {
+      "path": "checks/artifacts/pre-fix/harmful-full.dtb",
+      "sha256": "12a5ac3e29d67c7cc2a47cd338ce3b9ea84cbdc817dd64daa3f89c5b5118c5ed",
+      "bytes": 117782,
+      "kind": "check-artifact",
+      "purpose": "The rejected pre-fix full DTB, kept only as evidence that an endpoint without a bindable sensor stalls the CAMSS notifier. Never ship this DTB.",
+      "depends_on": []
+    },
+    {
+      "path": "checks/logs/sensor-build-audit.log",
+      "sha256": "6fa47c664bfefda1828df4eb227ff6192bd0f568dd4539b81406f5e2279c7f69",
+      "bytes": 877,
+      "kind": "check-log",
+      "purpose": "Positive control for the CAMERA_POPUP_SENSOR switch: the measurement DTS compiles and every one of the 4 CAMSS async connections is bindable (sensor status=okay).",
+      "depends_on": [
+        "dt/sm8150-oneplus-guacamole-popup.dtsi",
+        "checks/camss_async_audit.py"
+      ]
+    }
+  ],
+  "gated_items": [
+    {
+      "item": "camera-popup (motor + PM domain provider)",
+      "gate": "camera-popup is status=\"disabled\" by default (status=\"okay\" only with -DCAMERA_POPUP_MOTOR)",
+      "reason": "Actuation must be impossible before this unit's Hall baseline is measured against the hotdog thresholds.",
+      "unblock": "docs/motor-procedure.md step 1, then status=okay with camera@10 still disabled for step 2."
+    },
+    {
+      "item": "camera@10 (IMX471)",
+      "gate": "camera@10 and the CAMSS port@2 endpoint are not emitted at all by default; both appear only under -DCAMERA_POPUP_SENSOR",
+      "reason": "CAMSS queues one v4l2-async connection per endpoint and never checks availability, so an endpoint without a bindable sensor stalls camss_subdev_notifier_complete() and removes the /dev/video* nodes for ALL cameras. The fragment therefore emits the endpoint and the enabled sensor together.",
+      "unblock": "Sensor-only test: remove power-domains and set status=okay. Automatic lifecycle: enable both after steps 1-3."
+    },
+    {
+      "item": "free-fall retraction (TLMM163)",
+      "gate": "not implemented in 0054 and not described in the DT",
+      "reason": "The supplied driver has no IRQ path; adding one cannot be validated without the mechanism.",
+      "unblock": "New work: IRQ handler starting a bounded close-only course without fighting an in-flight course; needs hardware."
+    },
+    {
+      "item": "libcamera sensor data (imx471.yaml)",
+      "gate": "not shipped",
+      "reason": "Package change outside the kernel topic; the sensor cannot stream yet.",
+      "unblock": "After the sensor probes and streams, add the tuning file to the libcamera PKGBUILD."
+    },
+    {
+      "item": "CAMSS CSIPHY2 port@2",
+      "gate": "emitted only inside #ifdef CAMERA_POPUP_SENSOR, together with an enabled camera@10",
+      "reason": "An endpoint whose remote node is disabled makes v4l2_async_nf_try_complete() never fire (README C22).",
+      "unblock": "Nothing to do for rc4; it ships without the endpoint. For a sensor build, use the switch."
+    }
+  ],
+  "blocked_items": [
+    {
+      "item": "PM8009 VDIG rail for the front sensor",
+      "detail": "Hotdog and the supplied DT use PM8009 LDO3 at 1.056 V; the stock guacamole DTBO maps cam-sensor@2 cam_vdig to pm8009_l2 at 1.2 V, and rc3 redefines LDO2 to 1.056 V for the rear tele. LDO3 is described; the sensor stays disabled.",
+      "resolution": "Probe with the motor node disabled and read chip ID 0x0471; re-evaluate the rail only from a measurement."
+    },
+    {
+      "item": "Hall thresholds for this unit",
+      "detail": "All windows are hotdog #defines; open/close refuse to start outside them.",
+      "resolution": "Step 1 readings; adjust the #defines in 0054 in a follow-up patch if the closed window differs."
+    },
+    {
+      "item": "Process-death safety and suspend with the camera stack loaded",
+      "detail": "Only runtime PM unwinds the module; no watchdog. Suspend untested; the rc3 lock-up is not explained by this topic.",
+      "resolution": "Hardware test after the motor is enabled; the suspend topic owns the lock-up question."
+    }
+  ],
+  "checks": [
+    {
+      "name": "clean apply (git apply)",
+      "command": "git apply --check/apply, checks/run_all.sh step 1",
+      "result": "pass",
+      "kind": "clean-apply",
+      "log": "checks/logs/apply-git.log"
+    },
+    {
+      "name": "clean apply (patch --fuzz=0)",
+      "command": "patch -p1 --fuzz=0, checks/run_all.sh step 1",
+      "result": "pass, no fuzz, no rejects",
+      "kind": "clean-apply",
+      "log": "checks/logs/apply-patch.log"
+    },
+    {
+      "name": "apply methods agree",
+      "command": "sha256sum of both applied trees",
+      "result": "identical",
+      "kind": "clean-apply",
+      "log": "checks/logs/apply-trees-equal.log"
+    },
+    {
+      "name": "compile three objects",
+      "command": "make O=out ARCH=arm64 LLVM=1 W=1 drivers/iio/magnetometer/mxm1120.o drivers/media/i2c/imx471.o drivers/media/platform/qcom/hotdog-popup-motor.o",
+      "result": "3 objects, 0 diagnostics from patched sources",
+      "kind": "compiled",
+      "log": "checks/logs/compile-w1.log",
+      "artifacts": [
+        "checks/artifacts/mxm1120.o",
+        "checks/artifacts/imx471.o",
+        "checks/artifacts/hotdog-popup-motor.o"
+      ]
+    },
+    {
+      "name": "build DTBs",
+      "command": "make ... qcom/sm8150-oneplus-guacamole{,-rear-main,-rear-tele,-rear-wide}.dtb",
+      "result": "4 DTBs, no dtc diagnostics",
+      "kind": "compiled",
+      "log": "checks/logs/dtb-build.log",
+      "artifacts": [
+        "checks/artifacts/sm8150-oneplus-guacamole.dtb",
+        "checks/artifacts/sm8150-oneplus-guacamole-rear-wide.dtb"
+      ]
+    },
+    {
+      "name": "DTB regression",
+      "command": "checks/dtb_regression.py + cmp for isolates",
+      "result": "full: 14 new nodes + 8 intended changes, no new node under camss/cci; isolates byte-identical",
+      "kind": "dt-verified",
+      "log": "checks/logs/dtb-regression.log"
+    },
+    {
+      "name": "static checks",
+      "command": "checks/static_checks.py",
+      "result": "54/54 pass",
+      "kind": "source-check",
+      "log": "checks/logs/static-checks.log"
+    },
+    {
+      "name": "hardware",
+      "command": "not run (no phone access permitted)",
+      "result": "NOT TESTED: no probe, no Hall reading, no stream, no actuation",
+      "kind": "hardware-unverified",
+      "log": null
+    },
+    {
+      "name": "CAMSS async audit",
+      "command": "checks/camss_async_audit.py --base <rc3 dtb> --new <rc4 dtb>, and alone on the shipped dtb",
+      "result": "3 connections, identical to baseline, all bindable; the pre-fix DTB audit returns 4 with one unbindable",
+      "kind": "dt-verified",
+      "log": "checks/logs/dtb-regression.log"
+    },
+    {
+      "name": "DTB regression forbidden paths",
+      "command": "dtb_regression.py --assert-no-new-prefix /soc@0/camss@acb3000 /soc@0/cci@ac4a000 /soc@0/cci@ac4b000",
+      "result": "no new node under the camera graph; only 14 inert popup nodes",
+      "kind": "dt-verified",
+      "log": "checks/logs/dtb-regression.log"
+    }
+  ],
+  "integration_recommendation": {
+    "merge": "Yes for 0052-0054, the config fragment and the DT fragment. The default full DTB keeps rc3's exact CAMSS async connection set (3, all bindable) and the isolate DTBs are byte-identical, so no rear camera path changes.",
+    "do_not_claim": "Do not describe the front or pop-up camera as working in the rc4 release notes. Say: drivers and DT merged, motor and sensor gated, no hardware validation.",
+    "before_phone": [
+      "review the claim table in README.md section 6",
+      "decide the VDIG rail question",
+      "note that qupv3_id_0 and the SE1 bus now come up at boot",
+      "do not ship a CAMERA_POPUP_SENSOR build as the general image: a front sensor that fails to probe also removes the rear cameras' video nodes"
+    ]
+  },
+  "self_note": "This file's own sha256 is intentionally absent (it would change with every edit)."
+}

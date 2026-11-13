@@ -1,0 +1,13 @@
+diff --git a/arch/arm64/boot/dts/qcom/sm8150.dtsi b/arch/arm64/boot/dts/qcom/sm8150.dtsi
+index 079e2f0a6..6b4ebe457 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150.dtsi
+@@ -2188,7 +2188,7 @@ crypto: crypto@1dfa000 {
+ 			interconnect-names = "memory";
+ 		};
+ 
+-		ipa: ipa@1e00000 {
++		ipa: ipa@1e40000 {
+ 			compatible = "qcom,sm8150-ipa";
+ 
+ 			iommus = <&apps_smmu 0x520 0x0>,

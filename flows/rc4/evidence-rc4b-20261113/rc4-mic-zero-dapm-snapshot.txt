@@ -1,0 +1,56 @@
+[sudo password prompt omitted]
+## dapm dirs
+/sys/kernel/debug/asoc/OnePlus 7 Pro/wcd934x-codec.1.auto/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/17300000.remoteproc:glink-edge:apr:apr-service@8:routing/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/tfa9874.1-0035/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/tfa9874.1-0034/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/17300000.remoteproc:glink-edge:apr:apr-service@4:dais/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/17300000.remoteproc:glink-edge:apr:apr-service@7:dais/dapm
+/sys/kernel/debug/asoc/OnePlus 7 Pro/dapm
+## using /sys/kernel/debug/asoc/OnePlus 7 Pro/wcd934x-codec.1.auto/dapm
+## IDLE (no capture)
+MIC BIAS1        MIC BIAS1: Off  in 0 out 0
+MIC BIAS2        MIC BIAS2: Off  in 0 out 0
+MIC BIAS3        MIC BIAS3: Off  in 0 out 0
+MIC BIAS4        MIC BIAS4: Off  in 0 out 0
+AMIC4            AMIC4: Off  in 1 out 0
+ADC4             ADC4: Off  in 1 out 0 - R1553(0x611) mask 0x80
+AMIC4_5 SEL      AMIC4_5 SEL: Off  in 1 out 0
+ADC MUX0         ADC MUX0: Off  in 1 out 0 - R2609(0xa31) mask 0x20
+AMIC MUX0        AMIC MUX0: Off  in 1 out 0
+SLIM TX0         SLIM TX0: Off  in 1 out 0
+AIF1 CAP         AIF1 CAP: Off  in 1 out 0
+MCLK             MCLK: Off  in 0 out 0
+bias_level       Off
+## deferred
+## START 15:09:09
+## DURING capture
+MIC BIAS1        MIC BIAS1: On  in 0 out 0
+MIC BIAS2        MIC BIAS2: Off  in 0 out 0
+MIC BIAS3        MIC BIAS3: Off  in 0 out 0
+MIC BIAS4        MIC BIAS4: Off  in 0 out 0
+AMIC4            AMIC4: On  in 1 out 1
+ADC4             ADC4: On  in 1 out 1 - R1553(0x611) mask 0x80
+AMIC4_5 SEL      AMIC4_5 SEL: On  in 1 out 1
+ADC MUX0         ADC MUX0: On  in 1 out 1 - R2609(0xa31) mask 0x20
+AMIC MUX0        AMIC MUX0: On  in 1 out 1
+SLIM TX0         SLIM TX0: On  in 1 out 1
+AIF1 CAP         AIF1 CAP: On  in 1 out 1
+MCLK             MCLK: Off  in 0 out 0
+bias_level       On
+## STOP 15:09:17  nonzero bytes in capture: 0
+## kernel audio lines
+[   14.501973] qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:3
+[   14.508637] qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:4
+[   14.537757] qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:7
+[   14.542713] qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:8
+[   14.778029] qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   14.805622] qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM controller Registered
+[   14.827874] platform 17300000.remoteproc:glink-edge:apr:apr-service@7:dais: Adding to iommu group 18
+[   14.864754] wcd934x-slim 217:250:1:0: WCD934x chip id major 0x108, minor 0x1
+[   14.910450] wcd934x-slim 217:250:1:0: missing qcom,mbhc-buttons-vthreshold-microvolt entry
+[   15.848757] qcom,slim-ngd-ctrl 171c0000.slim-ngd: QMI wait timeout
+[   18.481835] qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   28.801931] qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   28.975994] qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+Connection to 172.16.42.1 closed.

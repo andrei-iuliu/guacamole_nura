@@ -1,0 +1,150 @@
+#!/bin/sh
+# Drop the AP's active-only vote on the modem rail (mss.lvl) once the modem
+# runs and the proxy power domains have been handed over.
+#
+# Kernel side: patch 0044 (guacamole_mss_vote).  Topic:
+# flows/rc4/topics/suspend-fixes.
+#
+# OPT-IN and not enabled by the device preset.  Enabling this unit is the
+# opt-in; see the topic README section 6 for why the precondition is not
+# automatic: remoteproc state "running" only proves that qcom_pas_start()
+# received the modem "ready" interrupt.  The proxy MSS power domain is dropped
+# later, from the separate "handover" interrupt (qcom_q6v5.c
+# q6v5_handover_interrupt -> qcom_pas_handover -> qcom_pas_pds_disable), and
+# that call re-sends rpmhpd's clamped corner.
+#
+# Handover is accepted only on the exact runtime status "suspended".  The
+# kernel's runtime_status file has exactly four values (active, resuming,
+# suspending, suspended); "active" and "suspending" are waited on because
+# pm_runtime_put() is asynchronous, and everything else - resuming, an empty
+# or unreadable file, an unknown value, or a timeout - refuses the write.  The
+# modem is re-checked as still running during the wait and again immediately
+# before the write, because a modem stop also suspends the proxy device
+# (qcom_pas_stop -> qcom_pas_handover).
+#
+# MSS_LEVEL                        corner to write (0..9); only 0 has been used
+# MSS_HANDOVER_TIMEOUT             seconds to wait for the proxy handover
+# MSS_ALLOW_UNVERIFIED_HANDOVER=1  write when the handover was not observed
+#                                  (never bypasses the modem-running checks)
+#
+# GUACAMOLE_* / MSS_* variables exist for the rootless tests in
+# checks/test_guacamole_mss_release.sh.  Production uses the defaults.
+set -u
+
+level=${MSS_LEVEL:-0}
+class=${GUACAMOLE_REMOTEPROC_CLASS:-/sys/class/remoteproc}
+param=${GUACAMOLE_MSS_PARAM:-/sys/module/guacamole_mss_vote/parameters/level}
+modprobe=${GUACAMOLE_MSS_MODPROBE:-modprobe}
+module=${GUACAMOLE_MSS_MODULE:-guacamole_mss_vote}
+wait=${MSS_WAIT_TIMEOUT:-120}
+handover_wait=${MSS_HANDOVER_TIMEOUT:-10}
+poll=${MSS_POLL_INTERVAL:-1}
+allow_unverified=${MSS_ALLOW_UNVERIFIED_HANDOVER:-0}
+
+log() {
+	printf 'guacamole-mss-release: %s\n' "$*"
+}
+
+die() {
+	printf 'guacamole-mss-release: %s\n' "$*" >&2
+	exit 1
+}
+
+read_value() {
+	[ -r "$1" ] || return 1
+	_read_value=
+	IFS= read -r _read_value < "$1" || [ -n "$_read_value" ] || return 1
+	printf '%s\n' "$_read_value"
+}
+
+modem_running() {
+	[ "$(read_value "$rp/state" || true)" = running ]
+}
+
+# Do not use remoteproc0: class indices depend on probe order and have
+# differed between boots on this board.
+rp=
+for entry in "$class"/*; do
+	[ -d "$entry" ] || continue
+	if [ "$(read_value "$entry/name" || true)" = modem ]; then
+		[ -z "$rp" ] || die "more than one remoteproc is named modem under $class"
+		rp=$entry
+	fi
+done
+[ -n "$rp" ] || die "no remoteproc named modem under $class"
+
+# The proxy power domains must be handed over to the modem before the AP
+# drops its vote, or the modem cannot boot at the lower corner.
+i=0
+while [ "$(read_value "$rp/state" || true)" != running ]; do
+	i=$((i + 1))
+	[ "$i" -le "$wait" ] || die "modem not running after ${wait}s ($rp)"
+	sleep "$poll"
+done
+
+# qcom_pas_pds_enable() runtime-resumes the "mss" proxy device at start;
+# qcom_pas_handover() runtime-suspends it again after the firmware signals
+# handover.  The virtual device is named genpd:<index>:<pas-device>, with
+# "mss" at index 1 in sm8150.dtsi's power-domain-names = "cx", "mss".
+proxy=${GUACAMOLE_MSS_PROXY_STATUS:-}
+if [ -z "$proxy" ]; then
+	pas=$(readlink -f "$rp/device" 2>/dev/null) || pas=
+	[ -n "$pas" ] && proxy=/sys/devices/genpd:1:${pas##*/}/power/runtime_status
+fi
+
+# Only "suspended" proves qcom_pas_pds_disable() ran.  "active" and
+# "suspending" are the only states worth waiting on; every other value, a
+# read failure and a timeout fail closed.
+handover_seen=0
+if [ -n "$proxy" ] && [ -r "$proxy" ]; then
+	i=0
+	while :; do
+		status=$(read_value "$proxy" || true)
+		case $status in
+		suspended)
+			handover_seen=1
+			log "proxy handover observed ($proxy: suspended)"
+			break
+			;;
+		active|suspending)
+			;;
+		*)
+			log "unexpected proxy runtime status '${status:-<empty>}' ($proxy)"
+			break
+			;;
+		esac
+
+		i=$((i + 1))
+		if [ "$i" -gt "$handover_wait" ]; then
+			log "proxy not suspended after ${handover_wait}s ($proxy: $status)"
+			break
+		fi
+		modem_running ||
+			die "modem stopped while waiting for the proxy handover ($rp)"
+		sleep "$poll"
+	done
+else
+	log "cannot read the proxy MSS runtime status (${proxy:-no path})"
+fi
+
+if [ "$handover_seen" -eq 0 ] && [ "$allow_unverified" != 1 ]; then
+	die "proxy handover not observed; refusing to write mss.lvl (set MSS_ALLOW_UNVERIFIED_HANDOVER=1 to force)"
+fi
+if [ "$handover_seen" -eq 0 ]; then
+	log "writing anyway (MSS_ALLOW_UNVERIFIED_HANDOVER=1)"
+fi
+
+# A stopped modem also suspends the proxy device, so the handover alone does
+# not prove that the modem still owns the rail.  This check is never skipped.
+modem_running || die "modem is no longer running ($rp); refusing to write mss.lvl"
+
+"$modprobe" "$module" || die "cannot load $module"
+[ -w "$param" ] || die "$param is not writable (is $module built in?)"
+
+# Re-check immediately before the write; modprobe can take a moment.
+modem_running || die "modem stopped before the write ($rp); refusing to write mss.lvl"
+
+printf '%s\n' "$level" > "$param" || die "cannot write level $level to $param"
+[ "$(read_value "$param" || true)" = "$level" ] ||
+	die "$param did not read back as $level"
+log "mss.lvl corner $level written"

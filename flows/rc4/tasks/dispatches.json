@@ -1,0 +1,26 @@
+[
+  {
+    "topic": "suspend-fixes",
+    "terminal": "term_c16f970c-aa47-4054-b87e-a91726eec785",
+    "receipt": "{\"ok\":true,\"result\":{\"dispatchId\":\"ctx_d6369e23c408\",\"taskId\":\"task_0c3d71601ec7\",\"runId\":\"run_4611dd70a0c8\",\"state\":\"ready\",\"mode\":\"terminal\",\"terminal\":\"term_c16f970c-aa47-4054-b87e-a91726eec785\",\"workspace\":\"4433d69f-bc31-4f59-adc6-9234cbad4c46::runtime-workspace\",\"next\":\"Orca wakes you when workers report; end your turn when you're done.\"}}\n",
+    "exit": 0
+  },
+  {
+    "topic": "displayport",
+    "terminal": "term_ed6f60f9-12fe-44a8-8f2b-dd09ef3b6063",
+    "receipt": "{\"ok\":true,\"result\":{\"dispatchId\":\"ctx_ebc17f11c09a\",\"taskId\":\"task_e49ed74e88fe\",\"runId\":\"run_4611dd70a0c8\",\"state\":\"ready\",\"mode\":\"terminal\",\"terminal\":\"term_ed6f60f9-12fe-44a8-8f2b-dd09ef3b6063\",\"workspace\":\"4433d69f-bc31-4f59-adc6-9234cbad4c46::runtime-workspace\",\"next\":\"Orca wakes you when workers report; end your turn when you're done.\"}}\n",
+    "exit": 0
+  },
+  {
+    "topic": "fingerprint",
+    "terminal": "term_af9c6b57-6b5e-4157-80cc-282714248980",
+    "receipt": "{\"ok\":true,\"result\":{\"dispatchId\":\"ctx_c855a5817b85\",\"taskId\":\"task_9d4970d0ccb5\",\"runId\":\"run_4611dd70a0c8\",\"state\":\"ready\",\"mode\":\"terminal\",\"terminal\":\"term_af9c6b57-6b5e-4157-80cc-282714248980\",\"workspace\":\"4433d69f-bc31-4f59-adc6-9234cbad4c46::runtime-workspace\",\"next\":\"Orca wakes you when workers report; end your turn when you're done.\"}}\n",
+    "exit": 0
+  },
+  {
+    "topic": "popup-camera",
+    "terminal": "term_b172490c-e513-4373-9702-68f7484b04dd",
+    "receipt": "{\"ok\":true,\"result\":{\"dispatchId\":\"ctx_f649452b9580\",\"taskId\":\"task_123136fa6744\",\"runId\":\"run_4611dd70a0c8\",\"state\":\"ready\",\"mode\":\"terminal\",\"terminal\":\"term_b172490c-e513-4373-9702-68f7484b04dd\",\"workspace\":\"4433d69f-bc31-4f59-adc6-9234cbad4c46::runtime-workspace\",\"next\":\"Orca wakes you when workers report; end your turn when you're done.\"}}\n",
+    "exit": 0
+  }
+]

@@ -1,0 +1,163 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:04 +0000
+Subject: [PATCH 50/50] ASoC: qdsp6: q6afe: send the DP stream and controller
+ index
+
+Before starting AFE_PORT_ID_HDMI_OVER_DP_RX (0x6020), the downstream kernel
+for SM8150 phones sends two AFE_MODULE_AUDIO_DEV_INTERFACE parameters:
+
+  AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG  stream index
+  AFE_PARAM_ID_HDMI_DPTX_IDX_CFG        DP controller (dptx) index
+
+Mainline never sends them, and on this phone the DSP does not answer the start
+of that port at all (-110).  Firmware built with DP MST support may need to
+know which controller and stream feed the port before it can start it.
+
+Send both, with index 0, before the port configuration.
+
+What is verified against the downstream LineageOS reference source
+(android_kernel_oneplus_sm8150, branch lineage-23.2; a downstream reference,
+not proven to be the factory build):
+
+ - techpack/audio/include/dsp/apr_audio-v2.h:
+     line 3052  #define AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG     0x000102b5
+     line 3053  #define AFE_PARAM_ID_HDMI_DPTX_IDX_CFG           0x000102b6
+     lines 2125-2133  struct afe_display_stream_idx { u32 minor_version;
+                        u32 stream_idx; } __packed;
+                      struct afe_display_ctl_idx { u32 minor_version;
+                        u32 ctl_idx; } __packed;
+   i.e. 8-byte payloads: two u32 words, minor version first and the index
+   second.  Both parameters together are 16 payload bytes before their
+   parameter headers - the layout used here, one parameter per SET_PARAM_V2.
+
+ - techpack/audio/dsp/q6afe.c:6758-6834  afe_set_display_stream() packs both
+   parameters with module_id = AFE_MODULE_AUDIO_DEV_INTERFACE, instance
+   INSTANCE_ID_0 and minor_version = 1, and sends them to the port id.
+
+ - techpack/audio/asoc/msm-dai-q6-hdmi-v2.c:331-361
+   msm_dai_q6_hdmi_prepare() calls afe_set_display_stream() before
+   afe_port_start(), only while the port is not already started.  On error it
+   logs; if the error is -EOPNOTSUPP it carries on and starts the port, any
+   other error aborts the prepare ("not starting AFE port").  stream_idx and
+   ctl_idx are zero-initialised (kzalloc) and settable from the
+   "Display Port RX DEVICE IDX" control, so index 0 is the downstream default,
+   which is what this patch sends.
+
+The payload struct is 8 bytes and carries a static_assert on that size, so a
+future field or type change cannot silently change the wire format.
+
+What is NOT verified and must not be assumed:
+
+ - That the guacamole ADSP firmware accepts these parameters, or needs them.
+   No hardware was available; this patch exists to find out.
+ - That two separate SET_PARAM_V2 commands (mainline q6afe_port_set_param_v2)
+   are equivalent to downstream's single SET_PARAM carrying both parameters.
+   The per-parameter payload is identical; whether firmware cares about the
+   packaging is unknown.
+ - That the order relative to the port configuration matters.  Downstream's
+   order is: display-stream parameters, then config, then start; this patch
+   matches that order, but only the start boundary is sourced.
+ - Anything about DP MST: both indices are 0 and mainline does not use MST.
+
+Divergence from downstream: downstream aborts the prepare for any error other
+than -EOPNOTSUPP, while this patch only warns and continues for every error, so
+that one rejected parameter cannot mask the port-start result the experiment is
+trying to observe.  To match downstream exactly, replace the dev_warn() with
+"if (ret && ret != -EOPNOTSUPP) return ret;".
+
+Inert unless the DisplayPort audio link is enabled: this runs only when a
+stream is started on port 0x6020, so it cannot affect DP video or any other
+audio path.  Drop the patch (remove from source=) if the DP audio logs show the
+parameters rejected and nothing else changes.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ sound/soc/qcom/qdsp6/q6afe.c | 50 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/sound/soc/qcom/qdsp6/q6afe.c b/sound/soc/qcom/qdsp6/q6afe.c
+index 182b68c..2010da9 100644
+--- a/sound/soc/qcom/qdsp6/q6afe.c
++++ b/sound/soc/qcom/qdsp6/q6afe.c
+@@ -31,6 +31,8 @@
+ #define AFE_SVC_CMD_SET_PARAM		0x000100f3
+ #define AFE_PORT_CMDRSP_GET_PARAM_V2	0x00010106
+ #define AFE_PARAM_ID_HDMI_CONFIG	0x00010210
++#define AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG	0x000102b5
++#define AFE_PARAM_ID_HDMI_DPTX_IDX_CFG	0x000102b6
+ #define AFE_MODULE_AUDIO_DEV_INTERFACE	0x0001020C
+ #define AFE_MODULE_TDM			0x0001028A
+ 
+@@ -79,6 +81,8 @@
+ 
+ /* Port IDs */
+ #define AFE_API_VERSION_HDMI_CONFIG	0x1
++/* DP stream/controller index parameters, same minor version downstream uses */
++#define AFE_API_VERSION_HDMI_DP_IDX_CFG	0x1
+ #define AFE_PORT_ID_MULTICHAN_HDMI_RX	0x100E
+ #define AFE_PORT_ID_HDMI_OVER_DP_RX	0x6020
+ 
+@@ -424,6 +428,21 @@ struct afe_param_id_hdmi_multi_chan_audio_cfg {
+ 	u16 reserved;
+ } __packed;
+ 
++/*
++ * Payload of AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG (0x102b5, the DP stream
++ * index) and AFE_PARAM_ID_HDMI_DPTX_IDX_CFG (0x102b6, the DP controller
++ * index).  Both take the same shape: two u32 words, minor version first and
++ * the index second, so 8 bytes per parameter.  Downstream declares them
++ * separately as struct afe_display_stream_idx { u32 minor_version;
++ * u32 stream_idx; } and struct afe_display_ctl_idx { u32 minor_version;
++ * u32 ctl_idx; }, both __packed (techpack/audio/include/dsp/apr_audio-v2.h).
++ */
++struct afe_param_id_dp_idx_cfg {
++	u32 minor_version;
++	u32 idx;
++} __packed;
++static_assert(sizeof(struct afe_param_id_dp_idx_cfg) == 8);
++
+ struct afe_param_id_slimbus_cfg {
+ 	u32                  sb_cfg_minor_version;
+ /* Minor version used for tracking the version of the SLIMBUS
+@@ -1667,6 +1686,37 @@ int q6afe_port_start(struct q6afe_port *port)
+ 	struct apr_pkt *pkt;
+ 	int pkt_size;
+ 
++	if (port_id == AFE_PORT_ID_HDMI_OVER_DP_RX) {
++		/*
++		 * Tell the DSP which DP stream and controller feed this port,
++		 * as the downstream kernel's afe_set_display_stream() does
++		 * before starting this port.  SM8150 has one DP controller and
++		 * mainline does not use MST, so both indices are 0.
++		 *
++		 * Downstream continues to the port start when the parameters
++		 * are rejected with -EOPNOTSUPP and aborts on any other error;
++		 * this only warns, so a rejection cannot hide the result of the
++		 * start the experiment is trying to observe.
++		 */
++		struct afe_param_id_dp_idx_cfg idx = {
++			.minor_version = AFE_API_VERSION_HDMI_DP_IDX_CFG,
++		};
++
++		ret = q6afe_port_set_param_v2(port, &idx,
++					      AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG,
++					      AFE_MODULE_AUDIO_DEV_INTERFACE,
++					      sizeof(idx));
++		if (!ret)
++			ret = q6afe_port_set_param_v2(port, &idx,
++						      AFE_PARAM_ID_HDMI_DPTX_IDX_CFG,
++						      AFE_MODULE_AUDIO_DEV_INTERFACE,
++						      sizeof(idx));
++		if (ret)
++			dev_warn(afe->dev,
++				 "DP stream/controller index for port 0x%x: %d\n",
++				 port_id, ret);
++	}
++
+ 	ret  = q6afe_port_set_param_v2(port, &port->port_cfg, param_id,
+ 				       AFE_MODULE_AUDIO_DEV_INTERFACE,
+ 				       sizeof(port->port_cfg));
+-- 
+2.47.0
+

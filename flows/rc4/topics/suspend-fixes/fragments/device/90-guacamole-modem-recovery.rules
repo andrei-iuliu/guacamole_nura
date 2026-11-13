@@ -1,0 +1,12 @@
+# OPTIONAL / DIAGNOSTIC - do not ship by default.
+#
+# Disable modem subsystem restart (SSR) so a modem crash leaves the modem (and
+# Wi-Fi, whose WCN3990 firmware runs on the MPSS) down instead of taking the
+# kernel with it.  omarchy-mobile saw the kernel die "while recovering modem"
+# on this phone; rc3 also carries 0015 (bounded gsi_trans_commit_wait) which
+# may already prevent that, untested.  Remove once 0044 is verified and
+# recovery is shown to survive.
+#
+# Install: /usr/lib/udev/rules.d/90-guacamole-modem-recovery.rules
+# See docs/supplied/00-diagnose.md section 3.
+ACTION=="add", SUBSYSTEM=="remoteproc", ATTR{name}=="modem", ATTR{recovery}="disabled"

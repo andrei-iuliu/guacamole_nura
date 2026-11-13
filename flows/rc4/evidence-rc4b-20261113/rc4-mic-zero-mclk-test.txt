@@ -1,0 +1,16 @@
+## 1. baseline (SoundWire auto/suspended) -- TALK or TAP the phone during the 5 s
+  samples=237599 nonzero=0.0% peak=-inf dBFS rms=-inf dBFS
+  per-0.5s rms dBFS: [-inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf]
+## 2. forcing SoundWire runtime-active (holds codec MCLK)
+[sudo password prompt omitted]
+active
+Connection to 172.16.42.1 closed.
+## 3. capture with clock held -- TALK or TAP the phone during the 5 s
+  samples=240480 nonzero=0.0% peak=-inf dBFS rms=-inf dBFS
+  per-0.5s rms dBFS: [-inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf]
+## 4. restoring auto
+[sudo password prompt omitted]
+sudo: Authentication failed, try again.
+[sudo password prompt omitted]
+auto
+Connection to 172.16.42.1 closed.

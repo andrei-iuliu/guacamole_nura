@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:06 +0000
+Subject: [PATCH] arm64: dts: qcom: guacamole: add the DisplayPort audio link,
+ disabled
+
+Add the DPCM back end that would carry audio to the external display: CPU DAI
+104 (DISPLAY_PORT_RX, AFE port 0x6020), platform q6routing, codec the DP
+controller (which publishes an hdmi-codec DAI).  A link with both a platform
+and a codec child is marked no_pcm by qcom_snd_parse_of(), so the machine
+driver's prepare/hw_params/startup/shutdown hooks are installed for it.
+
+The link is shipped with status = "disabled" and must stay that way for rc4.
+Reason: ASoC binds every available DAI link when the card registers, and
+snd_soc_add_pcm_runtime() returns -EPROBE_DEFER if any link's codec DAI is not
+registered (sound/soc/soc-core.c).  The codec here is the DP controller's
+hdmi-codec, which only exists once mdss_dp has probed.  qcom_snd_parse_of()
+walks for_each_available_child_of_node(), so a disabled link is not part of the
+card at all - but an enabled one couples the entire "OnePlus 7 Pro" card to the
+DP controller: if DP failed to probe, there would be no speakers, no mic and no
+headset either.  DP audio is unsolved on this SoC family anyway, so the default
+must be video only.
+
+Enabling it is a deliberate one-line experiment: status = "okay", rebuild, and
+follow the DP audio ladder in the topic README (with the patches/0046-0050
+series applied).  Nothing here is known to produce sound; the DSP is expected
+to time out on port 0x6020.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ .../dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi         | 39 ++++++++++++
+ 1 file changed, 39 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi
+index 5f2709d..6ecd0ce 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi
+@@ -81,3 +81,42 @@
+ 		};
+ 	};
+ };
++
++/*
++ * DisplayPort audio: present but disabled by default.
++ *
++ * This is a DPCM back end (cpu + platform + codec), which is what makes the
++ * machine driver's prepare/hw_params/startup/shutdown hooks run for it.
++ *
++ * It stays at status = "disabled" on purpose.  ASoC binds every available DAI
++ * link when the sound card registers, and snd_soc_add_pcm_runtime() returns
++ * -EPROBE_DEFER when a link's codec DAI is not registered (sound/soc/
++ * soc-core.c).  qcom_snd_parse_of() only walks available children, so a
++ * disabled link is not part of the card at all; if it were enabled and the DP
++ * controller (the hdmi-codec's parent device) failed to probe, the whole
++ * "OnePlus 7 Pro" card would never register: no speakers, no mic, no
++ * headset.  DP audio is also unsolved on this SoC family, so the safe default
++ * is video only.
++ *
++ * To run the experiment, change this to status = "okay", rebuild, and follow
++ * the DP audio ladder in the topic README.  Expect the DSP to time out on
++ * port 0x6020; nothing here is known to produce sound.
++ */
++&sound {
++	dp-dai-link {
++		status = "disabled";
++		link-name = "DisplayPort Playback";
++
++		cpu {
++			sound-dai = <&q6afedai DISPLAY_PORT_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&mdss_dp>;
++		};
++	};
++};
+-- 
+2.47.0
+

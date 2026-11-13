@@ -1,0 +1,97 @@
+Subject: [PATCH] drm/msm/dsi: phy: release the iface clock on runtime suspend
+
+pm_clk prepares "iface" when it is added during probe; pm_clk_suspend()
+only drops the enable count afterwards. The prepared dispcc AHB gate keeps
+its RPMh XO parent prepared and voting for the whole of system sleep even
+though the PHY is powered down, so one clock request stays in across every
+suspend.
+
+Look the clock up directly and pair clk_prepare_enable() in runtime resume
+with clk_disable_unprepare() in runtime suspend. The runtime PM core keeps
+the calls balanced: msm_dsi_phy_enable() uses pm_runtime_resume_and_get(),
+which does not take a usage reference when the resume callback fails, and
+the existing error path then returns without a pm_runtime_put(). The clock
+is now prepared from the first msm_dsi_phy_enable() instead of from probe;
+no register access happens in between except the existing pll_init() state
+save, which already ran with the branch gated. The resume callback may
+sleep and runs from process context: the only caller is
+msm_dsi_phy_enable(), and nothing in the msm stack makes the device
+pm_runtime_irq_safe.
+
+Ported unchanged from the Omarchy Mobile OnePlus 7 Pro reference
+(devices/oneplus7pro/kernel/power/dsi-phy-pm.patch, f702f688). Its measured
+result on the sibling device was XO sleep/wake requests 3/3 before and 0/0
+while suspended, with the display and touch recovering. That is transferred
+evidence, not a measurement on this phone.
+---
+--- a/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c
++++ b/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c
+@@ -5,7 +5,7 @@
+ 
+ #include <linux/clk-provider.h>
+ #include <linux/platform_device.h>
+-#include <linux/pm_clock.h>
++#include <linux/clk.h>
+ #include <linux/pm_runtime.h>
+ #include <dt-bindings/phy/phy.h>
+ 
+@@ -680,18 +680,15 @@
+ 
+ 	platform_set_drvdata(pdev, phy);
+ 
+-	ret = devm_pm_runtime_enable(dev);
+-	if (ret)
+-		return ret;
++	phy->iface_clk = devm_clk_get(dev, "iface");
++	if (IS_ERR(phy->iface_clk))
++		return dev_err_probe(dev, PTR_ERR(phy->iface_clk),
++				     "Unable to get iface clk\n");
+ 
+-	ret = devm_pm_clk_create(dev);
++	ret = devm_pm_runtime_enable(dev);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = pm_clk_add(dev, "iface");
+-	if (ret < 0)
+-		return dev_err_probe(dev, ret, "Unable to get iface clk\n");
+-
+ 	if (phy->cfg->ops.pll_init) {
+ 		ret = phy->cfg->ops.pll_init(phy);
+ 		if (ret)
+@@ -708,8 +705,24 @@
+ 	return 0;
+ }
+ 
++static int __maybe_unused dsi_phy_runtime_suspend(struct device *dev)
++{
++	struct msm_dsi_phy *phy = dev_get_drvdata(dev);
++
++	/* Dropping enable alone leaves RPMh parents prepared and voting for XO. */
++	clk_disable_unprepare(phy->iface_clk);
++	return 0;
++}
++
++static int __maybe_unused dsi_phy_runtime_resume(struct device *dev)
++{
++	struct msm_dsi_phy *phy = dev_get_drvdata(dev);
++
++	return clk_prepare_enable(phy->iface_clk);
++}
++
+ static const struct dev_pm_ops dsi_phy_pm_ops = {
+-	SET_RUNTIME_PM_OPS(pm_clk_suspend, pm_clk_resume, NULL)
++	SET_RUNTIME_PM_OPS(dsi_phy_runtime_suspend, dsi_phy_runtime_resume, NULL)
+ };
+ 
+ static struct platform_driver dsi_phy_platform_driver = {
+--- a/drivers/gpu/drm/msm/dsi/phy/dsi_phy.h
++++ b/drivers/gpu/drm/msm/dsi/phy/dsi_phy.h
+@@ -121,6 +121,7 @@
+ 	struct clk_hw_onecell_data *provided_clocks;
+ 
+ 	bool state_saved;
++	struct clk *iface_clk;
+ };
+ 
+ /*

@@ -1,0 +1,71 @@
+From: Nura local rear-camera port
+Subject: [PATCH] arm64: dts: enable the guacamole rear flash as a bring-up torch
+
+The 7.0 board delta describes the PM8150L flash block only through
+pm8150l.dtsi: SPMI slave 5 exists and is enabled, but its
+led-controller@d300 child is "disabled" and has no LED children, so
+leds-qcom-flash never binds and there is no /sys/class/leds/*:torch.
+
+Enable it as a torch only. One ganged LED on flash channels 1 and 2:
+the binding and driver split a ganged LED's current symmetrically over
+its channels and switch them together, and Plasma Mobile's flashlight
+quick setting handles one LED.
+
+led-max-microamp is deliberately the conservative bring-up value, not
+the stock 300 mA per channel. The only current setting verified on this
+hardware was the reference's 32/255 on a 300 mA-max single-channel LED
+for 2 s. The driver's integer scaling turns that into a 37 mA request
+and ITARGET 6, i.e. 35 mA per channel at 5 mA torch resolution (70 mA
+for both LEDs). A 70000 uA ganged node at full brightness requests
+35 mA per channel and writes the same ITARGET 6, so Plasma's
+max_brightness write lands exactly on the verified setting.
+
+flash-max-microamp/flash-max-timeout-us are omitted on purpose: the LED
+advertises no strobe capability until the stock 1 A per channel flash
+current has its own validation. The stock production node (300 mA per
+channel torch, 1 A per channel flash, 1.28 s) is a separate follow-up
+patch.
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include <dt-bindings/input/linux-event-codes.h>
++#include <dt-bindings/leds/common.h>
+ #include <dt-bindings/sound/qcom,q6asm.h>
+ 
+ / {
+@@ -555,3 +556,31 @@
+ 		};
+ 	};
+ };
++
++/*
++ * Rear dual LED flash on PM8150L (SPMI slave 5), on flash channels 1 and 2.
++ *
++ * Bring-up stage: torch only, one ganged LED, and a cap that reproduces the
++ * one current setting that was actually verified on this hardware. The
++ * reference test drove each LED alone as its own 300 mA-max classdev at
++ * brightness 32/255 for 2 s. The driver's integer scaling turns that into a
++ * 37 mA request, ITARGET 6, i.e. 35 mA per channel (5 mA torch resolution),
++ * 70 mA for both LEDs. At full brightness a 70000 uA ganged node requests
++ * 35 mA per channel and writes the same ITARGET 6, so Plasma Mobile's
++ * max_brightness toggle lands exactly on the verified condition.
++ *
++ * No flash-max-microamp/flash-max-timeout-us here: the LED exposes no strobe
++ * capability until the stock flash currents have their own validation.
++ * Stock values (300 mA/channel torch, 1 A/channel flash, 1.28 s) and the
++ * production node are a separate follow-up patch.
++ */
++&pm8150l_flash {
++	status = "okay";
++
++	led-0 {
++		function = LED_FUNCTION_TORCH;
++		color = <LED_COLOR_ID_WHITE>;
++		led-sources = <1 2>;
++		led-max-microamp = <70000>;
++	};
++};

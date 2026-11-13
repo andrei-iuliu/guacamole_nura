@@ -1,0 +1,229 @@
+Subject: [PATCH] ath10k: snoc: complete key operations on the WMI acknowledgement
+
+ath10k_install_key() waits for install_key_done, which only HTT SEC_IND
+signals. On WCN3990 a key *removal* produces WMI_VDEV_INSTALL_KEY_COMPLETE
+(about 2 ms later) but no HTT SEC_IND, so every removal times out after
+3 s with -110. That happens on every disconnect, roam and system suspend.
+
+For SNOC + TLV firmware only, track the pending key operation (vdev, peer,
+index, flags) and complete it from the WMI key-complete event, checking
+the firmware status. Installs still also wait for HTT SEC_IND (PN setup).
+Other buses keep the previous handler exactly.
+
+The WMI event carries no transaction id, so after a timeout a late
+acknowledgement could match a later operation with the same vdev, peer,
+key index and flags (a repeated key removal of the same peer does).  A
+timeout therefore latches the WMI sequence: from then on the WMI wait is
+never armed again and the driver falls back to the pre-patch HTT-only
+wait until the next firmware start.  That keeps a late reply from
+satisfying a later operation (nothing is waiting for it) without turning
+the old 3 s timeout into a permanent error for later key operations.
+
+Rebased for nura rc4 onto 7.0.0-sm8150-rc3 after 0041.  Changes from the
+reviewed omarchy-mobile original: the pending flag is computed after the
+nohwcrypt early return and guarded against a NULL running_fw (the two
+helper callers do not check nohwcrypt themselves); the desync latch falls
+back to the pre-patch wait instead of returning -EIO while latched; and
+the non-SNOC path still calls ath10k_wmi_event_vdev_install_key_complete()
+so PCI/SDIO TLV devices keep their behaviour and debug line.
+
+Measured on guacamole by omarchy-mobile: disconnect 3.399 s -> 0.391 s,
+no -110, HTTPS fine after reconnect and after suspend.
+
+Source: omarchy-mobile devices/oneplus7pro/kernel/radio/ath10k-snoc-key-ack.patch
+and docs/wifi-key-ack-20260917.md (https://github.com/Cube-Oakley/omarchy-mobile,
+commit f702f68); paths rebased onto drivers/net/wireless/ath/ and the
+whitespace-only re-indent of the ath10k_install_key() signature dropped.
+---
+--- a/drivers/net/wireless/ath/ath10k/core.c
++++ b/drivers/net/wireless/ath/ath10k/core.c
+@@ -2983,6 +2983,10 @@
+ 	lockdep_assert_held(&ar->conf_mutex);
+ 
+ 	clear_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
++	spin_lock_bh(&ar->data_lock);
++	ar->key_wmi_pending = false;
++	ar->key_wmi_desynced = false;
++	spin_unlock_bh(&ar->data_lock);
+ 
+ 	ar->running_fw = fw;
+ 
+@@ -3682,6 +3686,7 @@
+ 	init_completion(&ar->wow.wakeup_completed);
+ 
+ 	init_completion(&ar->install_key_done);
++	init_completion(&ar->key_wmi_done);
+ 	init_completion(&ar->vdev_setup_done);
+ 	init_completion(&ar->vdev_delete_done);
+ 	init_completion(&ar->thermal.wmi_sync);
+--- a/drivers/net/wireless/ath/ath10k/core.h
++++ b/drivers/net/wireless/ath/ath10k/core.h
+@@ -1154,6 +1154,13 @@
+ 	u8 cfg_rx_chainmask;
+ 
+ 	struct completion install_key_done;
++	/* SNOC TLV key acknowledgements; pending metadata protected by data_lock. */
++	struct completion key_wmi_done;
++	bool key_wmi_pending;
++	bool key_wmi_desynced;
++	u32 key_wmi_vdev, key_wmi_idx, key_wmi_flags;
++	u8 key_wmi_addr[ETH_ALEN];
++	int key_wmi_status;
+ 
+ 	int last_wmi_vdev_start_status;
+ 	struct completion vdev_setup_done;
+--- a/drivers/net/wireless/ath/ath10k/mac.c
++++ b/drivers/net/wireless/ath/ath10k/mac.c
+@@ -310,25 +310,66 @@
+ 			      const u8 *macaddr, u32 flags)
+ {
+ 	struct ath10k *ar = arvif->ar;
+-	int ret;
+ 	unsigned long time_left;
++	bool wmi_ack, wmi_wait = false;
++	int ret;
+ 
+ 	lockdep_assert_held(&ar->conf_mutex);
+ 
+-	reinit_completion(&ar->install_key_done);
+-
+ 	if (arvif->nohwcrypt)
+ 		return 1;
+ 
++	reinit_completion(&ar->install_key_done);
++
++	/* SNOC TLV firmware acknowledges key operations over WMI. */
++	wmi_ack = ar->hif.bus == ATH10K_BUS_SNOC && ar->running_fw &&
++		  ar->running_fw->fw_file.wmi_op_version == ATH10K_FW_WMI_OP_VERSION_TLV;
++	if (wmi_ack) {
++		reinit_completion(&ar->key_wmi_done);
++		spin_lock_bh(&ar->data_lock);
++		/* A timeout leaves the WMI sequence ambiguous: the event carries
++		 * no transaction id, so a late acknowledgement could match a
++		 * later operation with the same vdev, peer, key index and flags.
++		 * Once that happens, never arm the WMI wait again and fall back to
++		 * the pre-patch HTT-only wait until the firmware restarts.
++		 */
++		if (!ar->key_wmi_desynced) {
++			ar->key_wmi_vdev = arvif->vdev_id;
++			ar->key_wmi_idx = key->keyidx;
++			ar->key_wmi_flags = flags;
++			ether_addr_copy(ar->key_wmi_addr, macaddr);
++			ar->key_wmi_status = -ETIMEDOUT;
++			ar->key_wmi_pending = true;
++			wmi_wait = true;
++		}
++		spin_unlock_bh(&ar->data_lock);
++	}
++
+ 	ret = ath10k_send_key(arvif, key, cmd, macaddr, flags);
+ 	if (ret)
+-		return ret;
+-
++		goto out;
++	if (wmi_wait) {
++		time_left = wait_for_completion_timeout(&ar->key_wmi_done, 3 * HZ);
++		spin_lock_bh(&ar->data_lock);
++		ret = time_left ? ar->key_wmi_status : -ETIMEDOUT;
++		spin_unlock_bh(&ar->data_lock);
++		if (ret || cmd == DISABLE_KEY)
++			goto out;
++	}
++	/* Key installation still requires HTT security/PN initialization.
++	 * WCN3990 deletion reports WMI completion but no HTT SEC_IND.
++	 */
+ 	time_left = wait_for_completion_timeout(&ar->install_key_done, 3 * HZ);
+-	if (time_left == 0)
+-		return -ETIMEDOUT;
+-
+-	return 0;
++	ret = time_left ? 0 : -ETIMEDOUT;
++out:
++	if (wmi_wait) {
++		spin_lock_bh(&ar->data_lock);
++		ar->key_wmi_pending = false;
++		if (ret)
++			ar->key_wmi_desynced = true;
++		spin_unlock_bh(&ar->data_lock);
++	}
++	return ret;
+ }
+ 
+ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
+--- a/drivers/net/wireless/ath/ath10k/wmi-tlv.c
++++ b/drivers/net/wireless/ath/ath10k/wmi-tlv.c
+@@ -25,6 +25,8 @@
+ };
+ 
+ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
++	[WMI_TLV_TAG_STRUCT_VDEV_INSTALL_KEY_COMPLETE_EVENT]
++		= { .min_len = sizeof(struct wmi_tlv_key_complete_ev) },
+ 	[WMI_TLV_TAG_ARRAY_BYTE]
+ 		= { .min_len = 0 },
+ 	[WMI_TLV_TAG_ARRAY_UINT32]
+@@ -632,6 +634,40 @@
+ /* TLV ops */
+ /***********/
+ 
++static void ath10k_wmi_tlv_key_complete(struct ath10k *ar, struct sk_buff *skb)
++{
++	const struct wmi_tlv_key_complete_ev *ev;
++	const void **tb;
++
++	if (ar->hif.bus != ATH10K_BUS_SNOC) {
++		ath10k_wmi_event_vdev_install_key_complete(ar, skb);
++		return;
++	}
++	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
++	if (IS_ERR(tb))
++		return;
++	ev = tb[WMI_TLV_TAG_STRUCT_VDEV_INSTALL_KEY_COMPLETE_EVENT];
++	if (!ev)
++		goto out;
++	ath10k_dbg(ar, ATH10K_DBG_WMI,
++		   "key ack vdev %u idx %u flags %u status %u\n",
++		   le32_to_cpu(ev->vdev_id), le32_to_cpu(ev->key_idx),
++		   le32_to_cpu(ev->key_flags), le32_to_cpu(ev->status));
++	spin_lock_bh(&ar->data_lock);
++	if (ar->key_wmi_pending &&
++	    ar->key_wmi_vdev == le32_to_cpu(ev->vdev_id) &&
++	    ar->key_wmi_idx == le32_to_cpu(ev->key_idx) &&
++	    ar->key_wmi_flags == le32_to_cpu(ev->key_flags) &&
++	    ether_addr_equal(ar->key_wmi_addr, ev->peer_macaddr.addr)) {
++		ar->key_wmi_status = le32_to_cpu(ev->status) ? -EIO : 0;
++		ar->key_wmi_pending = false;
++		complete(&ar->key_wmi_done);
++	}
++	spin_unlock_bh(&ar->data_lock);
++out:
++	kfree(tb);
++}
++
+ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
+ {
+ 	struct wmi_cmd_hdr *cmd_hdr;
+@@ -751,7 +785,7 @@
+ 		ath10k_wmi_event_addba_complete(ar, skb);
+ 		break;
+ 	case WMI_TLV_VDEV_INSTALL_KEY_COMPLETE_EVENTID:
+-		ath10k_wmi_event_vdev_install_key_complete(ar, skb);
++		ath10k_wmi_tlv_key_complete(ar, skb);
+ 		break;
+ 	case WMI_TLV_SERVICE_READY_EVENTID:
+ 		ath10k_wmi_event_service_ready(ar, skb);
+--- a/drivers/net/wireless/ath/ath10k/wmi-tlv.h
++++ b/drivers/net/wireless/ath/ath10k/wmi-tlv.h
+@@ -2680,4 +2680,13 @@
+ 	__le32 frame_len;
+ 	__le32 buf_len;
+ } __packed;
++
++/* WMI_TLV_TAG_STRUCT_VDEV_INSTALL_KEY_COMPLETE_EVENT payload. */
++struct wmi_tlv_key_complete_ev {
++	__le32 vdev_id;
++	struct wmi_mac_addr peer_macaddr;
++	__le32 key_idx;
++	__le32 key_flags;
++	__le32 status;
++} __packed;
+ #endif

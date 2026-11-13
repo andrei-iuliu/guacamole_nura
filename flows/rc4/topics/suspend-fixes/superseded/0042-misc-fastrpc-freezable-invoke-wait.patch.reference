@@ -1,0 +1,47 @@
+# REFERENCE ONLY - DO NOT ADD TO THE KERNEL PACKAGE source= LIST.
+#
+# Supplied suspend-fixes/kernel/0025-misc-fastrpc-freezable-invoke-wait.patch
+# is already applied in rc3 as 0034-fastrpc-freezable-wait.patch.  The code is
+# identical (same wait, same comment); only the hunk line numbers and the
+# commit message differ.  This file is the text that is already applied, kept
+# under the rc4 number that maps to supplied 0025 so the mapping 0042..0045 is
+# complete.  Applying it again fails, which is the intended guard.
+Subject: [PATCH] misc: fastrpc: park a waiting invoke across system freeze
+
+fastrpc_internal_invoke() sends the message and then waits with
+wait_for_completion_interruptible(). When the freezer interrupts that
+wait the ioctl returns -ERESTARTSYS and is restarted after thaw as a new
+invoke, so the DSP receives a second copy of the still-pending call.
+hexagonrpcd always keeps one listener blocked in an invoke, which is why
+every system suspend produced a duplicate and the sensor DSP crashed
+shortly after tasks restarted (EX:sensor_process:0x1:frpc_dsp:0x6c).
+
+Wait with TASK_INTERRUPTIBLE | TASK_FREEZABLE instead. The freezer then
+parks the sleeping caller in place; a completion that arrives while it is
+parked is kept for the thaw, and a real signal still returns
+-ERESTARTSYS with the existing interrupted-invoke bookkeeping. The
+kernel-invoke timeout branch and the errored-context cleanup are
+untouched.
+
+Reference: omarchy-mobile f702f68 devices/oneplus7pro/kernel/sensors/
+fastrpc-freezable-wait.patch.
+---
+--- a/drivers/misc/fastrpc.c
++++ b/drivers/misc/fastrpc.c
+@@ -1237,7 +1237,15 @@
+ 		if (!wait_for_completion_timeout(&ctx->work, 10 * HZ))
+ 			err = -ETIMEDOUT;
+ 	} else {
+-		err = wait_for_completion_interruptible(&ctx->work);
++		/*
++		 * Freezable, so that system suspend parks a waiting caller
++		 * instead of interrupting it. An interrupted invoke is
++		 * restarted as a second message for the same call, and the
++		 * sensor DSP crashes on it (EX:sensor_process:frpc_dsp) as
++		 * soon as tasks are thawed.
++		 */
++		err = wait_for_completion_state(&ctx->work,
++						TASK_INTERRUPTIBLE | TASK_FREEZABLE);
+ 	}
+ 
+ 	if (err)

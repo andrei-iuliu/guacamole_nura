@@ -1,0 +1,293 @@
+{
+  "topic": "suspend-fixes",
+  "release": "rc4",
+  "generated": "2026-11-13",
+  "baseline": {
+    "kernel_recipe": "device/testing/rc3/linux-postmarketos-qcom-sm8150",
+    "kernel_version": "7.0.0-sm8150-rc3",
+    "kernel_pkgrel": 4,
+    "existing_patches": "0001-0041",
+    "patched_sources_used": "flows/local-storage/.work/local-userdata/kernel-state/linux-v7.0.0-sm8150",
+    "patched_sources_second_copy": "bringup-notes/nura-rc3-20261112/kernel-device/work/linux-v7.0.0-sm8150",
+    "device_package": "device/testing/device-oneplus-guacamole",
+    "device_pkgrel": 14,
+    "system_suspend_policy": "disabled in the local-storage candidate rootfs (logind idle/suspend-key ignored, PowerDevil AutoSuspendAction=NoAction)"
+  },
+  "renumbering": {
+    "0025": "0042",
+    "0026": "0043",
+    "0027": "0044",
+    "0028": "0045",
+    "rule": "0042 and 0043 are reference-only because their code is already in rc3 as 0034 and 0035; only 0044 and 0045 are merge-ready"
+  },
+  "supplied_root": "bringup-notes/Patches/suspend-fixes",
+  "supplied": [
+    {
+      "path": "README.md",
+      "sha256": "bbc2160a02d65f7cdd8962b6223a0ca211faaf2edaec035fb116c0fc7fbc8001",
+      "bytes": 8999,
+      "disposition": "integrated",
+      "artifact": "docs/supplied/README.md",
+      "notes": "hand-off text, copied verbatim. Targets guacamole_nura 5b2241b / 6.17, not this 7.0 baseline; its claims were re-checked (topic README section 3).",
+      "depends_on": []
+    },
+    {
+      "path": "docs/00-diagnose.md",
+      "sha256": "3294638c99489b087475157c328f648bd222b7adea3a327cfc2359ec21b93ca9",
+      "bytes": 6777,
+      "disposition": "integrated",
+      "artifact": "docs/supplied/00-diagnose.md",
+      "notes": "diagnostic procedure kept verbatim. Its pm_test section needs CONFIG_PM_DEBUG from fragments/kernel-config.fragment. Its WoWLAN and modem-SSR advice applies to this package (WoWLAN is armed by default).",
+      "depends_on": [
+        "fragments/kernel-config.fragment"
+      ]
+    },
+    {
+      "path": "docs/0025-fastrpc-freezable-wait.md",
+      "sha256": "52aea5c0ec41125c7c1768d19abc2259956679bd058ffbf6026991f0f25a0621",
+      "bytes": 3096,
+      "disposition": "already present",
+      "artifact": "docs/supplied/0025-fastrpc-freezable-wait.md",
+      "notes": "doc copied; the fix it describes is rc3 0034-fastrpc-freezable-wait.patch",
+      "depends_on": []
+    },
+    {
+      "path": "docs/0026-s6sy761-resume-irq.md",
+      "sha256": "cbdf96fb4e400a3154e961d8942c9f6eeec933593109576b24c934f73bde67e3",
+      "bytes": 3299,
+      "disposition": "already present",
+      "artifact": "docs/supplied/0026-s6sy761-resume-irq.md",
+      "notes": "doc copied; the fix it describes is a subset of rc3 0035-s6sy761-resume-irq.patch",
+      "depends_on": []
+    },
+    {
+      "path": "docs/0027-guacamole-mss-vote.md",
+      "sha256": "88f4d165bdfb6b871fb96ff6a3ac241dc59433e893539761c0663eec3fa3ecf8",
+      "bytes": 8185,
+      "disposition": "integrated",
+      "artifact": "docs/supplied/0027-guacamole-mss-vote.md",
+      "notes": "doc copied; code integrated as patches/0044. Its root cause (sync_state never runs) and the freeze are not proven by this work.",
+      "depends_on": [
+        "patches/0044-soc-qcom-guacamole-mss-vote.patch"
+      ]
+    },
+    {
+      "path": "docs/0028-ath10k-snoc-wmi-key-ack.md",
+      "sha256": "537e3d6a95c04e0a7128cb0da6048f52d2e14ef1100dbe214d500dd9dd8a9276",
+      "bytes": 4025,
+      "disposition": "integrated",
+      "artifact": "docs/supplied/0028-ath10k-snoc-wmi-key-ack.md",
+      "notes": "doc copied; code integrated as patches/0045. The WCN3990 event behaviour and the measured 3.399 s -> 0.391 s are from the sibling device, not this kernel.",
+      "depends_on": [
+        "patches/0045-ath10k-snoc-wmi-key-ack.patch"
+      ]
+    },
+    {
+      "path": "kernel/0025-misc-fastrpc-freezable-invoke-wait.patch",
+      "sha256": "79f03c29dcd0d179516daba2e69a39f515a3c238205425ba4f88aeca7927d478",
+      "bytes": 1732,
+      "disposition": "already present",
+      "artifact": "superseded/0042-misc-fastrpc-freezable-invoke-wait.patch.reference",
+      "notes": "dry-run against the rc3 tree reports 'Reversed (or previously applied) patch detected'. rc3 0034 has the same wait and comment.",
+      "depends_on": []
+    },
+    {
+      "path": "kernel/0026-input-s6sy761-enable-irq-after-resume-restart.patch",
+      "sha256": "9c964c033121e249160c5cafec87131755c2e110a18d6982408e3b7f2cacb585",
+      "bytes": 1680,
+      "disposition": "already present",
+      "artifact": "superseded/0043-input-s6sy761-enable-irq-after-resume-restart.patch.reference",
+      "notes": "dry-run fails at hunk #1 line 556 because rc3 0035 already rewrote s6sy761_resume() and its error paths (superset).",
+      "depends_on": [
+        "rc3 0035-s6sy761-resume-irq.patch"
+      ]
+    },
+    {
+      "path": "kernel/0027-soc-qcom-guacamole-mss-vote.patch",
+      "sha256": "544d4c7441c92924c90acd0f5c7549b3a809f8814bc24173245d341f030cd155",
+      "bytes": 9678,
+      "disposition": "integrated",
+      "artifact": "patches/0044-soc-qcom-guacamole-mss-vote.patch",
+      "notes": "logic unchanged; added reason strings on the early -ENODEV/-EPROBE_DEFER returns and corrected the sysfs path in the header comment. Applies with -F0, zero offset, against the rc3-patched tree; clang syntax check PASS. The runtime release is opt-in and handover-gated on the exact proxy runtime status 'suspended'; state=running does not prove the proxy domains were handed over (topic README section 6).",
+      "depends_on": []
+    },
+    {
+      "path": "kernel/0028-ath10k-snoc-wmi-key-ack.patch",
+      "sha256": "e159db58fd2890af6b31c8016502f048ccef61140e5776a17e62d41622fbb8b5",
+      "bytes": 8253,
+      "disposition": "integrated",
+      "artifact": "patches/0045-ath10k-snoc-wmi-key-ack.patch",
+      "notes": "added ar->running_fw guard, moved the wmi_ack initialisation after the nohwcrypt return, restored the dropped blank line, made a timeout latch the sequence and fall back to the pre-patch HTT-only wait instead of returning -EIO, and kept ath10k_wmi_event_vdev_install_key_complete() for non-SNOC TLV buses. The WMI event has no transaction id, so a latched sequence never arms the WMI wait again; checks/key_state_model.py audits the repeated remove/install/late-ack/reconnect orderings. Applies with -F0, zero offset; clang syntax check PASS for mac.c, core.c, wmi-tlv.c.",
+      "depends_on": [
+        "CONFIG_ATH10K_SNOC=m (already in rc3 config)"
+      ]
+    },
+    {
+      "path": "kernel/APKBUILD.diff",
+      "sha256": "ac898bc6525420eedad98d3cccec12d561774ea1b98f0679073f38f41ea43f1c",
+      "bytes": 771,
+      "disposition": "blocked",
+      "artifact": "fragments/apkbuild-source.fragment",
+      "notes": "stale: targets pkgver 6.17.0 and pkgrel 25->26 with patches 0025-0028. The rc4 recipe is 7.0.0 pkgrel=4 with 41 patches and uses 0044/0045.",
+      "blocker": "patch context does not exist in the 7.0.0 recipe",
+      "depends_on": []
+    },
+    {
+      "path": "kernel/config.diff",
+      "sha256": "a78d20ab84b2a82ee58ac93523b001f39f438fb1b5ba19177fc6a0ddad2fad82",
+      "bytes": 755,
+      "disposition": "integrated",
+      "artifact": "fragments/kernel-config.fragment",
+      "notes": "intent kept, re-expressed for the 7.0 Kconfig and the rc3 config; PM_TEST_SUSPEND/PM_ADVANCED_DEBUG explicitly off, DPM_WATCHDOG off because it needs CONFIG_EXPERT.",
+      "depends_on": [
+        "patches/0044-soc-qcom-guacamole-mss-vote.patch"
+      ]
+    },
+    {
+      "path": "device/device-package.diff",
+      "sha256": "8a827d83d887e443ac35190868216bcdeacc4071d1b80553b7367600ed9abd32",
+      "bytes": 1880,
+      "disposition": "blocked",
+      "artifact": "fragments/device/INSTALL.md",
+      "notes": "stale: patches pkgrel 11->12, enables the unit in 80-guacamole.preset and hooks guacamole-mpss.initd; the package is pkgrel=14 and systemd-first, with guacamole-mpss-start as the shared starter. Replaced by INSTALL.md (helper + opt-in unit); there is deliberately no starter hook because state=running does not prove the proxy handover.",
+      "blocker": "patch context does not exist in the rc4 device package",
+      "depends_on": []
+    },
+    {
+      "path": "device/guacamole-mss-release",
+      "sha256": "080b0483d7c810c13688e6bc4d7cbacd88e0209649b92c2cd95e72f68a295dcf",
+      "bytes": 875,
+      "disposition": "integrated",
+      "artifact": "fragments/device/guacamole-mss-release",
+      "notes": "hardened: set -u, env overrides for rootless tests, duplicate-modem guard, read-back check, clearer errors, MSS_WAIT_TIMEOUT/MSS_POLL_INTERVAL, and a handover barrier that accepts only the exact proxy genpd:1:<pas> runtime status 'suspended' (active/suspending waited on; resuming, empty/unreadable/unknown/timeout refuse). The modem is re-checked as running during the wait and immediately before the write; MSS_ALLOW_UNVERIFIED_HANDOVER=1 only skips the handover observation. 38/38 unit tests pass.",
+      "depends_on": [
+        "patches/0044-soc-qcom-guacamole-mss-vote.patch",
+        "CONFIG_QCOM_GUACAMOLE_MSS_VOTE=m"
+      ]
+    },
+    {
+      "path": "device/guacamole-mss-release.service",
+      "sha256": "3a3bfccb211184ea38c1769c936746c6318810e27e49e4144d924e7d284fd55d",
+      "bytes": 379,
+      "disposition": "gated",
+      "artifact": "fragments/device/guacamole-mss-release.service",
+      "notes": "the only integration and the opt-in: After=rmtfs.service guacamole-mpss.service, Type=exec, RemainAfterExit, not enabled by preset, no starter hook. Enabling it on the phone is the opt-in.",
+      "gate": "enabled by the operator on the phone only; not in 80-guacamole.preset",
+      "depends_on": [
+        "fragments/device/guacamole-mss-release"
+      ]
+    },
+    {
+      "path": "device/90-guacamole-modem-recovery.rules",
+      "sha256": "04c5dfdd03612f1b6e56703799ab0facf5ceee21294c50177a5977c607196b7d",
+      "bytes": 450,
+      "disposition": "gated",
+      "artifact": "fragments/device/90-guacamole-modem-recovery.rules",
+      "notes": "diagnostic only: disables modem SSR so a modem crash does not take the kernel down. With it, a modem crash leaves cellular and WCN3990 Wi-Fi down until reboot.",
+      "gate": "install only for a diagnosis run; remove once 0044 is verified and recovery is shown to survive",
+      "depends_on": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "patches/0044-soc-qcom-guacamole-mss-vote.patch",
+      "sha256": "0943152c111b1fcaa7f859761871a628093d8f47a0c9387b0415138740880e9f",
+      "merge": true
+    },
+    {
+      "path": "patches/0045-ath10k-snoc-wmi-key-ack.patch",
+      "sha256": "8288b0a7f9ae826520a167d4a1689e7e8b776bfc94fc9ce6674f4bbb6ffbc083",
+      "merge": true
+    },
+    {
+      "path": "fragments/kernel-config.fragment",
+      "sha256": "9f214140ecb1ac9f04a77de804c186ef5591347784d31bb76e0927e14dd52f51",
+      "merge": true
+    },
+    {
+      "path": "fragments/kernel-localversion.fragment",
+      "sha256": "1b07e23d4435d0e2c47d9b38d8af3e973066065140b3ba3e84d8c7d40d6e726c",
+      "merge": "last"
+    },
+    {
+      "path": "fragments/apkbuild-source.fragment",
+      "sha256": "cffcf7423ca34c3c63ff5ec59ed93ddaeac7e81a27475c914ba61806339f18e5",
+      "merge": true
+    },
+    {
+      "path": "fragments/device/guacamole-mss-release",
+      "sha256": "6cb5684dcc1dcaff8a0e92b26718237ae4b587e0c5ac18223f4dcdb8b035dc7d",
+      "merge": true
+    },
+    {
+      "path": "fragments/device/guacamole-mss-release.service",
+      "sha256": "60fffd8b1bcf98ecd5a27e3aecaef76d88adbdff58c70c5d9d07b4b5f9d843e6",
+      "merge": false
+    },
+    {
+      "path": "fragments/device/90-guacamole-modem-recovery.rules",
+      "sha256": "9cc4c4504348e0caf975953387ebcaf91832a4d01f146bcf40f4a66fb7970c77",
+      "merge": false
+    },
+    {
+      "path": "fragments/device/80-guacamole.preset.fragment",
+      "sha256": "c7f365931d7272794c6cf94252a0b3101c2e152267a4dd2429e8bba20898c642",
+      "merge": false
+    },
+    {
+      "path": "fragments/device/INSTALL.md",
+      "sha256": "4e772914a308d7f1c473ccd522b59fbdd531b7525a00f46beaf252f149d0583a",
+      "merge": false
+    },
+    {
+      "path": "superseded/0042-misc-fastrpc-freezable-invoke-wait.patch.reference",
+      "sha256": "50435c37f1d3b1b9117588a97fecc06cccac164f80328986fb83171b8c885990",
+      "merge": false
+    },
+    {
+      "path": "superseded/0043-input-s6sy761-enable-irq-after-resume-restart.patch.reference",
+      "sha256": "264e5e144d399462a29390b96441266f842e51e04272d814c6f9701e3ebaeef0",
+      "merge": false
+    },
+    {
+      "path": "docs/RELEASE_NOTES_FRAGMENT.md",
+      "sha256": "357f41ce07bd617065179778c456404eb54fdf3ad1e8d7d70e9f8a37bfa187be",
+      "merge": "documentation"
+    },
+    {
+      "path": "checks/patch_apply_check.sh",
+      "sha256": "fbf5f05cfcc272df6d9668e9ae41457b79d47dcfe59912f2d87c257ff3a56aeb",
+      "merge": false
+    },
+    {
+      "path": "checks/fsyntax_check.sh",
+      "sha256": "6e3cb03582a4cc35670464f7391560635df5d9cd01e428f86b8aaf78670dfe70",
+      "merge": false
+    },
+    {
+      "path": "checks/test_guacamole_mss_release.sh",
+      "sha256": "af334a3af3ee74a46e8da60895ba9e179245aebdd40a393b913b4e2005958a45",
+      "merge": false
+    },
+    {
+      "path": "checks/check_fragments.sh",
+      "sha256": "bf4eff4b1725239ff32b72cef8a664b24d7162ae3dd3d36a8d577b8655bd2291",
+      "merge": false
+    },
+    {
+      "path": "checks/run_all.sh",
+      "sha256": "3ccb13c7a49179d6e8e9f6827a50f73351e2d8240d261941ad8503432c43aedf",
+      "merge": false
+    },
+    {
+      "path": "checks/expected-files.sha256",
+      "sha256": "947a16c07fcde068fe75d84d7ad1eb32bd63de9ef096ec83bf7add6e52ebc595",
+      "merge": false
+    },
+    {
+      "path": "checks/key_state_model.py",
+      "sha256": "8fe13658eec4860371cc0c2330e44c2db9ae2a4b31d2519149c9f65920cf2881",
+      "merge": false
+    }
+  ]
+}

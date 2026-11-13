@@ -1,0 +1,113 @@
+From: Nura local device port
+Subject: [PATCH] arm64: dts: guacamole: add AW8697 haptics and the alert slider
+
+Enable QUP0 SE7 (i2c7) for the AW8697 at 0x5a with reset on TLMM GPIO 116,
+and describe the three-position alert slider on GPIO 27/125/134 so both
+appear as static input devices (no runtime overlay).  i2c4/i2c8 already
+keep QUP0 powered and use the FIFO path because gpi_dma0 stays disabled.
+
+The slider carries the "Alert slider" name that feedbackd's
+fbd-alert-slider handler looks for; the haptics input name matches the
+device-package udev rule.
+
+Source-only: not compiled here.
+
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -125,6 +125,51 @@
+ 			debounce-interval = <15>;
+ 		};
+ 	};
++
++	/*
++	 * Three-position alert slider on TLMM GPIO 27/125/134 (active low,
++	 * board pull-ups).  Stock has one contact low at a time: 125 Silent,
++	 * 134 Vibrate, 27 Ring.  The label is the input name feedbackd's
++	 * fbd-alert-slider looks for; ABS_SND_PROFILE values are in
++	 * linux-event-codes.h.  gpio-keys reports only the pressed contact,
++	 * so a release does not inject a spurious Silent value.
++	 */
++	alert-slider {
++		compatible = "gpio-keys";
++		label = "Alert slider";
++		pinctrl-names = "default";
++		pinctrl-0 = <&alert_slider_default>;
++
++		switch-top {
++			label = "Silent";
++			gpios = <&tlmm 125 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_ABS>;
++			linux,code = <ABS_SND_PROFILE>;
++			linux,input-value = <SND_PROFILE_SILENT>;
++			linux,can-disable;
++			debounce-interval = <15>;
++		};
++
++		switch-middle {
++			label = "Vibrate";
++			gpios = <&tlmm 134 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_ABS>;
++			linux,code = <ABS_SND_PROFILE>;
++			linux,input-value = <SND_PROFILE_VIBRATE>;
++			linux,can-disable;
++			debounce-interval = <15>;
++		};
++
++		switch-bottom {
++			label = "Ring";
++			gpios = <&tlmm 27 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_ABS>;
++			linux,code = <ABS_SND_PROFILE>;
++			linux,input-value = <SND_PROFILE_RING>;
++			linux,can-disable;
++			debounce-interval = <15>;
++		};
++	};
+ };
+ 
+ /*
+@@ -215,6 +260,18 @@
+ 		drive-strength = <2>;
+ 		bias-disable;
+ 	};
++
++	/*
++	 * Alert slider contacts.  The board pulls these up; the SoC default
++	 * pull-down would read them permanently low, so bias-disable is
++	 * required rather than cosmetic.
++	 */
++	alert_slider_default: alert-slider-default-state {
++		pins = "gpio27", "gpio125", "gpio134";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
+ };
+ 
+ &pm8150_gpios {
+@@ -267,6 +324,25 @@
+ 	status = "okay";
+ };
+ 
++/*
++ * AW8697 haptics on QUP0 SE7 (i2c7), 0x5a, reset on TLMM GPIO 116
++ * (active low).  Stock gives the part device id 619 and drives the same
++ * 170 Hz profile as the 7T Pro.  The driver does not use the stock
++ * interrupt on GPIO 24, so no interrupt is described.  i2c4/i2c8 already
++ * keep QUP0 powered; this bus uses the same FIFO path because gpi_dma0
++ * stays disabled.
++ */
++&i2c7 {
++	status = "okay";
++	clock-frequency = <400000>;
++
++	haptics@5a {
++		compatible = "awinic,aw8697";
++		reg = <0x5a>;
++		reset-gpios = <&tlmm 116 GPIO_ACTIVE_LOW>;
++	};
++};
++
+ &i2c4 {
+ 	status = "okay";
+ 	clock-frequency = <100000>;

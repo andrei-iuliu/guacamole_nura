@@ -1,0 +1,30 @@
+# rc4 kernel config delta over the rc3 config, one fragment for the recipe.
+# Merge with scripts/kconfig/merge_config.sh -m <rc3 config> <this file> then
+# `make olddefconfig` in an isolated output dir; the reviewed result is the
+# config shipped next to the rc4 APKBUILD.
+#
+# Release identity: the only way 7.0.0-sm8150-guacamole-rc4 is produced.
+CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"
+# CONFIG_LOCALVERSION_AUTO is not set
+
+# suspend-fixes 0044 (MSS rail release, opt-in, module never autoloaded by DT)
+CONFIG_PM_DEBUG=y
+# CONFIG_PM_ADVANCED_DEBUG is not set
+# CONFIG_PM_TEST_SUSPEND is not set
+CONFIG_PM_SLEEP_DEBUG=y
+# CONFIG_DPM_WATCHDOG is not set
+CONFIG_QCOM_GUACAMOLE_MSS_VOTE=m
+
+# fingerprint gate 0/1 (QCOMTEE built but blacklisted on the kernel cmdline;
+# goodix_fp built, DT node disabled and allow_power defaults to false)
+CONFIG_TEE=y
+CONFIG_QCOMTEE=m
+CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y
+# CONFIG_QCOM_TZMEM_MODE_GENERIC is not set
+CONFIG_INPUT_GOODIX_FP=m
+
+# popup-camera: Hall sensors built, front sensor/motor drivers built but the DT
+# nodes are disabled or absent by default (see dt patches 0052-0056)
+CONFIG_MXM1120=m
+CONFIG_VIDEO_IMX471=m
+CONFIG_VIDEO_QCOM_HOTDOG_POPUP=m

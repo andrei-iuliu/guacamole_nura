@@ -1,0 +1,6 @@
+# Parent-owned, not part of the suspend-fixes feature: the rc4 kernel release
+# name requested for this candidate.  Merge last, after every topic fragment
+# that touches the config, because all of them share this one line.
+#
+# The rc3 config currently has CONFIG_LOCALVERSION="-sm8150-rc3".
+CONFIG_LOCALVERSION="-sm8150-guacamole-rc4"

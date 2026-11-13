@@ -1,0 +1,27 @@
+# rc4 fingerprint recipe additions.
+# Apply on top of a copy of device/testing/rc3/linux-postmarketos-qcom-sm8150/
+# APKBUILD (or the parent's rc4 recipe), then run abuild checksum.  The
+# canonical rc3 recipe is read-only for this topic.
+#
+# 1) Add these two lines to the source= list, after 0041.
+#    Keep the tab indentation and keep 0051 before 0055.  0052 is reserved
+#    for the popup-camera Hall patch; do not reuse that number.
+	0051-input-misc-add-goodix-fp.patch
+	0055-arm64-dts-guacamole-fingerprint.patch
+#
+# 2) Add these two lines to sha512sums=.  The hashes are of the files in
+#    this topic's patches/ directory.
+5feb1d6208f4f6d4bc239f4286f163266370dbd7024de3c063ee6cc29dbddb1e8235a800ce2aa78c066c74a1da6d1e4881f171873d9581107dd7596b4ce862d9  0051-input-misc-add-goodix-fp.patch
+74d290d5ccf5eedbbe4e742384087d2807f3dd0be03a6e7c0c6209df28f749127eadca19b2551ea25af3ee9d2edd6de72ea09d3904d62c5ec5b9ab2de634a3d5  0055-arm64-dts-guacamole-fingerprint.patch
+#
+# 3) Merge config/gate0.fragment, config/gate1.fragment and
+#    config/release-name.fragment into config-postmarketos-qcom-sm8150.aarch64
+#    with scripts/kconfig/merge_config.sh, then run:
+#      make -C <linux-src> O=<out> ARCH=arm64 LLVM=1 olddefconfig
+#    Verified result: CONFIG_QCOMTEE=m, CONFIG_INPUT_GOODIX_FP=m,
+#    CONFIG_LOCALVERSION="-sm8150-guacamole-rc4", and the existing
+#    CONFIG_TEE=y / CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y kept.
+#    Do not append the fragments by hand to the generated config.
+#
+# 4) Update the rc4 recipe comment and pkgrel.  The desired kernel release is
+#    7.0.0-sm8150-guacamole-rc4.  Do not relabel or overwrite rc3 artifacts.

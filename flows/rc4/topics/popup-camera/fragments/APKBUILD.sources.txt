@@ -1,0 +1,15 @@
+# Add these three lines to the `source=` array of the rc4 APKBUILD
+# (device/testing/rc4/linux-postmarketos-qcom-sm8150/APKBUILD), after the
+# existing 0041 entry.  `prepare()` calls default_prepare, which applies every
+# `*.patch` in source= order with `patch -p1`, so the order below is the order
+# they must be committed in.
+#
+#   0052  Hall sensors (IIO)          independent
+#   0053  IMX471 front sensor         independent of 0052/0054
+#   0054  motor driver + PM domain    driver only; DT gates the actuation
+#
+# None of the three touches a file that another rc3 patch modifies except the
+# Kconfig/Makefile insert points rebased here (see README.md, "Rebase").
+	0052-iio-magnetometer-add-mxm1120.patch
+	0053-media-i2c-add-imx471.patch
+	0054-media-qcom-add-oneplus-hotdog-popup-motor.patch

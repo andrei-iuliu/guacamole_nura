@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:03 +0000
+Subject: [PATCH 49/50] ASoC: qdsp6: q6afe: tell port config, parameter and
+ start failures apart
+
+q6afe_port_start() sends the port configuration, optionally the TDM slot
+mapping, and then the start command, and every failure logs the same "AFE
+enable for port 0x%x failed" line.  q6afe_port_set_param_v2() logs it too.
+When the DSP times out (-110) on a port the log cannot say which command it
+never answered, and those point at different causes: a configuration the DSP
+does not accept (firmware), a rejected parameter, or a start that blocks on
+hardware.
+
+Name them: "config", "TDM slot mapping", "start", and "set param" (with the
+parameter id) in the set-param helper.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ sound/soc/qcom/qdsp6/q6afe.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/sound/soc/qcom/qdsp6/q6afe.c b/sound/soc/qcom/qdsp6/q6afe.c
+index 43d8773..182b68c 100644
+--- a/sound/soc/qcom/qdsp6/q6afe.c
++++ b/sound/soc/qcom/qdsp6/q6afe.c
+@@ -1158,8 +1158,8 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
+ 
+ 	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_SET_PARAM_V2);
+ 	if (ret)
+-		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
+-		       port_id, ret);
++		dev_err(afe->dev, "AFE set param 0x%x for port 0x%x failed %d\n",
++		       param_id, port_id, ret);
+ 
+ 	return ret;
+ }
+@@ -1671,7 +1671,7 @@ int q6afe_port_start(struct q6afe_port *port)
+ 				       AFE_MODULE_AUDIO_DEV_INTERFACE,
+ 				       sizeof(port->port_cfg));
+ 	if (ret) {
+-		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
++		dev_err(afe->dev, "AFE config for port 0x%x failed %d\n",
+ 			port_id, ret);
+ 		return ret;
+ 	}
+@@ -1681,7 +1681,7 @@ int q6afe_port_start(struct q6afe_port *port)
+ 					AFE_PARAM_ID_PORT_SLOT_MAPPING_CONFIG,
+ 					AFE_MODULE_TDM, sizeof(*port->scfg));
+ 		if (ret) {
+-			dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
++			dev_err(afe->dev, "AFE TDM slot mapping for port 0x%x failed %d\n",
+ 			port_id, ret);
+ 			return ret;
+ 		}
+@@ -1708,7 +1708,7 @@ int q6afe_port_start(struct q6afe_port *port)
+ 
+ 	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
+ 	if (ret)
+-		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
++		dev_err(afe->dev, "AFE start for port 0x%x failed %d\n",
+ 			port_id, ret);
+ 
+ 	return ret;
+-- 
+2.47.0
+

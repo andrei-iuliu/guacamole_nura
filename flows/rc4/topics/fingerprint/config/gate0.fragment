@@ -1,0 +1,28 @@
+# Gate 0 for kernel 7.0.0-sm8150-guacamole-rc4 (QCOMTEE/QTEE probe).
+#
+# Verified against device/testing/rc3/linux-postmarketos-qcom-sm8150/
+# config-postmarketos-qcom-sm8150.aarch64.  Existing values:
+#   TEE=y
+#   QCOM_TZMEM=y
+#   QCOM_TZMEM_MODE_SHMBRIDGE=y
+#   QCOM_TZMEM_MODE_GENERIC is not set
+#   QCOMTEE is not set
+# QCOMTEE selects QCOM_TZMEM_MODE_SHMBRIDGE in drivers/tee/qcomtee/Kconfig,
+# so enabling QCOMTEE does NOT change the allocator mode on this baseline:
+# it is already SHM-bridge mode for QCOM_QSEECOM/UEFISECAPP.  The README's
+# warning that gate 0 switches every qcom_scm user to SHM-bridge mode is
+# therefore not true for rc3; the modem/ADSP/SLPI already boot with it.
+#
+# NOT PASSIVE BY CONFIGURATION ALONE: qcomtee is a module with a platform
+# modalias (platform:qcomtee).  qcom_scm registers that platform device at
+# every boot; if udev/systemd autoloads the installed module, qcomtee_probe()
+# runs and issues the QTEE feature/version query.  Compiling =m does not
+# itself load the module, but do not describe this fragment as passive on a
+# normal udev system.  For a passive gate-0 check, keep qcomtee.ko out of the
+# modules tree or boot with module_blacklist=qcomtee and load it manually
+# only for the deliberate test.
+CONFIG_TEE=y
+CONFIG_QCOMTEE=m
+CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE=y
+# CONFIG_QCOM_TZMEM_MODE_GENERIC is not set
+

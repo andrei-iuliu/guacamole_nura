@@ -1,0 +1,31 @@
+# rc4 kernel recipe additions: popup-camera
+#
+# Append to config-postmarketos-qcom-sm8150.aarch64 in the rc4 recipe
+# (device/testing/rc4/linux-postmarketos-qcom-sm8150).  All three are new
+# symbols introduced by the rc4 patch series, so an explicit value is needed:
+# without them the drivers are silently not built.
+#
+# Symbol            -> owner (patch)                                  hard dependency
+# CONFIG_MXM1120    -> 0052 (Hall sensors)                            I2C, REGMAP_I2C
+# CONFIG_VIDEO_IMX471 -> 0053 (front sensor)                          OF_GPIO, VIDEO_V4L2_SUBDEV_API
+# CONFIG_VIDEO_QCOM_HOTDOG_POPUP -> 0054 (motor + PM domain)          IIO, GPIOLIB, PM_GENERIC_DOMAINS_OF
+#
+# Every dependency is already satisfied in the rc3 config:
+#   CONFIG_I2C=y CONFIG_REGMAP_I2C=y CONFIG_IIO=y CONFIG_OF_GPIO=y
+#   CONFIG_MEDIA_SUPPORT=m CONFIG_VIDEO_DEV=m CONFIG_I2C_QCOM_CCI=m
+#   CONFIG_PM_GENERIC_DOMAINS=y CONFIG_PM_GENERIC_DOMAINS_OF=y CONFIG_PWM=y
+#   CONFIG_LEDS_QCOM_LPG=m CONFIG_I2C_QCOM_GENI=y CONFIG_SM_CAMCC_8150=y
+#
+# =m is selected because these are optional drivers, NOT as a safety gate: a
+# module is autoloaded by udev/modprobe from its of:/i2c modalias as soon as a
+# device exists for it, so a module would probe at boot just like a built-in
+# driver.  What actually prevents a probe is the device tree:
+#   - camera-popup (motor) is status = "disabled" by default, so no platform
+#     device is created and hotdog-popup-motor never binds;
+#   - the IMX471 node is not emitted at all unless the DTB is built with
+#     CAMERA_POPUP_SENSOR, so there is no i2c client to autoload against.
+# Enabling either node (or building with the switch) is therefore what enables
+# the driver -- keep that decision in the DTB review, not here.
+CONFIG_MXM1120=m
+CONFIG_VIDEO_IMX471=m
+CONFIG_VIDEO_QCOM_HOTDOG_POPUP=m

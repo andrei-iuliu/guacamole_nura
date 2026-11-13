@@ -1,0 +1,186 @@
+Subject: [PATCH] slimbus: qcom-ngd: order controller setup before callbacks
+
+qcom_slim_ngd_ctrl_probe() registers the LPASS SSR notifier before the
+controller locks, completions and ngd_up_work exist, and allocates the
+PDR handle before the child device exists. pdr_add_lookup() queues the
+PDR locator immediately, and an ADSP that is already up can schedule
+ngd_up_work before the child probe. The controller is devm_kzalloc()ed,
+so that schedules a zeroed work_struct; the notification is lost and
+qcom_slim_ngd_enable() never runs. The WCD9340 is not enumerated, the
+whole sound card fails to register, and the TFA9874 speaker links are
+lost with it.
+
+The child probe has the mirror problem: it registers the QMI service
+lookup before creating the master workqueue and initialising m_work.
+The QMI response can complete qmi_up, wake ngd_up_work and enter
+slim_register_controller() while the master worker is still NULL.
+of_qcom_slim_ngd_register() assigns ngd->base only after the synchronous
+child probe returns, so the worker could also reach the register window
+with base unset.
+
+Initialise the controller locks, completions and ngd_up_work before the
+SSR notifier is registered; create m_work and mwq before the QMI lookup
+can publish qmi_up; and assign ngd->base before platform_device_add()
+runs the child probe. The child probe keeps its own QMI and master-worker
+error unwind so a failed probe does not leave a queue behind.
+
+On the controller error path, release PDR and unregister SSR before
+cancelling ngd_up_work, so no callback can queue it again after the
+cancel. The normal child remove path unregisters both callbacks and then
+cancels the work before tearing the controller down.
+
+The QMI wait stays at one second. The original user dmesg shows a
+"QMI wait timeout" at 220.199638, but that single early timeout is
+consistent with the ordering races above and does not by itself show
+that the one-second wait is too short. Raising it is a separate policy
+change and is not included here.
+
+Reference: omarchy-mobile f702f68 devices/oneplus7pro/kernel/audio/
+slim-ngd-pd-up-race.patch (ordering hunk only). The adjacent ordering
+and cleanup changes follow the upstream qcom-ngd-ctrl series
+("Fix probe error path ordering", "Register callbacks after creating
+the ngd", "Initialize controller resources in controller") without
+taking its platform-driver/unregister refactor.
+---
+--- a/drivers/slimbus/qcom-ngd-ctrl.c
++++ b/drivers/slimbus/qcom-ngd-ctrl.c
+@@ -1545,14 +1545,21 @@
+ 		ngd->pdev->dev.of_node = node;
+ 		ctrl->ngd = ngd;
+ 
++		/*
++		 * platform_device_add() probes the child synchronously and the
++		 * QMI service can complete qmi_up during that probe, waking
++		 * ngd_up_work. Make the register window valid before that.
++		 */
++		ngd->base = ctrl->base + ngd->id * data->offset +
++					(ngd->id - 1) * data->size;
++
+ 		ret = platform_device_add(ngd->pdev);
+ 		if (ret) {
+ 			platform_device_put(ngd->pdev);
+ 			kfree(ngd);
++			ctrl->ngd = NULL;
+ 			return ret;
+ 		}
+-		ngd->base = ctrl->base + ngd->id * data->offset +
+-					(ngd->id - 1) * data->size;
+ 
+ 		return 0;
+ 	}
+@@ -1574,28 +1581,27 @@
+ 	pm_runtime_set_suspended(dev);
+ 	pm_runtime_enable(dev);
+ 	pm_runtime_get_noresume(dev);
+-	ret = qcom_slim_ngd_qmi_svc_event_init(ctrl);
+-	if (ret) {
+-		dev_err(&pdev->dev, "QMI service registration failed:%d", ret);
+-		return ret;
+-	}
+ 
++	/*
++	 * The QMI lookup below can publish qmi_up and wake ngd_up_work; the
++	 * master worker and its queue must already exist when it does.
++	 */
+ 	INIT_WORK(&ctrl->m_work, qcom_slim_ngd_master_worker);
+-	INIT_WORK(&ctrl->ngd_up_work, qcom_slim_ngd_up_worker);
+ 	ctrl->mwq = create_singlethread_workqueue("ngd_master");
+ 	if (!ctrl->mwq) {
+ 		dev_err(&pdev->dev, "Failed to start master worker\n");
+-		ret = -ENOMEM;
+-		goto wq_err;
++		return -ENOMEM;
+ 	}
+ 
+-	return 0;
+-wq_err:
+-	qcom_slim_ngd_qmi_svc_event_deinit(&ctrl->qmi);
+-	if (ctrl->mwq)
++	ret = qcom_slim_ngd_qmi_svc_event_init(ctrl);
++	if (ret) {
++		dev_err(&pdev->dev, "QMI service registration failed:%d", ret);
+ 		destroy_workqueue(ctrl->mwq);
++		ctrl->mwq = NULL;
++		return ret;
++	}
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
+@@ -1624,11 +1630,6 @@
+ 	if (ret)
+ 		return dev_err_probe(&pdev->dev, ret, "request IRQ failed\n");
+ 
+-	ctrl->nb.notifier_call = qcom_slim_ngd_ssr_notify;
+-	ctrl->notifier = qcom_register_ssr_notifier("lpass", &ctrl->nb);
+-	if (IS_ERR(ctrl->notifier))
+-		return PTR_ERR(ctrl->notifier);
+-
+ 	ctrl->dev = dev;
+ 	ctrl->framer.rootfreq = SLIM_ROOT_FREQ >> 3;
+ 	ctrl->framer.superfreq =
+@@ -1649,27 +1650,48 @@
+ 	init_completion(&ctrl->qmi.qmi_comp);
+ 	init_completion(&ctrl->qmi_up);
+ 
++	/*
++	 * The audio PD may already be up: PDR then reports it as soon as the
++	 * lookup is added, which can be before the child device probes. The
++	 * work must exist by then; it waits for QMI (set up by the child).
++	 */
++	INIT_WORK(&ctrl->ngd_up_work, qcom_slim_ngd_up_worker);
++
++	/*
++	 * The SSR notifier uses the controller locks, completions and work
++	 * above; register it only after those exist.
++	 */
++	ctrl->nb.notifier_call = qcom_slim_ngd_ssr_notify;
++	ctrl->notifier = qcom_register_ssr_notifier("lpass", &ctrl->nb);
++	if (IS_ERR(ctrl->notifier))
++		return PTR_ERR(ctrl->notifier);
++
+ 	ctrl->pdr = pdr_handle_alloc(slim_pd_status, ctrl);
+ 	if (IS_ERR(ctrl->pdr)) {
+ 		ret = dev_err_probe(dev, PTR_ERR(ctrl->pdr),
+ 				    "Failed to init PDR handle\n");
+-		goto err_pdr_alloc;
++		goto err_unregister_ssr;
+ 	}
+ 
+ 	pds = pdr_add_lookup(ctrl->pdr, "avs/audio", "msm/adsp/audio_pd");
+ 	if (IS_ERR(pds) && PTR_ERR(pds) != -EALREADY) {
+ 		ret = dev_err_probe(dev, PTR_ERR(pds), "pdr add lookup failed\n");
+-		goto err_pdr_lookup;
++		goto err_pdr_release;
+ 	}
+ 
+ 	platform_driver_register(&qcom_slim_ngd_driver);
+-	return of_qcom_slim_ngd_register(dev, ctrl);
+ 
+-err_pdr_alloc:
+-	qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
++	ret = of_qcom_slim_ngd_register(dev, ctrl);
++	if (ret)
++		goto err_pdr_release;
++
++	return 0;
+ 
+-err_pdr_lookup:
++err_pdr_release:
+ 	pdr_handle_release(ctrl->pdr);
++err_unregister_ssr:
++	qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
++	cancel_work_sync(&ctrl->ngd_up_work);
+ 
+ 	return ret;
+ }
+@@ -1686,6 +1710,7 @@
+ 	pm_runtime_disable(&pdev->dev);
+ 	pdr_handle_release(ctrl->pdr);
+ 	qcom_unregister_ssr_notifier(ctrl->notifier, &ctrl->nb);
++	cancel_work_sync(&ctrl->ngd_up_work);
+ 	qcom_slim_ngd_enable(ctrl, false);
+ 	qcom_slim_ngd_exit_dma(ctrl);
+ 	qcom_slim_ngd_qmi_svc_event_deinit(&ctrl->qmi);

@@ -1,0 +1,653 @@
+361.49
+## DP connector now
+disconnected
+disabled
+## typec
+port0
+port0-partner
+host [device]
+source [sink]
+normal
+## kernel log after 30 s
+[   30.219750] systemd-journald[500]: Compressed data object 569 -> 230 using zstd
+[   30.235225] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.247233] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.247796] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.255783] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.260546] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.261094] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.272546] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.272992] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.277630] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.287697] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.290181] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.313369] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.325992] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.335637] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.354850] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.357782] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.374514] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.375334] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.420211] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.420734] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.424745] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.525017] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.578404] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.588191] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.627971] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.652079] systemd-journald[500]: Compressed data object 545 -> 225 using zstd
+[   30.652428] systemd-journald[500]: Compressed data object 590 -> 237 using zstd
+[   30.656809] systemd-journald[500]: Compressed data object 626 -> 241 using zstd
+[   30.657123] systemd-journald[500]: Compressed data object 632 -> 247 using zstd
+[   30.657416] systemd-journald[500]: Compressed data object 551 -> 225 using zstd
+[   30.657734] systemd-journald[500]: Compressed data object 620 -> 242 using zstd
+[   30.658106] systemd-journald[500]: Compressed data object 623 -> 241 using zstd
+[   30.658412] systemd-journald[500]: Compressed data object 584 -> 235 using zstd
+[   30.658797] systemd-journald[500]: Compressed data object 599 -> 235 using zstd
+[   30.659086] systemd-journald[500]: Compressed data object 614 -> 238 using zstd
+[   30.659349] systemd-journald[500]: Compressed data object 611 -> 238 using zstd
+[   30.663729] systemd-journald[500]: Compressed data object 608 -> 237 using zstd
+[   30.664065] systemd-journald[500]: Compressed data object 623 -> 243 using zstd
+[   30.664335] systemd-journald[500]: Compressed data object 617 -> 240 using zstd
+[   30.664684] systemd-journald[500]: Compressed data object 626 -> 242 using zstd
+[   30.664977] systemd-journald[500]: Compressed data object 614 -> 240 using zstd
+[   30.665242] systemd-journald[500]: Compressed data object 692 -> 265 using zstd
+[   30.666012] systemd-journald[500]: Compressed data object 572 -> 227 using zstd
+[   30.666333] systemd-journald[500]: Compressed data object 569 -> 229 using zstd
+[   30.669082] systemd-journald[500]: Compressed data object 566 -> 227 using zstd
+[   30.701592] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.747758] systemd-journald[500]: Compressed data object 641 -> 252 using zstd
+[   30.748049] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.748501] systemd-journald[500]: Compressed data object 788 -> 270 using zstd
+[   30.774951] systemd-journald[500]: Compressed data object 569 -> 227 using zstd
+[   30.795248] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   30.816673] systemd-journald[500]: Compressed data object 566 -> 229 using zstd
+[   30.874856] *** gpu fault: ttbr0=000000015ed7e000 iova=000000011b570000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[   30.874999] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000111150000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[   30.875480] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   31.302134] systemd-journald[500]: Compressed data object 563 -> 229 using zstd
+[   31.339346] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   31.606915] systemd-journald[500]: Compressed data object 596 -> 237 using zstd
+[   31.737138] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[   31.771627] systemd-journald[500]: Compressed data object 686 -> 264 using zstd
+[   31.771827] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[   31.772343] systemd-journald[500]: Compressed data object 878 -> 276 using zstd
+[   31.774388] systemd-journald[500]: Compressed data object 563 -> 228 using zstd
+[   49.479824] systemd-journald[500]: Compressed data object 631 -> 272 using zstd
+[   49.482293] systemd-journald[500]: Compressed data object 636 -> 276 using zstd
+[  100.102955] systemd-journald[500]: Sent WATCHDOG=1 notification.
+[  108.950664] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  123.676245] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  123.860160] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  124.170986] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  124.923717] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  125.234433] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  125.988415] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  126.299192] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  127.180273] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.180371] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132e80000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.203276] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001284c0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.223693] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001284c0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.278202] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.310233] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.343215] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.354715] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.561209] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  127.591388] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.180882] adreno_fault_handler: 351 callbacks suppressed
+[  132.180896] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.191938] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.199804] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.212787] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.223650] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.235156] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.245912] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.257013] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.266200] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  132.277139] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  138.616113] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  138.624637] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  143.545690] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  143.545711] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 1
+[  143.545861] xhci-hcd xhci-hcd.5.auto: hcc params 0x0230ffe5 hci version 0x110 quirks 0x0000808000000010
+[  143.545883] xhci-hcd xhci-hcd.5.auto: irq 174, io mem 0x0a600000
+[  143.545974] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  143.545981] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 2
+[  143.545987] xhci-hcd xhci-hcd.5.auto: Host supports USB 3.1 Enhanced SuperSpeed
+[  143.547824] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.00
+[  143.547835] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  143.547839] usb usb1: Product: xHCI Host Controller
+[  143.547844] usb usb1: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  143.547848] usb usb1: SerialNumber: REDACTED_USB_SERIAL
+[  143.548384] hub 1-0:1.0: USB hub found
+[  143.548399] hub 1-0:1.0: 1 port detected
+[  143.548662] usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[  143.548696] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.00
+[  143.548701] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  143.548706] usb usb2: Product: xHCI Host Controller
+[  143.548711] usb usb2: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  143.548715] usb usb2: SerialNumber: REDACTED_USB_SERIAL
+[  143.550013] hub 2-0:1.0: USB hub found
+[  143.550027] hub 2-0:1.0: 1 port detected
+[  143.553135] wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  143.716292] wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  143.716888] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_L = 0(ohms)
+[  143.886563] wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  143.887112] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_R = 0(ohms)
+[  143.912660] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: MONO plug type detected
+[  144.620532] adreno_fault_handler: 9 callbacks suppressed
+[  144.620543] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127390000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  144.768456] usb 1-1: new high-speed USB device number 2 using xhci-hcd
+[  144.836213] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  144.896712] usb 1-1: New USB device found, idVendor=2109, idProduct=2817, bcdDevice=90.13
+[  144.896751] usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  144.896766] usb 1-1: Product: USB2.0 Hub             
+[  144.896780] usb 1-1: Manufacturer: [hub-vendor]         
+[  144.896794] usb 1-1: SerialNumber: REDACTED_USB_SERIAL
+[  144.929223] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  144.956003] hub 1-1:1.0: USB hub found
+[  144.956291] hub 1-1:1.0: 4 ports detected
+[  145.011959] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132b00000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  145.019845] usb 2-1: new SuperSpeed USB device number 2 using xhci-hcd
+[  145.150219] systemd-journald[500]: Compressed data object 569 -> 228 using zstd
+[  145.151725] systemd-journald[500]: Compressed data object 572 -> 231 using zstd
+[  145.169996] usb 2-1: New USB device found, idVendor=2109, idProduct=0817, bcdDevice=90.13
+[  145.170025] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  145.170034] usb 2-1: Product: USB3.0 Hub             
+[  145.170042] usb 2-1: Manufacturer: [hub-vendor]         
+[  145.170051] usb 2-1: SerialNumber: REDACTED_USB_SERIAL
+[  145.196269] hub 2-1:1.0: USB hub found
+[  145.196497] hub 2-1:1.0: 4 ports detected
+[  145.200570] usbcore: registered new device driver onboard-usb-dev
+[  145.751698] usb 1-1.2: new high-speed USB device number 3 using xhci-hcd
+[  145.876134] systemd-journald[500]: Compressed data object 707 -> 252 using zstd
+[  145.877763] systemd-journald[500]: Compressed data object 710 -> 253 using zstd
+[  145.881218] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  145.891728] usb 1-1.2: New USB device found, idVendor=1a40, idProduct=0101, bcdDevice= 1.11
+[  145.891744] usb 1-1.2: New USB device strings: Mfr=0, Product=1, SerialNumber=0
+[  145.891749] usb 1-1.2: Product: USB 2.0 Hub
+[  145.947882] hub 1-1.2:1.0: USB hub found
+[  145.947961] hub 1-1.2:1.0: 4 ports detected
+[  145.986962] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000146350000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  146.017755] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  146.073435] usb 1-1.3: new full-speed USB device number 4 using xhci-hcd
+[  146.202639] usb 1-1.3: device descriptor read/64, error -32
+[  146.428561] usb 1-1.3: device descriptor read/64, error -32
+[  146.659631] usb 1-1.3: new full-speed USB device number 5 using xhci-hcd
+[  146.759896] usb 1-1: USB disconnect, device number 2
+[  146.784538] usb 1-1.3: Device not responding to setup address.
+[  146.992508] usb 1-1.3: Device not responding to setup address.
+[  147.128880] usb 2-1: USB disconnect, device number 2
+[  147.186120] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  147.186135] usb usb2: USB disconnect, device number 1
+[  147.195884] xhci-hcd xhci-hcd.5.auto: USB bus 2 deregistered
+[  147.195905] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  147.195916] usb usb1: USB disconnect, device number 1
+[  147.203471] usb 1-1.3: device not accepting address 5, error -71
+[  147.203597] usb 1-1.3: WARN: invalid context state for evaluate context command.
+[  147.203783] usb 1-1-port3: attempt power cycle
+[  147.204171] usb 1-1.2-port3: attempt power cycle
+[  147.396772] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  147.578507] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  147.888839] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  148.290078] usb 1-1.2: USB disconnect, device number 3
+[  148.351555] xhci-hcd xhci-hcd.5.auto: USB bus 1 deregistered
+[  148.642831] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  148.953183] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  149.196220] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000126970000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.196673] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127390000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.196958] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.199890] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.201205] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127390000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.622207] adreno_fault_handler: 24 callbacks suppressed
+[  149.622233] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.633019] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.644954] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.654769] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.666767] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.676297] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.688432] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.699637] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.707337] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  149.712661] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  149.722459] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  150.017556] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  153.045966] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  153.059915] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  153.167422] ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  154.629042] adreno_fault_handler: 210 callbacks suppressed
+[  154.629054] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.640837] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.659286] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.668595] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.680834] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.691189] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.705933] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.718374] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.728528] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  154.745597] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132310000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  156.037673] ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  159.635713] adreno_fault_handler: 385 callbacks suppressed
+[  159.635728] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.646846] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.658252] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.669837] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.681054] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.691872] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.703582] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.714287] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.726093] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  159.736441] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001282f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  160.998029] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  161.178130] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  161.488580] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  162.243908] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  162.554404] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  163.307854] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  163.618065] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  164.648151] adreno_fault_handler: 278 callbacks suppressed
+[  164.648184] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  164.691431] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  164.705405] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  164.936924] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  164.990481] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  164.995568] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  165.019767] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  165.020916] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  165.038761] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  165.039723] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140eb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  167.794492] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  167.794544] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 1
+[  167.794794] xhci-hcd xhci-hcd.5.auto: hcc params 0x0230ffe5 hci version 0x110 quirks 0x0000808000000010
+[  167.794846] xhci-hcd xhci-hcd.5.auto: irq 174, io mem 0x0a600000
+[  167.795057] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  167.795083] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 2
+[  167.795106] xhci-hcd xhci-hcd.5.auto: Host supports USB 3.1 Enhanced SuperSpeed
+[  167.795311] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.00
+[  167.795333] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  167.795351] usb usb1: Product: xHCI Host Controller
+[  167.795366] usb usb1: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  167.795382] usb usb1: SerialNumber: REDACTED_USB_SERIAL
+[  167.796564] hub 1-0:1.0: USB hub found
+[  167.796649] hub 1-0:1.0: 1 port detected
+[  167.797301] usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[  167.797484] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.00
+[  167.797508] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  167.797527] usb usb2: Product: xHCI Host Controller
+[  167.797544] usb usb2: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  167.797561] usb usb2: SerialNumber: REDACTED_USB_SERIAL
+[  167.798237] hub 2-0:1.0: USB hub found
+[  167.798291] hub 2-0:1.0: 1 port detected
+[  168.034675] usb 1-1: new high-speed USB device number 2 using xhci-hcd
+[  168.161883] usb 1-1: New USB device found, idVendor=2109, idProduct=2817, bcdDevice=90.13
+[  168.161910] usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  168.161920] usb 1-1: Product: USB2.0 Hub             
+[  168.161928] usb 1-1: Manufacturer: [hub-vendor]         
+[  168.161936] usb 1-1: SerialNumber: REDACTED_USB_SERIAL
+[  168.212837] hub 1-1:1.0: USB hub found
+[  168.213035] hub 1-1:1.0: 4 ports detected
+[  168.276751] usb 2-1: new SuperSpeed USB device number 2 using xhci-hcd
+[  168.427804] usb 2-1: New USB device found, idVendor=2109, idProduct=0817, bcdDevice=90.13
+[  168.427871] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  168.427909] usb 2-1: Product: USB3.0 Hub             
+[  168.427941] usb 2-1: Manufacturer: [hub-vendor]         
+[  168.427972] usb 2-1: SerialNumber: REDACTED_USB_SERIAL
+[  168.453013] hub 2-1:1.0: USB hub found
+[  168.453225] hub 2-1:1.0: 4 ports detected
+[  169.006524] usb 1-1.2: new high-speed USB device number 3 using xhci-hcd
+[  169.141758] usb 1-1.2: New USB device found, idVendor=1a40, idProduct=0101, bcdDevice= 1.11
+[  169.141794] usb 1-1.2: New USB device strings: Mfr=0, Product=1, SerialNumber=0
+[  169.141809] usb 1-1.2: Product: USB 2.0 Hub
+[  169.207181] hub 1-1.2:1.0: USB hub found
+[  169.207717] hub 1-1.2:1.0: 4 ports detected
+[  169.337537] usb 1-1.3: new full-speed USB device number 4 using xhci-hcd
+[  169.474415] usb 1-1.3: not running at top speed; connect to a high speed hub
+[  169.476789] usb 1-1.3: New USB device found, idVendor=25a4, idProduct=9411, bcdDevice= 2.01
+[  169.476819] usb 1-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  169.476840] usb 1-1.3: Product: USB C Video Adaptor
+[  169.476860] usb 1-1.3: Manufacturer: USB C
+[  169.476879] usb 1-1.3: SerialNumber: REDACTED_USB_SERIAL001
+[  169.649544] usb 1-1.2.3: new high-speed USB device number 5 using xhci-hcd
+[  169.849629] usb 1-1.2.3: New USB device found, idVendor=0bda, idProduct=9210, bcdDevice=f0.01
+[  169.849658] usb 1-1.2.3: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  169.849668] usb 1-1.2.3: Product: [dock-vendor] dock
+[  169.849676] usb 1-1.2.3: Manufacturer: [dock-vendor]
+[  169.849683] usb 1-1.2.3: SerialNumber: REDACTED_USB_SERIAL
+[  169.879947] usb-storage 1-1.2.3:1.0: USB Mass Storage device detected
+[  169.881657] scsi host1: usb-storage 1-1.2.3:1.0
+[  170.602694] usb 2-1.3: new SuperSpeed USB device number 3 using xhci-hcd
+[  170.615557] usb 2-1.3: New USB device found, idVendor=0bda, idProduct=8153, bcdDevice=31.00
+[  170.615617] usb 2-1.3: New USB device strings: Mfr=1, Product=2, SerialNumber=6
+[  170.615653] usb 2-1.3: Product: USB 10/100/1000 LAN
+[  170.615685] usb 2-1.3: Manufacturer: [nic-vendor]
+[  170.615715] usb 2-1.3: SerialNumber: REDACTED_USB_SERIAL
+[  170.757487] usbcore: registered new device driver r8152-cfgselector
+[  170.916460] scsi 1:0:0:0: Direct-Access     [dock-vendor]  dock             1.00 PQ: 0 ANSI: 6
+[  170.933101] r8152-cfgselector 2-1.3: reset SuperSpeed USB device number 3 using xhci-hcd
+[  170.942792] sd 1:0:0:0: [sdg] Read Capacity(10) failed: Result: hostbyte=0x00 driverbyte=DRIVER_OK
+[  170.942832] sd 1:0:0:0: [sdg] Sense Key : 0x5 [current] 
+[  170.942855] sd 1:0:0:0: [sdg] ASC=0x24 ASCQ=0x0 
+[  170.947766] sd 1:0:0:0: [sdg] 0 512-byte logical blocks: (0 B/0 B)
+[  170.947804] sd 1:0:0:0: [sdg] 0-byte physical blocks
+[  170.948487] sd 1:0:0:0: [sdg] Write Protect is off
+[  170.948512] sd 1:0:0:0: [sdg] Mode Sense: 37 00 00 08
+[  170.949613] sd 1:0:0:0: [sdg] Write cache: disabled, read cache: enabled, doesn't support DPO or FUA
+[  170.958181] sd 1:0:0:0: [sdg] Attached SCSI disk
+[  171.002468] r8152 2-1.3:1.0: Direct firmware load for rtl_nic/rtl8153b-2.fw failed with error -2
+[  171.002500] r8152 2-1.3:1.0: unable to load firmware patch rtl_nic/rtl8153b-2.fw (-2)
+[  171.037201] usbcore: registered new interface driver r8152
+[  171.064189] usbcore: registered new interface driver cdc_ether
+[  171.070882] usbcore: registered new interface driver r8153_ecm
+[  174.363901] adreno_fault_handler: 287 callbacks suppressed
+[  174.363915] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.367413] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.367498] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144db0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.373384] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.373508] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=UNKNOWN source=CCU (0,0,0,1)
+[  174.384421] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.384481] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=UNKNOWN source=CCU (0,0,0,1)
+[  174.391123] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.391406] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144db0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.414035] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001276d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  174.521911] usb 1-1: USB disconnect, device number 2
+[  174.522560] usb 1-1.2: USB disconnect, device number 3
+[  174.522577] usb 1-1.2.3: USB disconnect, device number 5
+[  174.524865] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  174.535726] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  174.536586] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  174.536607] usb usb2: USB disconnect, device number 1
+[  174.536616] usb 2-1: USB disconnect, device number 2
+[  174.536625] r8152-cfgselector 2-1.3: USB disconnect, device number 3
+[  174.536912] r8152 2-1.3:1.0 eth0: Stop submitting intr, status -108
+[  174.583696] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  174.595476] systemd-journald[500]: Compressed data object 608 -> 244 using zstd
+[  174.596294] systemd-journald[500]: Compressed data object 722 -> 255 using zstd
+[  174.596706] xhci-hcd xhci-hcd.5.auto: USB bus 2 deregistered
+[  174.596721] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  174.596728] usb usb1: USB disconnect, device number 1
+[  174.612467] usb 1-1.3: USB disconnect, device number 4
+[  174.645104] xhci-hcd xhci-hcd.5.auto: USB bus 1 deregistered
+[  191.356368] systemd-journald[500]: Sent WATCHDOG=1 notification.
+[  191.422908] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  214.541732] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  214.542822] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  215.146990] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  215.147022] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 1
+[  215.147208] xhci-hcd xhci-hcd.5.auto: hcc params 0x0230ffe5 hci version 0x110 quirks 0x0000808000000010
+[  215.147240] xhci-hcd xhci-hcd.5.auto: irq 174, io mem 0x0a600000
+[  215.147370] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  215.147382] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 2
+[  215.147393] xhci-hcd xhci-hcd.5.auto: Host supports USB 3.1 Enhanced SuperSpeed
+[  215.147536] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.00
+[  215.147550] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  215.147558] usb usb1: Product: xHCI Host Controller
+[  215.147566] usb usb1: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  215.147574] usb usb1: SerialNumber: REDACTED_USB_SERIAL
+[  215.148025] hub 1-0:1.0: USB hub found
+[  215.148052] hub 1-0:1.0: 1 port detected
+[  215.148426] usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[  215.148506] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.00
+[  215.148517] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  215.148525] usb usb2: Product: xHCI Host Controller
+[  215.148533] usb usb2: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  215.148541] usb usb2: SerialNumber: REDACTED_USB_SERIAL
+[  215.149216] hub 2-0:1.0: USB hub found
+[  215.149239] hub 2-0:1.0: 1 port detected
+[  215.387368] usb 1-1: new high-speed USB device number 2 using xhci-hcd
+[  215.523931] usb 1-1: New USB device found, idVendor=0bda, idProduct=5411, bcdDevice= 1.01
+[  215.523999] usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  215.524034] usb 1-1: Product: USB2.1 Hub
+[  215.524066] usb 1-1: Manufacturer: Generic
+[  215.566439] hub 1-1:1.0: USB hub found
+[  215.567418] hub 1-1:1.0: 4 ports detected
+[  215.735521] adreno_fault_handler: 65 callbacks suppressed
+[  215.735536] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.847221] usb 2-1: new SuperSpeed USB device number 2 using xhci-hcd
+[  216.866065] usb 2-1: New USB device found, idVendor=0bda, idProduct=0411, bcdDevice= 1.01
+[  216.866106] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  216.866122] usb 2-1: Product: USB3.2 Hub
+[  216.866137] usb 2-1: Manufacturer: Generic
+[  216.893417] hub 2-1:1.0: USB hub found
+[  216.894235] hub 2-1:1.0: 4 ports detected
+[  216.923852] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000141df0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.924120] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000132a10000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.924215] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140760000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.970819] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140760000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.971431] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001333f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  216.987988] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000140760000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  217.008074] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001456b0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  217.039503] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  217.073489] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  217.075570] usb 1-1: USB disconnect, device number 2
+[  217.170936] usb 2-1.4: new SuperSpeed USB device number 3 using xhci-hcd
+[  217.184023] usb 2-1.4: New USB device found, idVendor=0bda, idProduct=8153, bcdDevice=30.00
+[  217.184074] usb 2-1.4: New USB device strings: Mfr=1, Product=2, SerialNumber=6
+[  217.184088] usb 2-1.4: Product: USB 10/100/1000 LAN
+[  217.184103] usb 2-1.4: Manufacturer: [nic-vendor]
+[  217.184115] usb 2-1.4: SerialNumber: REDACTED_USB_SERIAL
+[  217.218267] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  217.293666] r8152-cfgselector 2-1.4: reset SuperSpeed USB device number 3 using xhci-hcd
+[  217.295845] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  217.338401] r8152 2-1.4:1.0: Direct firmware load for rtl_nic/rtl8153a-4.fw failed with error -2
+[  217.338493] r8152 2-1.4:1.0: unable to load firmware patch rtl_nic/rtl8153a-4.fw (-2)
+[  217.418506] usb 1-1: new high-speed USB device number 3 using xhci-hcd
+[  217.551284] usb 1-1: New USB device found, idVendor=0bda, idProduct=5411, bcdDevice= 1.01
+[  217.551314] usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  217.551323] usb 1-1: Product: USB2.1 Hub
+[  217.551331] usb 1-1: Manufacturer: Generic
+[  217.613852] hub 1-1:1.0: USB hub found
+[  217.614627] hub 1-1:1.0: 4 ports detected
+[  222.139637] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  222.151092] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  222.151952] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  222.151967] usb usb2: USB disconnect, device number 1
+[  222.151972] usb 2-1: USB disconnect, device number 2
+[  222.151977] r8152-cfgselector 2-1.4: USB disconnect, device number 3
+[  222.152170] r8152 2-1.4:1.0 eth0: Stop submitting intr, status -108
+[  222.205208] xhci-hcd xhci-hcd.5.auto: USB bus 2 deregistered
+[  222.205227] xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  222.243564] hub 1-0:1.0: activate --> -108
+[  222.243627] hub 1-0:1.0: hub_ext_port_status failed (err = -108)
+[  222.243628] usb usb1: USB disconnect, device number 1
+[  222.243641] usb 1-1: USB disconnect, device number 3
+[  222.250167] adreno_fault_handler: 21 callbacks suppressed
+[  222.250182] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.253570] xhci-hcd xhci-hcd.5.auto: USB bus 1 deregistered
+[  222.255195] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.341968] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.349206] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.361939] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.389871] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.411222] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.433980] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.454567] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  222.466563] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000144f70000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  228.827044] ------------[ cut here ]------------
+[  228.827099] ln_bb_clk2 already disabled
+[  228.827285] WARNING: drivers/clk/clk.c:1188 at clk_core_disable+0x88/0xa8, CPU#0: kworker/0:4/193
+[  228.828300]  qcom_wdt qcom_pil_info qrtr qcom_q6v5 slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem evdev joydev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_de
+[  228.828670] CPU: 0 UID: 0 PID: 193 Comm: kworker/0:4 Not tainted 7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  228.828714] Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  228.828747] Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  228.828822] pstate: 604000c5 (nZCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  228.828860] pc : clk_core_disable+0x88/0xa8
+[  228.828899] lr : clk_core_disable+0x88/0xa8
+[  228.828939] sp : ffff800082b83c50
+[  228.828964] x29: ffff800082b83c50 x28: ffffa7450d887000 x27: 000000007fffffff
+[  228.829025] x26: ffff00008084bf48 x25: 0000000000000000 x24: ffff000086eed090
+[  228.829083] x23: ffff0000803bee40 x22: ffffa7450dd4d000 x21: ffffa7450dd4d000
+[  228.829139] x20: ffff000080b7a000 x19: ffff000080b7a000 x18: ffffa7450d8b1b08
+[  228.829195] x17: 0000000000000001 x16: 80000000fffff22e x15: 0000000000000003
+[  228.829252] x14: ffffa7450d8c6710 x13: 0000000000000003 x12: 0000000000000003
+[  228.829307] x11: 00000000ffffefff x10: 0000000000000001 x9 : c75c72d000ef8500
+[  228.829364] x8 : c75c72d000ef8500 x7 : 205d393930373238 x6 : 382e38323220205b
+[  228.829420] x5 : ffffa7450dd18f60 x4 : ffff800082b83827 x3 : 0000000000000000
+[  228.829475] x2 : 0000000000000000 x1 : ffff800082b83a20 x0 : 000000000000001b
+[  228.829533] Call trace:
+[  228.829560]  clk_core_disable+0x88/0xa8 (P)
+[  228.829607]  clk_core_disable_lock+0x88/0x10c
+[  228.829646]  clk_disable+0x20/0x2c
+[  228.829682]  __wcd934x_cdc_mclk_enable+0x2dc/0x34c [snd_soc_wcd934x]
+[  228.829802]  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  228.829894]  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  228.829944]  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  228.829991]  process_scheduled_works+0x1b0/0x4ec
+[  228.830038]  worker_thread+0x270/0x3e8
+[  228.830081]  kthread+0x104/0x130
+[  228.830120]  ret_from_fork+0x10/0x20
+[  228.830167] ---[ end trace 0000000000000000 ]---
+[  228.832903] systemd-journald[500]: Compressed data object 1023 -> 569 using zstd
+[  228.833166] ------------[ cut here ]------------
+[  228.833175] ln_bb_clk2 already unprepared
+[  228.833219] WARNING: drivers/clk/clk.c:1048 at clk_core_unprepare+0xbc/0xf4, CPU#0: kworker/0:4/193
+[  228.833446]  qcom_wdt qcom_pil_info qrtr qcom_q6v5 slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem evdev joydev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_de
+[  228.833531] CPU: 0 UID: 0 PID: 193 Comm: kworker/0:4 Tainted: G        W           7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  228.833543] Tainted: [W]=WARN
+[  228.833551] Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  228.833559] Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  228.833577] pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  228.833587] pc : clk_core_unprepare+0xbc/0xf4
+[  228.833597] lr : clk_core_unprepare+0xbc/0xf4
+[  228.833607] sp : ffff800082b83c60
+[  228.833614] x29: ffff800082b83c60 x28: ffffa7450d887000 x27: 000000007fffffff
+[  228.833630] x26: ffff00008084bf48 x25: 0000000000000000 x24: ffff000086eed090
+[  228.833647] x23: ffff00008005e605 x22: ffff0000803bee40 x21: ffffa7450dd4d000
+[  228.833661] x20: ffffa7450dd4d000 x19: ffff000080b7a000 x18: ffffa7450d8b1fb8
+[  228.833676] x17: 0000000000000001 x16: 80000000fffff260 x15: 0000000000000003
+[  228.833690] x14: ffffa7450d8c6710 x13: 0000000000000003 x12: 0000000000000003
+[  228.833704] x11: 00000000ffffefff x10: 0000000000000001 x9 : c75c72d000ef8500
+[  228.833717] x8 : c75c72d000ef8500 x7 : 205d353731333338 x6 : 382e38323220205b
+[  228.833731] x5 : ffffa7450dd18f60 x4 : ffff800082b83837 x3 : 0000000000000000
+[  228.833745] x2 : 0000000000000000 x1 : ffff800082b83a30 x0 : 000000000000001d
+[  228.833760] Call trace:
+[  228.833767]  clk_core_unprepare+0xbc/0xf4 (P)
+[  228.833778]  clk_core_unprepare_lock+0x74/0xf0
+[  228.833791]  clk_unprepare+0x20/0x2c
+[  228.833802]  __wcd934x_cdc_mclk_enable+0x2e4/0x34c [snd_soc_wcd934x]
+[  228.833829]  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  228.833850]  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  228.833863]  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  228.833875]  process_scheduled_works+0x1b0/0x4ec
+[  228.833886]  worker_thread+0x270/0x3e8
+[  228.833898]  kthread+0x104/0x130
+[  228.833907]  ret_from_fork+0x10/0x20
+[  228.833918] ---[ end trace 0000000000000000 ]---
+[  242.277535] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  242.882324] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  243.948732] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  245.960515] adreno_fault_handler: 4 callbacks suppressed
+[  245.960528] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001273d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  245.987614] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001273d0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  245.997938] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.081829] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.123245] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000145bb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.142642] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000145bb0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.305160] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.316617] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.327465] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  246.337689] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  250.975992] adreno_fault_handler: 363 callbacks suppressed
+[  250.976007] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  250.981268] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  250.994787] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.003445] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.023272] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.034467] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.045447] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.056952] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.067736] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  251.078787] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  283.605105] systemd-journald[500]: Sent WATCHDOG=1 notification.
+[  308.601073] systemd-journald[500]: Journal file /var/log/journal/22c04225758f414e9f84f509277c91c8/system.journal is asynchronously transitioning to offline.
+[  308.601181] systemd-journald[500]: Starting new asynchronous offlining operation for journal file /var/log/journal/22c04225758f414e9f84f509277c91c8/system.journal.
+[  308.601761] systemd-journald[500]: Journal file /var/log/journal/22c04225758f414e9f84f509277c91c8/user-10000.journal is asynchronously transitioning to offline.
+[  308.601840] systemd-journald[500]: Starting new asynchronous offlining operation for journal file /var/log/journal/22c04225758f414e9f84f509277c91c8/user-10000.journal.
+[  313.910294] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  315.962733] qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  316.235764] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_L = 58(ohms)
+[  316.275685] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_R = 53(ohms)
+[  316.308342] wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: stereo plug type detected
+[  316.570947] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  317.636056] qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  319.593300] adreno_fault_handler: 2 callbacks suppressed
+[  319.593314] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000127190000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.692664] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.707886] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.716171] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.716303] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000107c90000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.725635] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.736944] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.748202] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.760813] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  319.769650] *** gpu fault: ttbr0=000000015ed7e000 iova=0000000108510000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+[  322.254914] configfs-gadget.usb-signaller-developer gadget.0: HOST MAC REDACTED_MAC
+[  322.254945] configfs-gadget.usb-signaller-developer gadget.0: MAC REDACTED_MAC
+[  322.309628] systemd-journald[500]: Joining journal offlining thread for /var/log/journal/22c04225758f414e9f84f509277c91c8/user-10000.journal.
+[  322.309680] systemd-journald[500]: Journal offlining thread for /var/log/journal/22c04225758f414e9f84f509277c91c8/user-10000.journal joined.
+[  322.335638] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  322.355093] systemd-journald[500]: Compressed data object 584 -> 233 using zstd
+[  322.694500] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  323.100342] systemd-journald[500]: Successfully sent stream file descriptor to service manager.
+[  326.280034] adreno_fault_handler: 52 callbacks suppressed
+[  326.280049] *** gpu fault: ttbr0=000000015ed7e000 iova=00000001284f0000 dir=READ type=TRANSLATION source=CCU (0,0,0,1)
+## kwin journal
+Nov 13 19:09:05.514308 guacamole systemd[927]: plasma-kscreen-osd.service: Forked /usr/lib/libexec/kscreen_osd_service as 1797 (without CLONE_INTO_CGROUP)
+Nov 13 19:09:05.514705 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.514832 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.514855 guacamole systemd[927]: plasma-kscreen-osd.service: Changed dead -> start
+Nov 13 19:09:05.514897 guacamole systemd[927]: Starting KScreen OSD service...
+Nov 13 19:09:05.515086 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.516226 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.516250 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Skipping PR_SET_MM, as we don't have privileges.
+Nov 13 19:09:05.518459 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Loaded shared library 'libbpf.so.1' via dlopen().
+Nov 13 19:09:05.521693 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+Nov 13 19:09:05.522280 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Loaded shared library 'libmount.so.1' via dlopen().
+Nov 13 19:09:05.522512 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+Nov 13 19:09:05.522658 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+Nov 13 19:09:05.522734 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+Nov 13 19:09:05.523284 guacamole (en_osd_service)[1797]: plasma-kscreen-osd.service: Executing: /usr/lib/libexec/kscreen_osd_service
+Nov 13 19:09:05.524133 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.524271 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.738369 guacamole systemd[927]: plasma-kscreen-osd.service: D-Bus name org.kde.kscreen.osdService now owned by :1.71
+Nov 13 19:09:05.738389 guacamole systemd[927]: plasma-kscreen-osd.service: Changed start -> running
+Nov 13 19:09:05.738468 guacamole systemd[927]: json-stream: Sending message: {"method":"io.systemd.oom.ReportManagedOOMCGroups","parameters":{"cgroups":[{"mode":"auto","path":"/user.slice/user-10000.slice/user@10000.service/backgr
+Nov 13 19:09:05.738499 guacamole systemd[927]: plasma-kscreen-osd.service: Job 535 plasma-kscreen-osd.service/start finished, result=done
+Nov 13 19:09:05.738518 guacamole systemd[927]: Started KScreen OSD service.
+Nov 13 19:09:05.738659 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.738743 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.738979 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.739049 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:09:05.739657 guacamole systemd-oomd[566]: varlink-12-12: Received message: {"method":"io.systemd.oom.ReportManagedOOMCGroups","parameters":{"cgroups":[{"mode":"auto","path":"/user.slice/user-10000.slice/user@10000.servic
+Nov 13 19:09:05.795033 guacamole plasmashell[1086]: qrc:/qt/qml/plasma/applet/org/kde/plasma/mobile/homescreen/folio/ExpandedCategoryAppGrid.qml:355:9: Unable to assign [undefined] to QObject*
+Nov 13 19:09:05.808982 guacamole plasmashell[1086]: qrc:/qt/qml/plasma/applet/org/kde/plasma/mobile/homescreen/folio/ExpandedCategoryAppGrid.qml:355:9: Unable to assign [undefined] to QObject*
+Nov 13 19:09:05.821036 guacamole kscreen_osd_service[1797]: QObject::installEventFilter(): Cannot filter events for objects in a different thread.
+Nov 13 19:09:07.781472 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Received change event for monitored drm device "/dev/dri/card0"
+Nov 13 19:09:07.783893 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Could not find edid for connector DrmConnector(id=34, gpu="/dev/dri/card0", name="DSI-1", connection="Connected", countMode=2)
+Nov 13 19:09:07.784355 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Removing output KWin::DrmOutput(0xffff909855a0)
+Nov 13 19:09:07.797919 guacamole kwin_wayland_wrapper[1059]: kwin_core: KWin::LayerShellV1Window doesn't support setting fullscreen state
+Nov 13 19:09:07.819004 guacamole plasmashell[1086]: kde.plasmashell: requesting unexisting screen available rect 1
+Nov 13 19:09:07.819004 guacamole plasmashell[1086]: kde.plasmashell: requesting unexisting screen geometry 1
+Nov 13 19:09:07.819004 guacamole plasmashell[1086]: kde.plasmashell: requesting unexisting screen available rect 1
+Nov 13 19:09:07.819004 guacamole plasmashell[1086]: kde.plasmashell: requesting unexisting screen geometry 1
+Nov 13 19:09:31.899161 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Atomic commit failed: EBUSY
+Nov 13 19:10:06.716698 guacamole systemd[927]: plasma-kscreen-osd.service: D-Bus name org.kde.kscreen.osdService now not owned by anyone.
+Nov 13 19:10:06.717069 guacamole systemd[927]: plasma-kscreen-osd.service: Changed running -> stop-sigterm
+Nov 13 19:10:06.717755 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:10:06.718120 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:10:06.723322 guacamole systemd[927]: Child 1797 (kscreen_osd_ser) died (code=killed, status=15/TERM)
+Nov 13 19:10:06.723668 guacamole systemd[927]: plasma-kscreen-osd.service: Child 1797 belongs to plasma-kscreen-osd.service.
+Nov 13 19:10:06.723803 guacamole systemd[927]: plasma-kscreen-osd.service: Main process exited, code=killed, status=15/TERM (success)
+Nov 13 19:10:06.724513 guacamole systemd[927]: plasma-kscreen-osd.service: Deactivated successfully.
+Nov 13 19:10:06.724719 guacamole systemd[927]: plasma-kscreen-osd.service: Service will not restart (restart setting)
+Nov 13 19:10:06.724808 guacamole systemd[927]: plasma-kscreen-osd.service: Changed stop-sigterm -> dead
+Nov 13 19:10:06.725169 guacamole systemd[927]: json-stream: Sending message: {"method":"io.systemd.oom.ReportManagedOOMCGroups","parameters":{"cgroups":[{"mode":"auto","path":"/user.slice/user-10000.slice/user@10000.service/backgr
+Nov 13 19:10:06.726672 guacamole systemd[927]: plasma-kscreen-osd.service: Consumed 1.086s CPU time over 1min 1.210s wall clock time, 66.3M memory peak.
+Nov 13 19:10:06.726860 guacamole systemd[927]: Failed to determine whether '/run/user/10000/credentials/plasma-kscreen-osd.service' is the root file system: No such file or directory
+Nov 13 19:10:06.727219 guacamole systemd[927]: plasma-kscreen-osd.service: Releasing resources...
+Nov 13 19:10:06.727965 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:10:06.728552 guacamole systemd[927]: Sent message type=signal sender=n/a destination=n/a path=/org/freedesktop/systemd1/unit/plasma_2dkscreen_2dosd_2eservice interface=org.freedesktop.DBus.Properties member=PropertiesCha
+Nov 13 19:10:06.728769 guacamole systemd[927]: plasma-kscreen-osd.service: Collecting.
+Nov 13 19:10:06.730498 guacamole systemd-oomd[566]: varlink-12-12: Received message: {"method":"io.systemd.oom.ReportManagedOOMCGroups","parameters":{"cgroups":[{"mode":"auto","path":"/user.slice/user-10000.slice/user@10000.servic
+Nov 13 19:10:22.760596 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Received change event for monitored drm device "/dev/dri/card0"
+Nov 13 19:10:22.762392 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Could not find edid for connector DrmConnector(id=34, gpu="/dev/dri/card0", name="DSI-1", connection="Connected", countMode=2)
+Nov 13 19:10:23.144130 guacamole kwin_wayland_wrapper[1059]: kwin_wayland_drm: Atomic commit failed: EBUSY

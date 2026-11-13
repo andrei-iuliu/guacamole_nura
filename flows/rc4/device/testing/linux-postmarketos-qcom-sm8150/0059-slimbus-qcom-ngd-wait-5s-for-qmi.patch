@@ -1,0 +1,20 @@
+Subject: [PATCH] slimbus: qcom-ngd: wait up to 5 s for the QMI service
+
+The second half of omarchy-mobile f702f68
+devices/oneplus7pro/kernel/audio/slim-ngd-pd-up-race.patch (the ordering half
+is 0033). rc4 boots on guacamole log "QMI wait timeout" ~1 s after the NGD
+controller registers, and the same boots return all-zero microphone capture
+with the full WCD934x DAPM path powered and the TX0 port never underflowing.
+This is a test of whether the 1 s wait is too short; it is not yet a proven fix.
+---
+--- a/drivers/slimbus/qcom-ngd-ctrl.c	2026-11-13 19:47:39.467036689 +0100
++++ b/drivers/slimbus/qcom-ngd-ctrl.c	2026-11-13 19:47:39.467462025 +0100
+@@ -1455,7 +1455,7 @@
+ 
+ 	/* Make sure qmi service is up before continuing */
+ 	if (!wait_for_completion_interruptible_timeout(&ctrl->qmi_up,
+-						       msecs_to_jiffies(MSEC_PER_SEC))) {
++						       msecs_to_jiffies(5 * MSEC_PER_SEC))) {
+ 		dev_err(ctrl->dev, "QMI wait timeout\n");
+ 		return;
+ 	}

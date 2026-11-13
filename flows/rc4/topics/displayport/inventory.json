@@ -1,0 +1,306 @@
+{
+  "topic": "displayport",
+  "flow": "rc4",
+  "generated_at": "2026-11-13T14:55:00Z",
+  "revision": 3,
+  "revision_notes": "r3: corrected the DP payload size (each downstream struct is two u32 = 8 bytes; the two together are 16 bytes before their parameter headers, not 16 bytes each), added static_assert(sizeof(...) == 8) to patch 0050 plus size/bound checks in the check script, kept SET_PARAM_V2 sending sizeof(idx) = 8 with no padding, and replaced the 'tree the phone shipped with' wording with 'downstream Lineage reference, not proven to be the factory build' (separately verified the 0048 premise in soc-pcm.c: codecs before the CPU DAI). r2: verified the 0050 protocol claims against the LineageOS lineage-23.2 source (read-only fetch); shipped the DP audio link with status = \"disabled\" so card registration cannot regress; added the card-defer trace and the 0048/DAI-bookkeeping audit to README + checks/RESULTS.md; removed the stale 'not compiled, no dtc' sentence from dts/0001; separated default integration from the optional experiment in the recipe fragment.",
+  "owned_path": "flows/rc4/topics/displayport",
+  "canonical_repository": "runtime-workspace",
+  "input_root": "bringup-notes/Patches/displayport",
+  "baseline": {
+    "kernel_package": "device/testing/rc3/linux-postmarketos-qcom-sm8150",
+    "kernel_version": "7.0.0-sm8150-rc3",
+    "existing_patch_range": "0001-0041",
+    "existing_max_number": 41,
+    "kernel_release_name": "7.0.0-sm8150-rc3",
+    "kernel_source_used": "bringup-notes/nura-rc3-20261112/kernel-device/work/linux-v7.0.0-sm8150",
+    "kernel_source_state": "upstream v7.0.0-sm8150 + rc3 patches 0001-0041 (apply-rc3-final.log); verified by blob hash of sound/soc/qcom/sm8150.c = 93294d6d4 (matches patch 0008 index line)",
+    "config": "device/testing/rc3/linux-postmarketos-qcom-sm8150/config-postmarketos-qcom-sm8150.aarch64"
+  },
+  "target": {
+    "kernel_release_name": "7.0.0-sm8150-guacamole-rc4",
+    "patch_numbers": "0046-0050 for kernel patches; dts/0001-0002 named without numbers to avoid collisions (0042-0045 left free)",
+    "default_behaviour": "DP video enabled; DP audio link present with status = \"disabled\"; kernel patches 0046-0050 applied but unreachable without that link",
+    "optional_experiment": "flip dp-dai-link to status = \"okay\" and rebuild; see recipe/APKBUILD.fragment and README 'Default integration vs optional experiment'"
+  },
+  "verification_sources": [
+    {
+      "kind": "downstream-kernel-source",
+      "repo": "LineageOS/android_kernel_oneplus_sm8150",
+      "branch": "lineage-23.2",
+      "url_base": "https://raw.githubusercontent.com/LineageOS/android_kernel_oneplus_sm8150/lineage-23.2/",
+      "retrieved": "2026-11-13",
+      "mode": "read-only fetch into /tmp, quoted excerpts only",
+      "provenance_caveat": "downstream LineageOS reference tree for this device; NOT proven to be the factory build the phone shipped with (no stock image or vendor tag was compared)",
+      "files": [
+        {
+          "path": "techpack/audio/include/dsp/apr_audio-v2.h",
+          "sha256": "f1c072bda53629d4d0214bc960fa90e838731fc073ce6436e5c0baee4c87d23f",
+          "used_for": "AFE_PARAM_ID_HDMI_DP_MST_VID_IDX_CFG 0x000102b5 and AFE_PARAM_ID_HDMI_DPTX_IDX_CFG 0x000102b6 (lines 3052-3053); struct afe_display_stream_idx / afe_display_ctl_idx (lines 2125-2133), two u32 each = 8 bytes per payload, 16 bytes for both before the parameter headers"
+        },
+        {
+          "path": "techpack/audio/dsp/q6afe.c",
+          "sha256": "17b818d47c997a7244d6916f57374ed760a428e5e59570a0cf4c72c5877da470",
+          "used_for": "afe_set_display_stream() lines 6758-6834: module AFE_MODULE_AUDIO_DEV_INTERFACE, instance 0, minor_version 1, both params in one SET_PARAM"
+        },
+        {
+          "path": "techpack/audio/asoc/msm-dai-q6-hdmi-v2.c",
+          "sha256": "303a5d773603fb8d832db4544e8163d95261c144987655657a912a1582893792",
+          "used_for": "msm_dai_q6_hdmi_prepare() lines 331-361: call before afe_port_start(), only while stopped, continues only on -EOPNOTSUPP; default indices 0"
+        },
+        {
+          "path": "sound/soc/soc-pcm.c",
+          "sha256": "ecb540d18127a28020ea7f5f18c110adb0ec5f5dff735ad5bd64b8adb0d4a22e",
+          "used_for": "soc_pcm_prepare() lines 775-830: machine prepare, platform prepare, all codec DAIs, then the CPU DAI - the downstream ordering that patch 0048 restores (claim C15)"
+        }
+      ],
+      "excerpt_file": "docs/reference/lineage-23.2-dp-audio-evidence.md"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "README.md",
+      "sha256": "4b2979b733a5722d740800d77a19834ed398943f0565f1e25102ea3fcee3ee0d",
+      "bytes": 5224,
+      "kind": "doc",
+      "disposition": "integrated",
+      "artifact": "docs/reference/original-README.md (verbatim copy) + README.md (claim review, corrections)",
+      "dependencies": [],
+      "notes": "Targets 6.17 and the flattened DTS. Its patch numbering (0029-0033) collides with existing rc3 patches 0029-0033 and was renumbered to 0046-0050. Its DAPM-direction explanation for the -110 timeout does not hold on 7.0 (claim C9). Its claim that patch 0030 creates a duplicate case label on plain 7.0 is wrong: the hunk rejects instead. Its 'not compiled' note is superseded: the DT change was compiled with the kernel dtc, and the stale sentence was removed from dts/0001."
+    },
+    {
+      "path": "docs/01-video.md",
+      "sha256": "66e45f9d1f48db3c76e0c041118c74bbf12c43583ad396c5731d1b1b0ec629c0",
+      "bytes": 6589,
+      "kind": "doc",
+      "disposition": "integrated",
+      "artifact": "docs/reference/01-video.md (verbatim copy); instructions superseded by README.md 'Integration steps' and by dts/0001",
+      "dependencies": ["dts/0001-dt-displayport-video.diff"],
+      "notes": "Written for the flattened base_guacamole_working.dts; the 7.0 baseline uses arch/arm64/boot/dts/qcom/*.dts, so the DT part was re-expressed, not applied. Test steps are reusable; not executed (no phone access)."
+    },
+    {
+      "path": "docs/02-audio.md",
+      "sha256": "2e51ca0dca8d46ad6fbd18898cb15af456334b0c488a14501dc37db674695804",
+      "bytes": 9652,
+      "kind": "doc",
+      "disposition": "integrated",
+      "artifact": "docs/reference/02-audio.md (verbatim copy) + README.md sections 'Default integration vs optional experiment', 'Claim review'",
+      "dependencies": ["kernel/0029", "kernel/0030", "kernel/0031", "kernel/0032", "kernel/0033", "dts/0002-dt-displayport-audio-link.diff"],
+      "notes": "Treats the prepare ordering as the leading hypothesis; the ordering difference is verified in 7.0 sources, the causal link is not. Two premises corrected: msm_dp_audio_prepare() is reached through drm_bridge_funcs.dp_audio_prepare (dp_drm.c), and the AFE parameter facts it cites are now verified against LineageOS (verification_sources). DP audio is NOT claimed to work and is disabled by default."
+    },
+    {
+      "path": "dts/0001-dt-displayport-video.diff",
+      "sha256": "f665b66a80340b4b824535f67403401cd5dddba8242d44c79a2c85a9f7308db1",
+      "bytes": 3172,
+      "kind": "dt-diff",
+      "disposition": "integrated",
+      "artifact": "dts/0001-arm64-dts-guacamole-displayport-video.patch (sha256 0c48cca41ad3e358232b2984665f6d661924f962867e55203f837400751a7aac)",
+      "dependencies": [],
+      "notes": "Targeted base_guacamole_working.dts (flattened 6.17). Rewritten as a new sm8150-oneplus-guacamole-displayport.dtsi plus a one-line #include in the board delta; same node set. Compiled with the kernel dtc (0 errors, no new warnings); not booted. The stale 'no dtc available' sentence was removed."
+    },
+    {
+      "path": "dts/0002-dt-displayport-audio-link.diff",
+      "sha256": "7aa5f0eb8d7d51b34941acdf829c91aed4a42e3574cc5de9b98be076ff36815f",
+      "bytes": 944,
+      "kind": "dt-diff",
+      "disposition": "gated",
+      "artifact": "dts/0002-arm64-dts-guacamole-displayport-audio-link.patch (sha256 fbce5dee6264aa214701bf8c87f7de90f365b961584b0f03a0a87ab72aafa9d2)",
+      "dependencies": ["dts/0001-arm64-dts-guacamole-displayport-video.patch", "kernel/0031 (0048) only for the ordering experiment"],
+      "notes": "Rewritten as &sound { dp-dai-link { ... } } with status = \"disabled\". An enabled link would make the whole ALSA card depend on mdss_dp probing (snd_soc_add_pcm_runtime() returns -EPROBE_DEFER for a missing codec DAI), so the default build parses only the rc3 links (measured: 11 available links, this one the only disabled child). Enabling is the one-line opt-in."
+    },
+    {
+      "path": "kernel/0029-asoc-q6afe-dai-displayport-rx-playback-widget.patch",
+      "sha256": "93760bf7cd60d7917c969f2965c14d3182004b940d1db673b9f50657fdf7e993",
+      "bytes": 2260,
+      "kind": "kernel-patch",
+      "disposition": "integrated",
+      "artifact": "patches/0046-asoc-q6afe-dai-displayport-rx-input-widget.patch (sha256 623c9c30e1c9ed3fd7cacfb116a2a03b1bd5a7c0fb300d4dd9cca29c02820ac2)",
+      "dependencies": [],
+      "notes": "Same one-line change. Commit message rewritten: on 7.0 the AIF direction no longer drives DAPM power, so this is consistency/upstreamability, not a fix for -110. Unreachable without the DP audio link."
+    },
+    {
+      "path": "kernel/0030-asoc-sm8150-accept-displayport-backend.patch",
+      "sha256": "994f41990a6c1fdff9c49f362fb0972f87d9a3aedeebc44423bfcc253074fea1",
+      "bytes": 2273,
+      "kind": "kernel-patch",
+      "disposition": "integrated",
+      "artifact": "patches/0047-asoc-sm8150-accept-displayport-backend.patch (sha256 c268e6684a91bee7dc48cc6225034f57a0da01f3a75e50415e80fbcb80b8da8f)",
+      "dependencies": [],
+      "notes": "Rebased onto the rc3 sm8150.c (0008 already moved QUATERNARY_MI2S_RX into its own shutdown case); applies at zero fuzz, no duplicate labels. Unreachable without the DP audio link."
+    },
+    {
+      "path": "kernel/0031-asoc-sm8150-enable-dp-audio-before-afe-start.patch",
+      "sha256": "30ed3c858c9fb01d7c77a0719d7a700c4691e36ae2b3454f17c15bfcc21254f2",
+      "bytes": 3573,
+      "kind": "kernel-patch",
+      "disposition": "gated",
+      "artifact": "patches/0048-asoc-sm8150-prepare-dp-codec-dai-before-afe-start.patch (sha256 5aaae80c27d42263efa696105a93504029822022a2c6aff1aba8afe7d6325c9b)",
+      "dependencies": ["dts/0002 (the link must be enabled and a DPCM back end)"],
+      "notes": "Hardened (for_each_rtd_codec_dais, error propagation) and rewritten as an explicit experiment: commit message now carries the DAI-bookkeeping audit (no rollback marks in snd_soc_dai_prepare), the repeated-prepare contract, the completion re-arm analysis and the bounded 5 s unplug race; the code comment no longer says 'harmless'. Unreachable in the default build."
+    },
+    {
+      "path": "kernel/0032-asoc-q6afe-split-config-and-start-errors.patch",
+      "sha256": "17abd09812251053aa53b72e3458ccfe45f3ad4a0a362bfdd994793f03b5c906",
+      "bytes": 2011,
+      "kind": "kernel-patch",
+      "disposition": "integrated",
+      "artifact": "patches/0049-asoc-qdsp6-q6afe-split-port-config-and-start-errors.patch (sha256 ccb35469c6cf80b4fb27e7993aeff7e3bff618d2888781ffa997d6500db49d3f)",
+      "dependencies": [],
+      "notes": "Extended with the two remaining ambiguous messages (inner set-param, TDM slot mapping). Log text only; active for all ports and harmless."
+    },
+    {
+      "path": "kernel/0033-asoc-q6afe-send-dp-stream-and-controller-index.patch",
+      "sha256": "77dcbc6fe754f038278626c3abd9587b1699d840b2dcbcdb90bb3e0468cc4fe4",
+      "bytes": 3700,
+      "kind": "kernel-patch",
+      "disposition": "gated",
+      "artifact": "patches/0050-asoc-qdsp6-q6afe-send-dp-stream-and-controller-index.patch (sha256 c47bce1517402229665f823c152e2a72a980c298c65ce92b25cc75f7b7f1461f)",
+      "dependencies": ["dts/0002 (only runs when port 0x6020 is started)"],
+      "notes": "Protocol facts now verified line-by-line against the LineageOS lineage-23.2 downstream reference (ids, 8-byte payloads = 16 bytes for both, module/instance/minor_version, ordering before the start, default index 0, tolerance only for -EOPNOTSUPP); the remaining assumptions are labelled in the patch message (firmware acceptance, two SET_PARAM_V2 vs one packed SET_PARAM, position relative to the config). The warn-and-continue behaviour is documented as a deliberate divergence from downstream. The payload struct carries static_assert(sizeof(...) == 8) and the SET_PARAM_V2 calls keep sizeof(idx) = 8 (no padding to 16)."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "patches/0046-asoc-q6afe-dai-displayport-rx-input-widget.patch",
+      "sha256": "623c9c30e1c9ed3fd7cacfb116a2a03b1bd5a7c0fb300d4dd9cca29c02820ac2",
+      "type": "kernel-patch",
+      "target": "sound/soc/qcom/qdsp6/q6afe-dai.c",
+      "apply_order": 1,
+      "verified": ["applies at fuzz 0", "syntax check", "check_displayport.py"],
+      "hardware": "not tested"
+    },
+    {
+      "path": "patches/0047-asoc-sm8150-accept-displayport-backend.patch",
+      "sha256": "c268e6684a91bee7dc48cc6225034f57a0da01f3a75e50415e80fbcb80b8da8f",
+      "type": "kernel-patch",
+      "target": "sound/soc/qcom/sm8150.c",
+      "apply_order": 2,
+      "verified": ["applies at fuzz 0", "syntax check", "no duplicate case label", "check_displayport.py"],
+      "hardware": "not tested"
+    },
+    {
+      "path": "patches/0048-asoc-sm8150-prepare-dp-codec-dai-before-afe-start.patch",
+      "sha256": "5aaae80c27d42263efa696105a93504029822022a2c6aff1aba8afe7d6325c9b",
+      "type": "kernel-patch",
+      "target": "sound/soc/qcom/sm8150.c",
+      "apply_order": 3,
+      "verified": ["applies at fuzz 0", "syntax check", "check_displayport.py", "DAI-bookkeeping audit", "completion audit"],
+      "hardware": "not tested; gated experiment, unreachable in the default build"
+    },
+    {
+      "path": "patches/0049-asoc-qdsp6-q6afe-split-port-config-and-start-errors.patch",
+      "sha256": "ccb35469c6cf80b4fb27e7993aeff7e3bff618d2888781ffa997d6500db49d3f",
+      "type": "kernel-patch",
+      "target": "sound/soc/qcom/qdsp6/q6afe.c",
+      "apply_order": 4,
+      "verified": ["applies at fuzz 0", "syntax check", "check_displayport.py"],
+      "hardware": "log text only"
+    },
+    {
+      "path": "patches/0050-asoc-qdsp6-q6afe-send-dp-stream-and-controller-index.patch",
+      "sha256": "c47bce1517402229665f823c152e2a72a980c298c65ce92b25cc75f7b7f1461f",
+      "type": "kernel-patch",
+      "target": "sound/soc/qcom/qdsp6/q6afe.c",
+      "apply_order": 5,
+      "verified": ["applies at fuzz 0", "syntax check", "check_displayport.py", "protocol facts verified against lineage-23.2"],
+      "hardware": "not tested; gated to DP audio playback"
+    },
+    {
+      "path": "dts/0001-arm64-dts-guacamole-displayport-video.patch",
+      "sha256": "0c48cca41ad3e358232b2984665f6d661924f962867e55203f837400751a7aac",
+      "type": "devicetree-patch",
+      "target": "arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi (new), arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi",
+      "apply_order": 6,
+      "verified": ["applies at fuzz 0", "dtc compile, 0 errors, no new warnings", "phandle resolution", "label collision check"],
+      "hardware": "not tested"
+    },
+    {
+      "path": "dts/0002-arm64-dts-guacamole-displayport-audio-link.patch",
+      "sha256": "fbce5dee6264aa214701bf8c87f7de90f365b961584b0f03a0a87ab72aafa9d2",
+      "type": "devicetree-patch",
+      "target": "arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi",
+      "apply_order": 7,
+      "verified": ["applies at fuzz 0", "dtc compile", "status disabled asserted", "card link count unchanged (11)", "sound-dai phandles resolve"],
+      "hardware": "not tested; disabled by default, DP audio not claimed"
+    },
+    {
+      "path": "recipe/APKBUILD.fragment",
+      "sha256": "8e95968a14a33a7ea35ae205c523ea4151a355fde2c78ca687905f289be7c955",
+      "type": "recipe-fragment",
+      "target": "device/testing/rc4/linux-postmarketos-qcom-sm8150/APKBUILD (parent merges)",
+      "verified": ["source= lines checked against existing 0001-0041 numbering", "default vs optional sections separated"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "recipe/config.fragment",
+      "sha256": "f1e2b219f5d70b35d9c8019e4d89ad67f49ca4dc9da08babcce8353a3e951d9f",
+      "type": "config-fragment",
+      "target": "device/testing/rc4/linux-postmarketos-qcom-sm8150/config-postmarketos-qcom-sm8150.aarch64 (parent merges)",
+      "verified": ["CONFIG_LOCALVERSION yields 7.0.0-sm8150-guacamole-rc4", "all required symbols already present", "DP audio is a DT decision, no Kconfig involvement"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "checks/check_displayport.py",
+      "sha256": "8d1515b6800f0719651f21c2e760e4c1287607349f975adc5459f48244e46607",
+      "type": "check",
+      "verified": ["95/95 on the patched tree", "guards the disabled link, the -EPROBE_DEFER invariants and the 8-byte DP payload size (static_assert + sizeof(idx))"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "checks/compile_check.sh",
+      "sha256": "40d8509d4db51628cedeebf0b4d830b2c02834f531afc7e64a62bca6262aa396",
+      "type": "check",
+      "verified": ["0 errors on the 3 touched translation units; unpatched control also clean"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "checks/RESULTS.md",
+      "sha256": null,
+      "type": "report",
+      "verified": ["exact commands and outputs; adds the card-defer trace, the 0048 audit and the downstream protocol verification"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "docs/reference/original-README.md",
+      "sha256": "4b2979b733a5722d740800d77a19834ed398943f0565f1e25102ea3fcee3ee0d",
+      "type": "reference-copy",
+      "verified": ["byte-identical to the input"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "docs/reference/01-video.md",
+      "sha256": "66e45f9d1f48db3c76e0c041118c74bbf12c43583ad396c5731d1b1b0ec629c0",
+      "type": "reference-copy",
+      "verified": ["byte-identical to the input"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "docs/reference/02-audio.md",
+      "sha256": "2e51ca0dca8d46ad6fbd18898cb15af456334b0c488a14501dc37db674695804",
+      "type": "reference-copy",
+      "verified": ["byte-identical to the input"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "docs/reference/lineage-23.2-dp-audio-evidence.md",
+      "sha256": "e31db417088048a75db272ba5d5547a76e72c3cb0638afb14028af0787477b86",
+      "type": "evidence",
+      "verified": ["excerpts and sha256 of the three fetched LineageOS files"],
+      "hardware": "n/a"
+    },
+    {
+      "path": "README.md",
+      "sha256": null,
+      "type": "report",
+      "verified": ["default-vs-optional split, claim/evidence/verdict table including C28-C32, risks, test plan, rollback"],
+      "hardware": "n/a"
+    }
+  ],
+  "dispositions_summary": {
+    "integrated": 8,
+    "gated": 2,
+    "already_present": 0,
+    "blocked": 0,
+    "note": "kernel/0033 (0050) and dts/0002 are gated: both are shipped, but 0050 only runs when a stream is started on port 0x6020 and dts/0002 ships status = \"disabled\", which keeps the link out of the ALSA card entirely. kernel/0031 (0048) is integrated and documented as an experiment reachable only with that link enabled. No supplied file was already present in the 7.0 tree."
+  }
+}

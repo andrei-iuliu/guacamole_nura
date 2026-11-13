@@ -1,0 +1,177 @@
+--- a/src/mm-shared-qmi.c
++++ b/src/mm-shared-qmi.c
+@@ -3303,8 +3303,8 @@
+ typedef struct {
+     QmiClientUim *client_uim;
+     GPtrArray    *sim_slots;
+-    guint         active_slot_number;
+-    guint         active_logical_id;
++    guint         gw_primary_slot;
++    guint         primary_slot_number;
+ } LoadSimSlotsContext;
+ 
+ static void
+@@ -3322,6 +3322,46 @@
+         g_object_unref (sim);
+ }
+ 
++/* Choose the 1-based physical slot to expose as the primary SIM.
++ *
++ * ModemManager's card-status parser already defines "the SIM to use" as the one
++ * identified by the Primary GW session (mm-modem-helpers-qmi.c), and UIM Read
++ * Transparent follows that same PRIMARY_GW_PROVISIONING session. A firmware that
++ * reports two ACTIVE physical slots does not identify that session through the
++ * Get Slot Status order alone (ModemManager kept the last ACTIVE slot, qmicli
++ * keeps the first).
++ *
++ * The Primary GW index is only trusted while its physical slot is ACTIVE and a
++ * SIM object was actually built for it: a stale session index or a failed ICCID
++ * parse must not override the current slot. When the mapping is unknown or
++ * unusable, fall back to exactly the previous behaviour (last ACTIVE slot), so
++ * single-SIM and no-card policy is unchanged.
++ *
++ * Pure gboolean/guint arithmetic on purpose: the regression test compiles this
++ * function standalone with the host C compiler.
++ */
++static guint
++select_primary_sim_slot (guint          n_slots,
++                         const gboolean *slot_active,
++                         const gboolean *slot_sim_constructed,
++                         guint           gw_primary_slot)
++{
++    guint i;
++    guint last_active = 0;
++
++    if (gw_primary_slot >= 1 && gw_primary_slot <= n_slots &&
++        slot_active[gw_primary_slot - 1] &&
++        slot_sim_constructed[gw_primary_slot - 1])
++        return gw_primary_slot;
++
++    for (i = 1; i <= n_slots; i++) {
++        if (slot_active[i - 1])
++            last_active = i;
++    }
++
++    return last_active;
++}
++
+ gboolean
+ mm_shared_qmi_load_sim_slots_finish (MMIfaceModem  *self,
+                                      GAsyncResult  *res,
+@@ -3339,7 +3379,7 @@
+     if (sim_slots)
+         *sim_slots = g_steal_pointer (&ctx->sim_slots);
+     if (primary_sim_slot)
+-        *primary_sim_slot = ctx->active_slot_number;
++        *primary_sim_slot = ctx->primary_slot_number;
+     return TRUE;
+ }
+ 
+@@ -3356,6 +3396,8 @@
+     GArray              *physical_slots = NULL;
+     GArray              *ext_information = NULL;
+     GArray              *slot_eids = NULL;
++    g_autofree gboolean *slot_active = NULL;
++    g_autofree gboolean *slot_sim_constructed = NULL;
+     guint                i;
+ 
+     self = g_task_get_source_object (task);
+@@ -3396,6 +3438,8 @@
+         return;
+     }
+ 
++    slot_active = g_new0 (gboolean, physical_slots->len);
++    slot_sim_constructed = g_new0 (gboolean, physical_slots->len);
+     ctx->sim_slots = g_ptr_array_new_full (physical_slots->len, (GDestroyNotify) sim_slot_free);
+ 
+     for (i = 0; i < physical_slots->len; i++) {
+@@ -3410,11 +3454,9 @@
+ 
+         /* Store active slot info */
+         slot_status = &g_array_index (physical_slots, QmiPhysicalSlotStatusSlot, i);
+-        if (slot_status->physical_slot_status == QMI_UIM_SLOT_STATE_ACTIVE) {
++        slot_active[i] = (slot_status->physical_slot_status == QMI_UIM_SLOT_STATE_ACTIVE);
++        if (slot_active[i])
+             sim_active = TRUE;
+-            ctx->active_logical_id = slot_status->logical_slot;
+-            ctx->active_slot_number = i + 1;
+-        }
+ 
+         if (!slot_status->iccid->len) {
+             mm_obj_dbg (self, "not creating SIM object: no SIM in slot %u", i + 1);
+@@ -3466,10 +3508,61 @@
+     }
+     g_assert_cmpuint (ctx->sim_slots->len, ==, physical_slots->len);
+ 
++    /* Only a successfully constructed SIM object counts; ICCID bytes alone are
++     * not enough (hex conversion or mm_3gpp_parse_iccid may have failed). */
++    for (i = 0; i < physical_slots->len; i++)
++        slot_sim_constructed[i] = (g_ptr_array_index (ctx->sim_slots, i) != NULL);
++
++    ctx->primary_slot_number = select_primary_sim_slot (physical_slots->len,
++                                                        slot_active,
++                                                        slot_sim_constructed,
++                                                        ctx->gw_primary_slot);
++
+     g_task_return_boolean (task, TRUE);
+     g_object_unref (task);
+ }
+ 
++static void
++load_sim_slots_get_card_status_ready (QmiClientUim *client,
++                                      GAsyncResult *res,
++                                      GTask        *task)
++{
++    g_autoptr(QmiMessageUimGetCardStatusOutput) output = NULL;
++    g_autoptr(GError)                           error = NULL;
++    LoadSimSlotsContext                        *ctx;
++    guint16                                     index_gw_primary = 0xFFFF;
++    GArray                                     *cards = NULL;
++
++    ctx = g_task_get_task_data (task);
++
++    output = qmi_client_uim_get_card_status_finish (client, res, &error);
++    if (!output ||
++        !qmi_message_uim_get_card_status_output_get_result (output, &error) ||
++        !qmi_message_uim_get_card_status_output_get_card_status (
++            output,
++            &index_gw_primary,
++            NULL, /* index_1x_primary */
++            NULL, /* index_gw_secondary */
++            NULL, /* index_1x_secondary */
++            &cards,
++            NULL)) {
++        mm_obj_dbg (g_task_get_source_object (task),
++                    "couldn't read primary GW session for SIM slot selection: %s",
++                    error ? error->message : "unknown error");
++    } else if (index_gw_primary != 0xFFFF) {
++        /* High byte is the 0-based physical slot, low byte the 0-based
++         * application index. The selection helper validates the bounds. */
++        ctx->gw_primary_slot = ((index_gw_primary & 0xFF00) >> 8) + 1;
++    }
++
++    qmi_client_uim_get_slot_status (ctx->client_uim,
++                                    NULL,
++                                    10,
++                                    NULL,
++                                    (GAsyncReadyCallback) uim_get_slot_status_ready,
++                                    task);
++}
++
+ void
+ mm_shared_qmi_load_sim_slots (MMIfaceModem        *self,
+                               GAsyncReadyCallback  callback,
+@@ -3490,11 +3583,11 @@
+     ctx->client_uim = QMI_CLIENT_UIM (g_object_ref (client));
+     g_task_set_task_data (task, ctx, (GDestroyNotify) load_sim_slots_context_free);
+ 
+-    qmi_client_uim_get_slot_status (ctx->client_uim,
++    qmi_client_uim_get_card_status (ctx->client_uim,
+                                     NULL,
+                                     10,
+                                     NULL,
+-                                    (GAsyncReadyCallback) uim_get_slot_status_ready,
++                                    (GAsyncReadyCallback) load_sim_slots_get_card_status_ready,
+                                     task);
+ }
+ 

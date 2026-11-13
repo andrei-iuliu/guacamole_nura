@@ -1,0 +1,21 @@
+# The SM8150 MPSS PAS descriptor sets auto_boot=false: the modem stays offline
+# until user space writes "start" to its remoteproc state. This unit is
+# intentionally NOT enabled by 80-guacamole.preset. Activate it only after
+# reviewing modem power-domain and suspend behaviour:
+#
+#     systemctl enable --now guacamole-mpss.service
+#
+[Unit]
+Description=Start the OnePlus 7 Pro MPSS modem remoteproc
+After=rmtfs.service tqftpserv.service
+Wants=rmtfs.service tqftpserv.service
+Before=msm-modem-uim-selection.service ModemManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/guacamole-mpss-start
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

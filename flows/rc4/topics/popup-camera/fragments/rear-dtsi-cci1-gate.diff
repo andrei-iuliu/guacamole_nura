@@ -1,0 +1,24 @@
+Optional, not required for rc4
+==============================
+
+sm8150-oneplus-guacamole-popup.dtsi only describes the front sensor on cci1
+master 1 when CAMERA_WIDE is selected, because the rc3 rear description
+instantiates `cci1` (0xac4b000) only inside `#ifdef CAMERA_WIDE` and dtc rejects
+an endpoint that points at a compiled-out node.
+
+That is fine for the full DTB and for the rear-wide isolate.  Apply this
+one-line widening only if you later want a popup-only isolate DTB
+(-DCAMERA_ISOLATE -DCAMERA_POPUP_FRONT without CAMERA_WIDE).
+
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-rear.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-rear.dtsi
+@@ -388,7 +388,7 @@
+-#ifdef CAMERA_WIDE
++#if defined(CAMERA_WIDE) || defined(CAMERA_POPUP_FRONT)
+ 	cci1: cci@ac4b000 {
+ 		compatible = "qcom,sm8150-cci", "qcom,sdm845-cci";
+ 		#address-cells = <1>;
+
+Effect: the rear-wide isolate DTB gains nothing (CAMERA_WIDE already true); the
+new combination CAMERA_ISOLATE + CAMERA_POPUP_FRONT gets cci1 so the sensor node
+can be compiled.  Nothing here enables the motor.

@@ -1,0 +1,45 @@
+maintainer="Nura local port <pmos@local.invalid>"
+#
+# Clock floor for the Nura Plasma image (rc3).
+#
+# /usr/lib/clock-epoch is the native systemd epoch hook (systemd(1),
+# "System clock epoch"): PID 1 advances CLOCK_REALTIME to the file's **mtime**
+# if the clock is earlier, before any unit runs.  abuild's apk_tar() stamps
+# every payload file with --mtime=@$SOURCE_DATE_EPOCH, so the installed mtime
+# is the rc3 source/build date (a lower bound, not accurate UTC; accurate UTC
+# still needs NTP, which needs an uplink).
+#
+# The file content is the explicit source-snapshot lower bound
+# (1794268800 = 2026-11-10T00:00:00Z, at or before the rc3 source checkout
+# commit) as an inert marker for the candidate checker; systemd itself reads
+# only the mtime, never this number.
+#
+# The kernel side is fixed in the rc3 recipe: CONFIG_RTC_HCTOSYS is off, so the
+# PM8150 vendor counter (which has no Unix offset in this DT: no nvmem-cells, no
+# qcom,uefi-rtc-info, no allow-set-time) is never copied into CLOCK_REALTIME at
+# probe.  rtc0 stays available for alarms.  Therefore this package ships no
+# modprobe blacklist and _rtc_guard=0; do not add /etc/modprobe.d/nura-rtc.conf
+# back for rc3.
+pkgname=nura-clock
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Nura clock floor (native systemd clock epoch)"
+url="https://postmarketos.org"
+arch="all"
+license="MIT"
+depends="systemd"
+source="clock-epoch"
+builddir="$srcdir"
+
+# 0 = rc3 kernel has "# CONFIG_RTC_HCTOSYS is not set"; ship only the epoch
+#     floor and keep rtc0 (alarms) available.  This package deliberately does
+#     not install a rtc_pm8xxx blacklist for rc3.
+_rtc_guard=0
+
+package() {
+	install -Dm644 "$srcdir/clock-epoch" "$pkgdir/usr/lib/clock-epoch"
+}
+
+sha512sums="
+baa79109dc1741cbb3e3f6a7b0710be988a95596b47bc1467820920375ece6480af92a9f3a2f0f30d459bc0e58611fa5693150aa0a599c8fda446a6adc03230f  clock-epoch
+"

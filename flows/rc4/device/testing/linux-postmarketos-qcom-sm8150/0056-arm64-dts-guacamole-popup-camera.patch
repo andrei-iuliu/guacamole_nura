@@ -1,0 +1,391 @@
+From: Nura rc4 popup-camera series <rc4-popup-camera@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:00 +0000
+Subject: [PATCH] arm64: dts: guacamole: add the gated pop-up camera description
+
+Add the static board description for the pop-up front camera, its two MXM1120
+Hall sensors and the DRV8834 stepper motor, as reviewed in
+flows/rc4/topics/popup-camera (dt/sm8150-oneplus-guacamole-popup.dtsi).
+
+Everything is inside the auto-defined CAMERA_POPUP_FRONT switch, which is only
+set for the non-isolate (full) DTB, so the rear-main/rear-tele/rear-wide isolate
+DTBs stay byte-identical to rc3.
+
+The defaults are deliberate and reviewed:
+
+ - camera-popup (motor + PM domain provider) is status = "disabled"; it becomes
+   "okay" only with -DCAMERA_POPUP_MOTOR.
+ - The IMX471 node and the CAMSS CSIPHY2 port@2 endpoint are NOT emitted at all
+   unless the DTB is built with -DCAMERA_POPUP_SENSOR, and they are always
+   emitted together.  An endpoint whose remote sensor is disabled cannot be
+   bound, which stalls camss_subdev_notifier_complete() and removes the
+   /dev/video* nodes of *all* cameras (traced in the topic README, claim C22).
+   The shipped DTB therefore keeps the three bindable CAMSS connections rc3 has.
+ - Hall sensors, the QUPv3 SE1 bus, the LPG step-PWM provider, the PMIC pin
+   states and PM8009 LDO3 are described and inert.
+
+This is a packaging patch: it adds the dtsi file and one include line at the end
+of sm8150-oneplus-guacamole.dts, after the rear-camera include.  It applies at
+zero fuzz after 0055 (fingerprint), which owns the include slot between the nura
+delta and the rear-camera include.
+
+Compiled with the kernel's own dtc as part of the rc4 integration: full DTB and
+all three isolate DTBs build, no new warnings.  Not booted on hardware.
+
+Signed-off-by: Nura rc4 popup-camera series <rc4-popup-camera@nura.invalid>
+---
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-popup.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-popup.dtsi
+new file mode 100644
+index 0000000..d46048c
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-popup.dtsi
+@@ -0,0 +1,340 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * OnePlus 7 Pro (guacamole): pop-up front camera, Hall sensors and motor.
++ *
++ * rc4 candidate fragment, rebased onto the static 7.0 board description
++ * (sm8150-oneplus-guacamole.dts + sm8150-oneplus-guacamole-rear.dtsi) from the
++ * runtime-overlay form used by the omarchy-mobile tree.
++ *
++ * Include this file at the END of sm8150-oneplus-guacamole.dts, after
++ * sm8150-oneplus-guacamole-rear.dtsi, because it extends nodes that live there
++ * and because it keys off the CAMERA_* switches that the rear description
++ * defines.
++ *
++ * ---------------------------------------------------------------------------
++ * SWITCHES (all off by default; add -D to the DTS build or #define above)
++ *
++ *   default                Hall sensors + SE1 + LPG + motor pin states +
++ *                          PM8009 LDO3 are described. The motor node exists
++ *                          but is status="disabled"; the front sensor node and
++ *                          its CAMSS/CSIPHY2 endpoint DO NOT EXIST. The camera
++ *                          graph is therefore identical to rc3.
++ *   CAMERA_POPUP_MOTOR     motor node becomes status="okay" (procedure steps
++ *                          2-3: bounded pulses and courses, no sensor).
++ *   CAMERA_POPUP_SENSOR    front sensor node and camss port@2 are emitted, with
++ *                          the sensor status="okay" and no power domain, so it
++ *                          can probe on its own (procedure step 4a / VDIG test).
++ *   both of the above      the sensor gets power-domains = <&camera_popup>, i.e.
++ *                          streaming raises the module (procedure step 4b).
++ *
++ * WHY THE SENSOR AND THE CAMSS ENDPOINT ARE GATED TOGETHER
++ *   camss_parse_ports() adds one v4l2-async connection per CAMSS endpoint and
++ *   never checks whether the remote device is available. A connection whose
++ *   remote node is disabled can never be bound, v4l2_async_nf_try_complete()
++ *   then never calls camss_subdev_notifier_complete(), and that callback is the
++ *   only place that creates the sensor<->CSIPHY pad links and calls
++ *   v4l2_device_register_subdev_nodes() -- i.e. the /dev/video* nodes. An
++ *   endpoint without a probe-able sensor therefore breaks the WHOLE camera
++ *   stack, rear cameras included. Never emit one without the other; this file
++ *   only emits them from inside the same #ifdef.
++ *   Evidence: README.md section 6 C22 and checks/logs/camss-async-audit.log.
++ *
++ * ---------------------------------------------------------------------------
++ * Wiring is from the stock DTBO decoded on this phone
++ * (.work/investigation/E/dtbo: fragment@105 magnachip@0C/0D, fragment@106
++ * step_motor) and the 7T Pro bring-up, not from the OM overlay alone:
++ *   - IMX471        CSIPHY2, four D-PHY lanes, MCLK2 = TLMM15, reset TLMM12,
++ *                   VANA = BOB gated by PM8150L GPIO12, VDIG PM8009 LDO3,
++ *                   VIO PM8150L LDO1, I2C address 0x10 on the bus shared with
++ *                   the rear ultra-wide (stock `cci-master = <1>`, CSIPHY2).
++ *   - MXM1120       QUPv3 SE1 (i2c@884000), 0x0c / 0x0d, LDO7 vdd, LDO8 vio.
++ *   - DRV8834 STEP  PM8150L GPIO10, LPG channel 5 (0xbd00) = pwms index 4.
++ *   - DRV8834 DIR   PM8150L GPIO11; MODE1 PM8150L GPIO8;
++ *                   MODE0 PM8150B GPIO5 (high-Z); nSLEEP PM8150 GPIO10;
++ *                   boost enable PM8150B GPIO12 (kept on, as OxygenOS does).
++ *   - free-fall     TLMM163 (`motor_pl` in stock). NOT IMPLEMENTED: no driver
++ *                   consumes it, so it is deliberately left unconfigured.
++ */
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/media/video-interfaces.h>
++
++/*
++ * Compiled into the full board DTB only; every CAMERA_ISOLATE debug DTB stays
++ * byte-identical to the rc3 baseline. A popup-only isolate needs
++ * CAMERA_POPUP_FRONT *and* CAMERA_WIDE (cci1), see README.md.
++ */
++#ifndef CAMERA_ISOLATE
++#define CAMERA_POPUP_FRONT
++#endif
++
++#ifdef CAMERA_POPUP_FRONT
++
++#if defined(CAMERA_POPUP_SENSOR) && !defined(CAMERA_WIDE)
++#error "CAMERA_POPUP_SENSOR needs cci1: build with CAMERA_WIDE, or apply fragments/rear-dtsi-cci1-gate.diff"
++#endif
++
++/*
++ * QUPv3 wrapper 0 gates the SE1 controller that the Hall sensors sit on. It is
++ * "disabled" in sm8150.dtsi and nothing else on this board enables it, so the
++ * i2c1 enable below is inert without this.
++ */
++&qupv3_id_0 {
++	status = "okay";
++};
++
++&tlmm {
++	/*
++	 * Stock cam_sensor_front_0_mclk_active / _rest_active: MCLK2 on
++	 * TLMM15, reset on TLMM12.
++	 */
++	cam_mclk2_default: cam-mclk2-default-state {
++		pins = "gpio15";
++		function = "cam_mclk";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam2_reset_default: cam2-reset-default-state {
++		pins = "gpio12";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++&pm8150l_gpios {
++	/* VANA gate for the front sensor, as stock cam_sensor_front_0_ana_active. */
++	cam2_vana_default: cam2-vana-default-state {
++		pins = "gpio12";
++		function = "normal";
++		power-source = <0>;
++		output-low;
++		input-disable;
++	};
++
++	/*
++	 * DRV8834 controls. "default" is the idle/GPIO state of the STEP pin;
++	 * "pwm" hands the same pin to LPG channel 5 (func1).
++	 */
++	motor_mode1_default: motor-mode1-default-state {
++		pins = "gpio8";
++		function = "normal";
++		power-source = <0>;
++		output-low;
++		input-disable;
++	};
++
++	motor_step_default: motor-step-default-state {
++		pins = "gpio10";
++		function = "normal";
++		power-source = <0>;
++		output-low;
++		input-disable;
++	};
++
++	motor_step_pwm: motor-step-pwm-state {
++		pins = "gpio10";
++		function = "func1";
++		power-source = <0>;
++		bias-disable;
++	};
++
++	motor_direction_default: motor-direction-default-state {
++		pins = "gpio11";
++		function = "normal";
++		power-source = <0>;
++		output-low;
++		input-disable;
++	};
++};
++
++&pm8150b_gpios {
++	/* M0 is high-impedance on this board: the DRV8834 runs 1/32 stepping. */
++	motor_mode0_high_z: motor-mode0-high-z-state {
++		pins = "gpio5";
++		function = "normal";
++		power-source = <0>;
++		bias-high-impedance;
++	};
++
++	/* OxygenOS leaves the motor boost converter enabled between courses. */
++	motor_boost_default: motor-boost-default-state {
++		pins = "gpio12";
++		function = "normal";
++		power-source = <0>;
++		output-high;
++		input-disable;
++	};
++};
++
++&pm8150_gpios {
++	motor_sleep_default: motor-sleep-default-state {
++		pins = "gpio10";
++		function = "normal";
++		power-source = <0>;
++		output-low;
++		input-disable;
++	};
++};
++
++/* LPG channel 5 (0xbd00) is the stepper STEP; channels 0-2 are the RGB LED. */
++&pm8150l_lpg {
++	status = "okay";
++};
++
++&{/} {
++	/*
++	 * The motor driver actuates the mechanism on sysfs writes and on its PM
++	 * domain. Disabled unless CAMERA_POPUP_MOTOR is set, which must only
++	 * happen after the Hall baseline of this unit is measured. Compatible is
++	 * the hotdog one on purpose: the driver carries hotdog's measured
++	 * thresholds and the wiring is identical.
++	 */
++	camera_popup: camera-popup {
++		compatible = "oneplus,hotdog-popup-motor";
++#ifdef CAMERA_POPUP_MOTOR
++		status = "okay";
++#else
++		status = "disabled";
++#endif
++
++		#power-domain-cells = <0>;
++
++		boost-enable-gpios = <&pm8150b_gpios 12 GPIO_ACTIVE_HIGH>;
++		direction-gpios = <&pm8150l_gpios 11 GPIO_ACTIVE_HIGH>;
++		mode1-gpios = <&pm8150l_gpios 8 GPIO_ACTIVE_HIGH>;
++		sleep-gpios = <&pm8150_gpios 10 GPIO_ACTIVE_HIGH>;
++		step-gpios = <&pm8150l_gpios 10 GPIO_ACTIVE_HIGH>;
++		pwms = <&pm8150l_lpg 4 105000>;	/* LPG channel 5 */
++		pwm-names = "step";
++
++		io-channels = <&hall_up>, <&hall_down>;
++		io-channel-names = "hall-up", "hall-down";
++
++		pinctrl-names = "default", "pwm";
++		pinctrl-0 = <&motor_sleep_default>, <&motor_mode1_default>,
++			    <&motor_direction_default>, <&motor_step_default>,
++			    <&motor_mode0_high_z>, <&motor_boost_default>;
++		pinctrl-1 = <&motor_step_pwm>;
++	};
++};
++
++/*
++ * The QUPv3 SE1 bus is only wired for the Hall sensors. Drop the GPI DMA pair
++ * so geni-i2c uses its FIFO path (the pattern the touch bus uses); there is no
++ * other SE1 user on this board.
++ */
++&i2c1 {
++	/delete-property/ dmas;
++	/delete-property/ dma-names;
++	clock-frequency = <100000>;
++	status = "okay";
++
++	hall_up: magnetometer@c {
++		compatible = "magnachip,mxm1120";
++		reg = <0x0c>;
++		label = "camera-popup-up";
++		vdd-supply = <&vreg_l7c_3p0>;
++		vio-supply = <&vreg_l8c_1p8>;
++		#io-channel-cells = <0>;
++	};
++
++	hall_down: magnetometer@d {
++		compatible = "magnachip,mxm1120";
++		reg = <0x0d>;
++		label = "camera-popup-down";
++		vdd-supply = <&vreg_l7c_3p0>;
++		vio-supply = <&vreg_l8c_1p8>;
++		#io-channel-cells = <0>;
++	};
++};
++
++/*
++ * PM8009 LDO3 is the IMX471 VDIG. It is not described anywhere in the rc3 board
++ * files, and the driver votes a 1.05 A load on it, so it needs the same
++ * allow-set-load/allowed-modes pair as LDO1/LDO4 (without them the load vote is
++ * dropped by the regulator core, not an error).
++ */
++&{/soc@0/rsc@18200000/pm8009-rpmh-regulators} {
++	vreg_l3f_1p05: ldo3 {
++		regulator-min-microvolt = <1056000>;
++		regulator-max-microvolt = <1056000>;
++		regulator-allow-set-load;
++		regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM RPMH_REGULATOR_MODE_HPM>;
++	};
++};
++
++/*
++ * Front sensor + the one CAMSS endpoint that awaits it. Emitted only together:
++ * see the file header. The rear-main and rear-tele isolate DTBs do not
++ * instantiate cci1, so CAMERA_POPUP_SENSOR requires CAMERA_WIDE (checked
++ * above); the rear-wide isolate also gets nothing because CAMERA_ISOLATE keeps
++ * this whole file out.
++ */
++#ifdef CAMERA_POPUP_SENSOR
++
++/* CSIPHY2 was the only camera PHY left unconnected by the rear-camera series. */
++&camss {
++	ports {
++		port@2 {
++			reg = <2>;
++
++			csiphy2_ep: endpoint {
++				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&imx471_ep>;
++			};
++		};
++	};
++};
++
++/*
++ * The front sensor shares cci1 master 1 with the rear ultra-wide (addresses
++ * 0x10 and 0x1a) exactly as stock does (`cci-master = <1>` for both).
++ */
++&cci1 {
++	cci1_i2c1: i2c-bus@1 {
++		camera@10 {
++			compatible = "sony,imx471";
++			reg = <0x10>;
++			status = "okay";
++			orientation = <0>;
++			rotation = <90>;
++
++			clocks = <&camcc CAM_CC_MCLK2_CLK>;
++			assigned-clocks = <&camcc CAM_CC_MCLK2_CLK>;
++			/* The driver sets and verifies 19.2 MHz itself. */
++			assigned-clock-rates = <19200000>;
++
++			vio-supply = <&vreg_l1c_1p8>;
++			vana-supply = <&vreg_bob>;
++			vdig-supply = <&vreg_l3f_1p05>;
++
++			reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
++			vana-enable-gpios = <&pm8150l_gpios 12 GPIO_ACTIVE_HIGH>;
++
++#ifdef CAMERA_POPUP_MOTOR
++			/* Streaming raises the module; releasing it lowers it. */
++			power-domains = <&camera_popup>;
++#endif
++
++			pinctrl-names = "default";
++			pinctrl-0 = <&cam_mclk2_default>, <&cam2_reset_default>,
++				    <&cam2_vana_default>;
++
++			port {
++				imx471_ep: endpoint {
++					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
++					data-lanes = <0 1 2 3>;
++					link-frequencies = /bits/ 64 <525262500>;
++					remote-endpoint = <&csiphy2_ep>;
++				};
++			};
++		};
++	};
++};
++
++#endif /* CAMERA_POPUP_SENSOR */
++
++#endif /* CAMERA_POPUP_FRONT */
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
+index f869634..61a591f 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts
+@@ -136,3 +136,5 @@
+ #include "sm8150-oneplus-guacamole-fingerprint.dtsi"
+ 
+ #include "sm8150-oneplus-guacamole-rear.dtsi"
++
++#include "sm8150-oneplus-guacamole-popup.dtsi"

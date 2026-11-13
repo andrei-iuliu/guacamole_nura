@@ -1,0 +1,29 @@
+=== fingerprint node (main DTB) ===
+	fingerprint {
+		compatible = "goodix,goodix_fp";
+		status = "disabled";
+		interrupts-extended = <0x3e 0x76 0x01>;
+		reset-gpios = <0x3e 0x83 0x01>;
+		power-gpios = <0x3e 0x65 0x00>;
+		pinctrl-0 = <0x145>;
+		pinctrl-names = "default";
+		oplus,chip-name = "G_OPTICAL_18821_G2_4";
+		oplus,lcd-type = "samsung";
+	};
+
+=== fp-irq-default-state ===
+			fp-irq-default-state {
+				pins = "gpio118";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				input-enable;
+				phandle = <0x145>;
+			};
+
+
+=== status in all four DTBs ===
+sm8150-oneplus-guacamole.dtb                            		status = "disabled";
+sm8150-oneplus-guacamole-rear-main.dtb                  		status = "disabled";
+sm8150-oneplus-guacamole-rear-tele.dtb                  		status = "disabled";
+sm8150-oneplus-guacamole-rear-wide.dtb                  		status = "disabled";

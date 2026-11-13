@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Date: Fri, 13 Nov 2026 12:00:02 +0000
+Subject: [PATCH 48/50] ASoC: sm8150: prepare the DP codec DAI before starting
+ the AFE port
+
+Playback to DisplayPort is expected to fail with
+
+  qcom-q6afe: AFE enable for port 0x6020 failed -110
+
+ASoC prepares a link's CPU DAIs before its codec DAIs: snd_soc_pcm_dai_prepare()
+walks rtd->dais, and that array holds the CPU DAIs first.  On this link the
+CPU DAI is q6afe, whose prepare calls q6afe_port_start() for AFE port 0x6020
+(AFE_PORT_ID_HDMI_OVER_DP_RX), and the codec DAI is the DP controller's
+hdmi-codec.  Its prepare is the only hook that reaches msm_dp_audio_prepare(),
+which programs SDP and ACR and enables the DP audio engine: the DRM HDMI audio
+callbacks (struct drm_connector_hdmi_audio_funcs) have startup, prepare,
+shutdown and mute_stream, but no hw_params, so nothing turns DP audio on
+earlier.  The DSP is therefore asked to start a port whose sink is still off.
+
+The downstream 4.14 reference kernel for this device ran the other way:
+soc_pcm_prepare() prepared the codec DAIs before the CPU DAI, so the
+msm-ext-disp codec enabled DP audio before msm-dai-q6-hdmi started the port.
+That ordering is read from the LineageOS lineage-23.2 tree
+(sound/soc/soc-pcm.c:775-830, fetched read-only; excerpts in
+docs/reference/lineage-23.2-dp-audio-evidence.md).  It is the downstream
+reference tree, not proven to be the factory build, so it establishes what
+downstream code does, not what the shipped image executed.
+
+The link's prepare runs before either DAI's, so prepare the codec DAIs from
+there for DISPLAY_PORT_RX.  The core prepares them again after the CPU DAI.
+
+Experiment, not a proven fix; it is only reachable when the DisplayPort audio
+link is enabled (the dts patch ships it disabled), so without that one-line DT
+change this patch is inert.  Whether the ordering is the cause of the -110
+timeout is untested; only the ordering difference itself is established from
+source.
+
+Side effects, checked:
+
+ - snd_soc_dai_prepare() performs no ASoC bookkeeping.  It checks
+   snd_soc_dai_stream_valid(), calls ops->prepare and logs the error
+   (sound/soc/soc-dai.c); the rollback marks (soc_dai_mark_*) exist only for
+   hw_params, startup, trigger and compress startup, so calling prepare out of
+   band cannot unbalance the startup/shutdown symmetry.
+
+ - Repeating the codec prepare is allowed by contract: the DRM HDMI audio
+   prepare callback is documented as "Can be called multiple times for each
+   setup" (include/drm/drm_connector.h) and hdmi_codec_prepare() has no state
+   of its own.  msm_dp_audio_prepare() re-programs SDP/ACR/exit level, sets
+   MMSS_DP_AUDIO_CFG bit 0 again (idempotent read-modify-write), re-arms
+   dp->audio_comp through msm_dp_display_signal_audio_start() and sets
+   audio_enabled = true.
+
+ - The completion is the one non-idempotent detail.  It is completed by
+   msm_dp_audio_shutdown() (PCM close -> hdmi_codec_shutdown) and waited on
+   only by msm_dp_display_disable() with a 5 second timeout.  Two re-arms in a
+   row before any waiter are equivalent to one.  The remaining window is an
+   unplug racing the microseconds between the link prepare and the core's
+   codec prepare: the wait would then end at its existing 5s timeout with
+   "audio comp timeout" instead of being woken early.  That is bounded, logged
+   by the DP driver, and clears audio_enabled afterwards; it does not corrupt
+   state.
+
+ - If the codec prepare succeeds and the CPU prepare then fails (-110), the
+   codec is left enabled until the PCM is closed; close runs the DAI shutdown
+   (soc_pcm_clean() -> snd_soc_dai_shutdown(), reverse order), which calls
+   msm_dp_audio_shutdown() and completes the completion.  No stuck state.
+
+Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+---
+ sound/soc/qcom/sm8150.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+diff --git a/sound/soc/qcom/sm8150.c b/sound/soc/qcom/sm8150.c
+index 459f7ea..40da738 100644
+--- a/sound/soc/qcom/sm8150.c
++++ b/sound/soc/qcom/sm8150.c
+@@ -386,6 +386,43 @@ static int sm8150_snd_prepare(struct snd_pcm_substream *substream)
+ 	struct sdw_stream_runtime *sruntime = data->sruntime[cpu_dai->id];
+ 	int ret;
+ 
++	/*
++	 * ASoC prepares a link's CPU DAIs before its codec DAIs
++	 * (snd_soc_pcm_dai_prepare() walks rtd->dais, CPUs first).  For
++	 * DisplayPort the CPU DAI is q6afe, whose prepare starts AFE port
++	 * 0x6020 (AFE_PORT_ID_HDMI_OVER_DP_RX), and the codec DAI is the DP
++	 * controller's hdmi-codec, whose prepare is the only hook that turns
++	 * the DP audio engine on: msm_dp_audio_prepare() programs the SDP and
++	 * ACR blocks and enables the audio engine, and the DRM HDMI audio
++	 * callbacks that forward to it have no hw_params op.
++	 *
++	 * So by default the DSP is asked to start the DP audio port before the
++	 * DP side of it is enabled.  The downstream 4.14 reference kernel
++	 * prepared the codec DAIs first; do the same here, before the core
++	 * prepares the CPU DAI, to get that order back.
++	 *
++	 * The core prepares the codec DAIs again afterwards.  That is safe: the
++	 * DRM HDMI audio prepare is documented as callable repeatedly,
++	 * msm_dp_audio_prepare() only re-programs SDP/ACR/exit level and re-arms
++	 * its completion, and no waiter can observe the intermediate state
++	 * except a concurrent unplug, which then finishes on its existing 5s
++	 * timeout.  It returns -EINVAL while DP is not powered, i.e. while the
++	 * display is unplugged, which aborts the prepare as it would have done
++	 * later.
++	 */
++	if (cpu_dai->id == DISPLAY_PORT_RX) {
++		struct snd_soc_dai *codec_dai;
++		int i;
++
++		for_each_rtd_codec_dais(rtd, i, codec_dai) {
++			ret = snd_soc_dai_prepare(codec_dai, substream);
++			if (ret)
++				return ret;
++		}
++
++		return 0;
++	}
++
+ 	if (!sruntime)
+ 		return 0;
+ 
+-- 
+2.47.0
+

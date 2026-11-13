@@ -1,0 +1,37 @@
+diff --git a/sound/soc/qcom/sm8150.c b/sound/soc/qcom/sm8150.c
+index 3f1ca7c89..93294d6d4 100644
+--- a/sound/soc/qcom/sm8150.c
++++ b/sound/soc/qcom/sm8150.c
+@@ -262,8 +262,7 @@ static int sm8150_dai_init(struct snd_soc_pcm_runtime *rtd)
+ 
+ 	switch (cpu_dai->id) {
+ 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
+-		/* setting up wcd multiple times for slim port is redundant */
+-		if (pdata->slim_port_setup || !link->no_pcm)
++		if (!link->no_pcm)
+ 			return 0;
+ 
+ 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
+@@ -279,6 +278,10 @@ static int sm8150_dai_init(struct snd_soc_pcm_runtime *rtd)
+ 					       WCD934X_DEFAULT_MCLK_RATE,
+ 					       SNDRV_PCM_STREAM_PLAYBACK);
+ 
++			/* the jack belongs to the component, not the link */
++			if (pdata->slim_port_setup)
++				continue;
++
+ 			rval = snd_soc_component_set_jack(codec_dai->component,
+ 							  &pdata->jack, NULL);
+ 			if (rval != 0 && rval != -ENOTSUPP) {
+@@ -357,7 +360,11 @@ static void sm8150_snd_shutdown(struct snd_pcm_substream *substream)
+ 		}
+ 		break;
+ 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
++		break;
+ 	case QUATERNARY_MI2S_RX:
++		snd_soc_dai_set_sysclk(cpu_dai,
++			Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
++			0, SNDRV_PCM_STREAM_PLAYBACK);
+ 		break;
+ 	default:
+ 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);

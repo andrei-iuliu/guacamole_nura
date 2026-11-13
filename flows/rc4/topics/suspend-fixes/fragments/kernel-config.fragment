@@ -1,0 +1,19 @@
+# Suspend-fixes topic, kernel config fragment (rc4, 7.0.0-sm8150-rc3 baseline).
+#
+# Merge into the rc4 kernel config before `make olddefconfig`:
+#   scripts/kconfig/merge_config.sh -m .config <this-file> && make olddefconfig
+# or paste the lines next to the existing CONFIG_PM block.
+#
+# CONFIG_PM_DEBUG creates /sys/power/pm_test (pm_test=freezer/devices/platform
+# bisection) and CONFIG_PM_SLEEP_DEBUG adds the suspend/resume device log.
+# PM_SLEEP_DEBUG is def_bool y under PM_DEBUG and PM_SLEEP; written out because
+# the rc3 config has no such line.
+CONFIG_PM_DEBUG=y
+# CONFIG_PM_ADVANCED_DEBUG is not set
+# CONFIG_PM_TEST_SUSPEND is not set
+CONFIG_PM_SLEEP_DEBUG=y
+# CONFIG_DPM_WATCHDOG is not set
+
+# Kernel patch 0044.  The symbol does not exist until that patch is in the
+# source list, so add the patch first.
+CONFIG_QCOM_GUACAMOLE_MSS_VOTE=m

@@ -1,0 +1,12 @@
+# Kernel APKBUILD fragment: append to the rc4 linux-postmarketos-qcom-sm8150
+# `source=` block, after 0041-arm64-dts-guacamole-haptics-alert-slider.patch.
+# Keep the tab indentation; abuild's default_prepare applies source patches in
+# the listed order.
+	0044-soc-qcom-guacamole-mss-vote.patch
+	0045-ath10k-snoc-wmi-key-ack.patch
+
+# sha512sums lines for the same recipe (or run `pmbootstrap checksum
+# linux-postmarketos-qcom-sm8150` after copying the patches next to the
+# APKBUILD).  These are the hashes of the files in patches/.
+# 0e8e3f0903622d078138eb167d0f1bf18827ae4d35a970004f0b80349d276f5b2eeac4501ba2ad2c88eb4f6455b12c1892a71ad2e0b60a3b688411c74365b822  0044-soc-qcom-guacamole-mss-vote.patch
+# 6072eb1e65a534b4c9a2726ef1227601861397a323d787dfcd6f335c984408a64e103ca875de84237a2141330ae344ecee834495c570a940d6dc2a926be26293  0045-ath10k-snoc-wmi-key-ack.patch

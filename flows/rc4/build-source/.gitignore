@@ -1,0 +1,6 @@
+# rc4 kernel build state produced by flows/rc4/scripts/rc4.sh kernel.
+# Never commit source trees, outputs or images from here.
+*
+!.gitignore
+!artifacts/
+!artifacts/**

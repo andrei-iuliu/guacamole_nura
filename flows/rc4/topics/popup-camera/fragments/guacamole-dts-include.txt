@@ -1,0 +1,11 @@
+# One line at the very end of arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts,
+# after the existing  #include "sm8150-oneplus-guacamole-rear.dtsi"  line.
+#
+# The file itself is dt/sm8150-oneplus-guacamole-popup.dtsi; copy it next to
+# sm8150-oneplus-guacamole-rear.dtsi.  It only compiles into the non-isolate
+# (full) DTB: the rear-main, rear-tele and rear-wide isolate DTBs stay
+# byte-identical to rc3 (checked, see checks/logs/dtb-regression.log).
+#
+# Do not add a dtb-$(CONFIG_ARCH_QCOM) entry: the popup is part of the main
+# guacamole DTB, not a separate board.
+#include "sm8150-oneplus-guacamole-popup.dtsi"
