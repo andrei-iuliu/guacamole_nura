@@ -21,7 +21,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=7
+pkgrel=11
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -107,6 +107,12 @@ source="
 	0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch
 	0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch
 	0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch
+	0062-usb-typec-tcpm-reset-hard-reset-budget-on-unattach.patch
+	0063-usb-typec-qcom-pmic-typec-reread-vbus-leaving-sink.patch
+	0064-drm-msm-dp-use-the-real-pixel-rate-for-link-bandwidth.patch
+	0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch
+	0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch
+	0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -210,4 +216,10 @@ f3d4fcbedcd7d1d3b33df78bf60f09a370210c388fd543e5c4059354da36c579cf91c80b5c516191
 12adcec10f38bd7e32aa8fe7f98b10d1d806dee9d2f18bcee7a094ffe92e47c13329d3f02666cf6c70ea4704f371e363889d7eeac44024b14273993fc3c5c0a1  0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch
 91ccf689bdc7aee298b218be08bddd09fcbc3e29bfe6f1f58059b98847d587784a01c1c5d814e231f2059017e44cfe88dcf3dda3cbf6d2c7509b786609a2af44  0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch
 a2314e0bf74477299c8d92fb585666af95de350538995ee31f60db9262122bfe1aa5356c83c912edbf27fcd37e78baf2b6213625fb713998f82a38b0c198935b  0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch
+ab2a4c4e633e0f406ae18f34a81d166d6a78339cc5f6c9e19bc6d18aeea427577ccfbde002cfb8625b83accfe2c54fd5b4add5c1c5d13e6dbaff7eba2893220d  0062-usb-typec-tcpm-reset-hard-reset-budget-on-unattach.patch
+73d90f769eb40ad591ea26095c4d513c283ca3ac4a9f7da3775b83679cfeb4b6e0b98a5757e0f6ddbadaeeb9ee5313dae8ae70d6a8a0bbc95c1d142e64c46469  0063-usb-typec-qcom-pmic-typec-reread-vbus-leaving-sink.patch
+578caec267f592ef6a4f5f084779c64a40a8638a909b81dd7c0c9ec2acbd311c312a1f5f19ecbf09964b1714b48f55c5140c8739cb207beba317ffc9525f53b5  0064-drm-msm-dp-use-the-real-pixel-rate-for-link-bandwidth.patch
+868c354465da38be39cdac265c589d351a31839144be3915a780fbe83158f4ac1845362c4f8bdea94beb4bcd9a0b867a980aedf76a81b7e43075fccb3b797b41  0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch
+1a518a8f004da50cecb929da0b9e98352ae8ea4f315d6e0ce1a2f9c4fe67b6dd7c4c7078497cd99446891d0619a8c48fb41eed0b9fb38dff8cf36f8e069d5912  0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch
+b49ef4a4f5ce793b799d2278c38a793309b191d0c8dc33c10a12766e48a871847fc5cf60d92e51dac05865f685c1cfeb632f3b90043ee3bc56234f0fee389aba  0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch
 "

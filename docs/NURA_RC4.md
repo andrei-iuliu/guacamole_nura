@@ -42,6 +42,37 @@ Notes:
   640x480), kwin "external only" hits `Atomic commit failed: EBUSY`, and an
   unpowered USB-C adapter (`CC1=Rd, CC2=Ra`) loops `SRC_ATTACH_WAIT` →
   `Received hard reset` → `ERROR_RECOVERY`.
+* **rc4h** (`pkgrel=11`) adds, each from a dock-test log
+  (`evidence-rc4b-20261113/rc4e|rc4g|rc4h-dock-pd.log`):
+  * `0062` tcpm: reset `hard_reset_count` on every unattach (a VBUS-first
+    detach kept the PC's exhausted budget, so the next partner never got PD);
+  * `0063` qcom-pmic-typec: re-read VBUS when leaving the sink role (stale
+    "VBUS on" kept TCPM in `SRC_ATTACH_WAIT`);
+  * `0064` drm/msm/dp: use the real pixel rate for the link bandwidth check
+    (wide bus halved it, so 3440x1440@100 passed on 2 lanes and stayed black;
+    @60 remains);
+  * `0065` qcom-pmic-typec: hide the PM8150B re-attach glitch for 500 ms
+    after an Rp<->Rd flip (power role swap), as downstream's
+    `pr_swap_in_progress` does;
+  * `0066` tcpm: tolerate one data role mismatch per attach (USB-C dock sends a
+    wrong DFP bit after a swap);
+  * `0067` drm/msm/dp: re-apply and if needed re-read the EDID in get_modes
+    (JSAUX fell back to 640x480).
+  Hardware (rc4h): JSAUX dock + 3440x1440 works twice at 60 Hz, unpowered
+  Cypress USB-C→HDMI adapter works, USB through the docks works. **Open:**
+  the USB-C dock never delivers a PD message while it is the source (no
+  Source_Capabilities on a sink attach, no PS_RDY after a PR_SWAP, and the
+  PM8150B never re-attaches as sink within 500 ms), so it only worked on the
+  rare runs where the swap completed (rc4b/rc4d/rc4e). The keyboard-adapter-
+  on-phone case for `0063` is still untested.
+* `fastboot boot` after `systemctl reboot --reboot-argument=bootloader` gave a
+  black, USB-less boot on rc4c/rc4g/rc4h and worked on rc4d/rc4e; the same
+  images always booted after a full power-off. Independent of the patches.
+* `drm.debug=0x106` (runtime) plus `console=tty0` hung the phone on screen
+  lock (no oops, ramoops empty); without it lock/unlock is clean. Do not
+  combine DRM debug with lock tests.
+* After such hangs the first boot can show colour garbage on the panel; a
+  lock/unlock (panel re-init) clears it.
 * `CONFIG_DYNAMIC_DEBUG=y` made this kernel hang before the display came up
   (rc4c, reproducible from a cold start); it stays off.
 * After a hung boot or dock session a warm reset was not always enough; a full

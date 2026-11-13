@@ -1,0 +1,2162 @@
+[sudo password prompt omitted]
+## tcpm log
+[    0.734458] Unable to find pd-revision property or incorrect array size
+[    0.735230] Setting usb_comm capable false
+[    0.735266] Setting voltage/current limit 0 mV 0 mA
+[    0.735272] polarity 0
+[    0.735310] Requesting mux state 0, usb-role 0, orientation 0
+[    0.735380] state change INVALID_STATE -> SRC_UNATTACHED [rev1 NONE_AMS]
+[    0.735403] CC1: 0 -> 0, CC2: 0 -> 3 [state SRC_UNATTACHED, polarity 0, connected]
+[    0.735407] state change SRC_UNATTACHED -> PORT_RESET [rev1 NONE_AMS]
+[    0.735409] c440000.spmi:pmic@2:typec@1500: registered
+[    0.735411] Setting usb_comm capable false
+[    0.735468] Setting voltage/current limit 0 mV 0 mA
+[    0.735476] polarity 0
+[    0.735478] Requesting mux state 0, usb-role 0, orientation 0
+[    0.735512] cc:=0
+[    0.735548] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev1 NONE_AMS]
+[    0.735552] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[    0.735555] pending state change PORT_RESET_WAIT_OFF -> SRC_UNATTACHED @ 920 ms [rev1 NONE_AMS]
+[    1.655588] state change PORT_RESET_WAIT_OFF -> SRC_UNATTACHED [delayed 920 ms]
+[    1.655597] Start toggling
+[    1.655637] state change SRC_UNATTACHED -> TOGGLING [rev1 NONE_AMS]
+[    1.782464] CC1: 0 -> 0, CC2: 3 -> 3 [state TOGGLING, polarity 0, connected]
+[    1.782472] state change TOGGLING -> SNK_ATTACH_WAIT [rev1 NONE_AMS]
+[    1.782478] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev1 NONE_AMS]
+[    1.982501] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[    1.982510] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev1 NONE_AMS]
+[    1.982514] polarity 1
+[    1.982517] Requesting mux state 1, usb-role 2, orientation 2
+[    1.987056] state change SNK_ATTACHED -> SNK_STARTUP [rev1 NONE_AMS]
+[    1.987060] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[    1.987063] Setting voltage/current limit 5000 mV 0 mA
+[    1.987071] vbus=0 charge:=1
+[    1.987074] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[    1.987088] pending state change SNK_WAIT_CAPABILITIES -> SNK_SOFT_RESET @ 310 ms [rev3 NONE_AMS]
+[    2.297365] state change SNK_WAIT_CAPABILITIES -> SNK_SOFT_RESET [delayed 310 ms]
+[    2.297376] AMS SOFT_RESET_AMS start
+[    2.297379] state change SNK_SOFT_RESET -> AMS_START [rev3 SOFT_RESET_AMS]
+[    2.297383] state change AMS_START -> SOFT_RESET_SEND [rev3 SOFT_RESET_AMS]
+[    2.297387] PD TX, header: 0x8d
+[    2.303504] PD TX complete, status: 2
+[    2.303659] state change SOFT_RESET_SEND -> HARD_RESET_SEND [rev3 SOFT_RESET_AMS]
+[    2.303667] AMS SOFT_RESET_AMS finished
+[    2.303669] AMS HARD_RESET start
+[    2.303671] PD TX, type: 0x5
+[    2.408389] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[    2.408440] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[    2.408452] vconn:=0
+[    2.408490] Requesting mux state 1, usb-role 2, orientation 2
+[    2.408714] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[    3.059056] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[    3.059081] AMS HARD_RESET finished
+[    3.059111] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[    3.059123] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[    3.059132] Setting voltage/current limit 5000 mV 0 mA
+[    3.059176] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[    3.059207] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[    3.369293] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[    3.369312] AMS HARD_RESET start
+[    3.369319] PD TX, type: 0x5
+[    3.472189] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[    3.472235] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[    3.472247] vconn:=0
+[    3.472287] Requesting mux state 1, usb-role 2, orientation 2
+[    3.472495] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[    4.122616] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[    4.122638] AMS HARD_RESET finished
+[    4.122672] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[    4.122684] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[    4.122694] Setting voltage/current limit 5000 mV 0 mA
+[    4.122722] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[    4.122752] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[    4.432943] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[  215.602186] VBUS off
+[  215.602191] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  215.602197] VBUS VSAFE0V
+[  215.602323] Setting usb_comm capable false
+[  215.602370] Setting voltage/current limit 0 mV 0 mA
+[  215.602379] polarity 0
+[  215.602380] Requesting mux state 0, usb-role 0, orientation 0
+[  215.603970] Start toggling
+[  215.604021] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[  223.626622] VBUS on
+[  223.626649] CC1: 0 -> 0, CC2: 3 -> 4 [state TOGGLING, polarity 0, connected]
+[  223.626654] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[  223.626658] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[  223.828062] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[  223.828070] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[  223.828074] polarity 1
+[  223.828077] Requesting mux state 1, usb-role 2, orientation 2
+[  223.832245] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[  223.832317] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  223.832320] Setting voltage/current limit 5000 mV 1500 mA
+[  223.832325] vbus=0 charge:=1
+[  223.832329] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  223.832376] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  223.952974] CC1: 0 -> 0, CC2: 4 -> 5 [state SNK_WAIT_CAPABILITIES, polarity 1, connected]
+[  224.142762] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  224.142779] AMS HARD_RESET start
+[  224.142789] PD TX, type: 0x5
+[  224.249093] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  224.249130] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  224.249138] vconn:=0
+[  224.249167] Requesting mux state 1, usb-role 2, orientation 2
+[  224.249326] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  224.899727] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  224.899751] AMS HARD_RESET finished
+[  224.899783] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  224.899975] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  224.899978] Setting voltage/current limit 5000 mV 3000 mA
+[  224.899985] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  224.900005] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  225.210123] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  225.210141] AMS HARD_RESET start
+[  225.210149] PD TX, type: 0x5
+[  225.311472] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  225.311523] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  225.311534] vconn:=0
+[  225.311576] Requesting mux state 1, usb-role 2, orientation 2
+[  225.311752] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  225.961858] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  225.961883] AMS HARD_RESET finished
+[  225.961913] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  225.961925] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  225.961936] Setting voltage/current limit 5000 mV 3000 mA
+[  225.961972] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  225.962002] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[  226.272557] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[  232.422952] VBUS off
+[  232.422955] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  232.422958] VBUS VSAFE0V
+[  232.422968] CC1: 0 -> 0, CC2: 5 -> 0 [state SNK_UNATTACHED, polarity 1, disconnected]
+[  232.424559] Start toggling
+[  237.654046] CC1: 0 -> 2, CC2: 0 -> 0 [state TOGGLING, polarity 0, connected]
+[  237.654054] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[  237.654058] pending state change SRC_ATTACH_WAIT -> SRC_ATTACHED @ 200 ms [rev3 NONE_AMS]
+[  237.854775] state change SRC_ATTACH_WAIT -> SRC_ATTACHED [delayed 200 ms]
+[  237.854783] polarity 0
+[  237.854785] vbus:=1 charge=0
+[  237.857227] Requesting mux state 1, usb-role 1, orientation 1
+[  237.863840] pending state change SRC_ATTACHED -> SRC_UNATTACHED @ 480 ms [rev3 NONE_AMS]
+[  237.863848] VBUS on
+[  237.863849] state change SRC_ATTACHED -> SRC_STARTUP [rev3 NONE_AMS]
+[  237.863867] AMS POWER_NEGOTIATION start
+[  237.863870] cc:=4
+[  237.863893] state change SRC_STARTUP -> AMS_START [rev3 POWER_NEGOTIATION]
+[  237.863897] state change AMS_START -> SRC_SEND_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[  237.863902] PD TX, header: 0x11a1
+[  237.869149] PD TX complete, status: 2
+[  237.869179] pending state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES @ 150 ms [rev3 POWER_NEGOTIATION]
+[  238.019208] state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES [delayed 150 ms]
+[  238.019214] PD TX, header: 0x11a1
+[  238.024475] PD TX complete, status: 2
+[  238.024680] pending state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES @ 150 ms [rev3 POWER_NEGOTIATION]
+[  238.174705] state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES [delayed 150 ms]
+[  238.174712] PD TX, header: 0x11a1
+[  238.176235] PD TX complete, status: 0
+[  238.176607] pending state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES_TIMEOUT @ 60 ms [rev3 POWER_NEGOTIATION]
+[  238.182272] PD RX, header: 0x1082 [1]
+[  238.182278] state change SRC_SEND_CAPABILITIES -> SRC_NEGOTIATE_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[  238.182284] Requested 5000 mV, 1500 mA for 1500 / 1500 mA
+[  238.182286] PD TX, header: 0x3a3
+[  238.183717] PD TX complete, status: 0
+[  238.184200] Setting usb_comm capable true
+[  238.184207] pending state change SRC_NEGOTIATE_CAPABILITIES -> SRC_TRANSITION_SUPPLY @ 35 ms [rev3 POWER_NEGOTIATION]
+[  238.219912] state change SRC_NEGOTIATE_CAPABILITIES -> SRC_TRANSITION_SUPPLY [delayed 35 ms]
+[  238.219917] PD TX, header: 0x5a6
+[  238.221363] PD TX complete, status: 0
+[  238.221928] state change SRC_TRANSITION_SUPPLY -> SRC_READY [rev3 POWER_NEGOTIATION]
+[  238.222020] AMS POWER_NEGOTIATION finished
+[  238.222023] cc:=5
+[  238.222055] AMS DISCOVER_IDENTITY start
+[  238.222057] cc:=4
+[  238.238296] PD TX, header: 0x17af
+[  238.239622] PD TX complete, status: 0
+[  238.244333] PD RX, header: 0x528f [1]
+[  238.244337] Rx VDM cmd 0xff00a041 type 1 cmd 1 len 5
+[  238.244344] AMS DISCOVER_IDENTITY finished
+[  238.244346] cc:=5
+[  238.244419] Identity: 25a4:9411.5000
+[  238.244423] AMS DISCOVER_SVIDS start
+[  238.244425] cc:=4
+[  238.260478] PD TX, header: 0x19af
+[  238.261914] PD TX complete, status: 0
+[  238.266530] PD RX, header: 0x248f [1]
+[  238.266535] Rx VDM cmd 0xff00a042 type 1 cmd 2 len 2
+[  238.266540] AMS DISCOVER_SVIDS finished
+[  238.266541] cc:=5
+[  238.266567] SVID 1: 0xff01
+[  238.266573] AMS DISCOVER_MODES start
+[  238.266574] cc:=4
+[  238.283301] PD TX, header: 0x1baf
+[  238.284917] PD TX complete, status: 0
+[  238.289971] PD RX, header: 0x268f [1]
+[  238.289976] Rx VDM cmd 0xff01a043 type 1 cmd 3 len 2
+[  238.289981] AMS DISCOVER_MODES finished
+[  238.289982] cc:=5
+[  238.290004]  Alternate mode 0: SVID 0xff01, VDO 1: 0x00000c05
+[  238.315294] AMS DFP_TO_UFP_ENTER_MODE start
+[  238.315297] cc:=4
+[  238.331335] PD TX, header: 0x1daf
+[  238.332865] PD TX complete, status: 0
+[  238.336902] PD RX, header: 0x188f [1]
+[  238.336910] Rx VDM cmd 0xff01a144 type 1 cmd 4 len 1
+[  238.336916] AMS DFP_TO_UFP_ENTER_MODE finished
+[  238.336917] cc:=5
+[  238.337002] AMS STRUCTURED_VDMS start
+[  238.337003] cc:=4
+[  238.353283] PD TX, header: 0x2faf
+[  238.355017] PD TX complete, status: 0
+[  238.359255] PD RX, header: 0x2a8f [1]
+[  238.359261] Rx VDM cmd 0xff01a150 type 1 cmd 16 len 2
+[  238.359267] AMS STRUCTURED_VDMS finished
+[  238.359269] cc:=5
+[  238.359311] AMS STRUCTURED_VDMS start
+[  238.359313] cc:=4
+[  238.376015] PD TX, header: 0x21af
+[  238.377863] PD TX complete, status: 0
+[  238.389804] PD RX, header: 0x1c8f [1]
+[  238.389811] Rx VDM cmd 0xff01a151 type 1 cmd 17 len 1
+[  238.389817] AMS STRUCTURED_VDMS finished
+[  238.389819] cc:=5
+[  238.912894] PD RX, header: 0x1e8f [1]
+[  238.912904] PD TX, header: 0x3b0
+[  238.914258] PD TX complete, status: 0
+[  239.022260] PD RX, header: 0x208f [1]
+[  239.022267] Rx VDM cmd 0xff01a106 type 0 cmd 6 len 2
+[  241.138687] PD RX, header: 0x28a [1]
+[  241.138693] state change SRC_READY -> PR_SWAP_ACCEPT [rev3 POWER_ROLE_SWAP]
+[  241.138698] PD TX, header: 0x5a3
+[  241.139846] PD TX complete, status: 0
+[  241.140038] state change PR_SWAP_ACCEPT -> PR_SWAP_START [rev3 POWER_ROLE_SWAP]
+[  241.140043] pending state change PR_SWAP_START -> PR_SWAP_SRC_SNK_TRANSITION_OFF @ 35 ms [rev3 POWER_ROLE_SWAP]
+[  241.175274] state change PR_SWAP_START -> PR_SWAP_SRC_SNK_TRANSITION_OFF [delayed 35 ms]
+[  241.175281] vbus:=0 charge=0
+[  241.177023] pending state change PR_SWAP_SRC_SNK_TRANSITION_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF @ 625 ms [rev3 POWER_ROLE_SWAP
+[  241.177035] VBUS off
+[  241.177036] state change PR_SWAP_SRC_SNK_TRANSITION_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF [rev3 POWER_ROLE_SWAP]
+[  241.177038] VBUS VSAFE0V
+[  241.177040] cc:=2
+[  241.177057] pending state change PR_SWAP_SRC_SNK_SOURCE_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED @ 200 ms [rev3 POWER_
+[  241.377073] state change PR_SWAP_SRC_SNK_SOURCE_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED [delayed 200 ms]
+[  241.377150] PD TX, header: 0x6a6
+[  241.378306] PD TX complete, status: 0
+[  241.378316] pending state change PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED -> ERROR_RECOVERY @ 450 ms [rev3 POWER_ROLE_SWAP]
+[  241.386419] PD RX, header: 0x586 [1]
+[  241.386426] state change PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED -> PR_SWAP_SRC_SNK_SINK_ON [rev3 POWER_ROLE_SWAP]
+[  241.386437] state change PR_SWAP_SRC_SNK_SINK_ON -> SNK_STARTUP [rev3 POWER_ROLE_SWAP]
+[  241.386480] AMS POWER_ROLE_SWAP finished
+[  241.386482] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  241.386484] pending state change SNK_DISCOVERY -> HARD_RESET_SEND @ 10000 ms [rev3 NONE_AMS]
+[  241.404385] VBUS on
+[  241.404389] state change SNK_DISCOVERY -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  241.404395] Setting voltage/current limit 5000 mV 0 mA
+[  241.404401] vbus=0 charge:=1
+[  241.404403] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  241.404416] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  241.421834] VBUS on
+[  241.666476] PD RX, header: 0x41a1 [1]
+[  241.666480] Data role mismatch, initiating error recovery
+[  241.666481] state change SNK_WAIT_CAPABILITIES -> ERROR_RECOVERY [rev3 NONE_AMS]
+[  241.666486] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[  241.668811] Setting usb_comm capable false
+[  241.668840] Setting voltage/current limit 0 mV 0 mA
+[  241.668846] polarity 0
+[  241.668847] Requesting mux state 0, usb-role 0, orientation 0
+[  241.669735] cc:=0
+[  241.669754] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[  241.669767] VBUS on
+[  241.703443] CC1: 2 -> 4, CC2: 0 -> 0 [state PORT_RESET, polarity 0, connected]
+[  241.703915] Received hard reset
+[  241.769763] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[  241.769769] pending state change PORT_RESET_WAIT_OFF -> SRC_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[  241.778050] VBUS off
+[  241.778054] state change PORT_RESET_WAIT_OFF -> SRC_UNATTACHED [rev3 NONE_AMS]
+[  241.778057] VBUS VSAFE0V
+[  241.778060] Start toggling
+[  241.778095] state change SRC_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[  242.615308] CC1: 4 -> 4, CC2: 0 -> 0 [state TOGGLING, polarity 0, connected]
+[  242.615316] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[  242.615320] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[  242.615388] CC1: 4 -> 4, CC2: 0 -> 0 [state SNK_ATTACH_WAIT, polarity 0, connected]
+[  242.615400] VBUS on
+[  242.815337] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[  242.815344] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[  242.815346] polarity 0
+[  242.815349] Requesting mux state 1, usb-role 2, orientation 1
+[  242.816898] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[  242.816913] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  242.816916] Setting voltage/current limit 5000 mV 1500 mA
+[  242.816921] vbus=0 charge:=1
+[  242.816924] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  242.816937] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  242.953449] CC1: 4 -> 5, CC2: 0 -> 0 [state SNK_WAIT_CAPABILITIES, polarity 0, connected]
+[  243.126956] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  243.126963] AMS HARD_RESET start
+[  243.126965] PD TX, type: 0x5
+[  243.231650] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  243.231676] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  243.231678] vconn:=0
+[  243.231699] Requesting mux state 1, usb-role 2, orientation 1
+[  243.231768] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  243.881785] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  243.881792] AMS HARD_RESET finished
+[  243.881807] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  243.881853] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  243.881855] Setting voltage/current limit 5000 mV 3000 mA
+[  243.881859] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  243.881872] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  244.191904] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  244.191911] AMS HARD_RESET start
+[  244.191912] PD TX, type: 0x5
+[  244.295633] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  244.295659] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  244.295661] vconn:=0
+[  244.295681] Requesting mux state 1, usb-role 2, orientation 1
+[  244.295756] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  244.945965] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  244.945974] AMS HARD_RESET finished
+[  244.945990] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  244.945993] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  244.945995] Setting voltage/current limit 5000 mV 3000 mA
+[  244.946003] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  244.946017] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[  245.256229] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[  255.379746] VBUS off
+[  255.379749] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  255.379752] VBUS VSAFE0V
+[  255.379834] Setting usb_comm capable false
+[  255.379863] Setting voltage/current limit 0 mV 0 mA
+[  255.379871] polarity 0
+[  255.379872] Requesting mux state 0, usb-role 0, orientation 0
+[  255.382143] Start toggling
+[  255.382173] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[  264.013767] VBUS on
+[  264.013792] CC1: 5 -> 0, CC2: 0 -> 4 [state TOGGLING, polarity 0, connected]
+[  264.013796] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[  264.013800] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[  264.215151] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[  264.215160] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[  264.215163] polarity 1
+[  264.215165] Requesting mux state 1, usb-role 2, orientation 2
+[  264.221825] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[  264.221889] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  264.221894] Setting voltage/current limit 5000 mV 1500 mA
+[  264.221901] vbus=0 charge:=1
+[  264.221906] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  264.221926] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  264.342073] CC1: 0 -> 0, CC2: 4 -> 5 [state SNK_WAIT_CAPABILITIES, polarity 1, connected]
+[  264.531954] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  264.531960] AMS HARD_RESET start
+[  264.531962] PD TX, type: 0x5
+[  264.639416] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  264.639437] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  264.639439] vconn:=0
+[  264.639460] Requesting mux state 1, usb-role 2, orientation 2
+[  264.639512] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  265.289558] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  265.289565] AMS HARD_RESET finished
+[  265.289578] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  265.289644] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  265.289647] Setting voltage/current limit 5000 mV 3000 mA
+[  265.289652] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  265.289670] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  265.599707] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  265.599712] AMS HARD_RESET start
+[  265.599714] PD TX, type: 0x5
+[  265.704359] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  265.704381] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  265.704384] vconn:=0
+[  265.704410] Requesting mux state 1, usb-role 2, orientation 2
+[  265.704483] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  266.355311] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  266.355322] AMS HARD_RESET finished
+[  266.355341] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  266.355346] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  266.355349] Setting voltage/current limit 5000 mV 3000 mA
+[  266.355362] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  266.355378] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[  266.666169] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[  275.373506] VBUS off
+[  275.373510] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  275.373513] VBUS VSAFE0V
+[  275.373598] Setting usb_comm capable false
+[  275.373627] Setting voltage/current limit 0 mV 0 mA
+[  275.373637] polarity 0
+[  275.373732] Requesting mux state 0, usb-role 0, orientation 0
+[  275.376725] Start toggling
+[  275.376755] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[  297.185455] CC1: 0 -> 2, CC2: 5 -> 1 [state TOGGLING, polarity 0, connected]
+[  297.185462] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[  297.185466] pending state change SRC_ATTACH_WAIT -> SRC_ATTACHED @ 200 ms [rev3 NONE_AMS]
+[  297.385503] state change SRC_ATTACH_WAIT -> SRC_ATTACHED [delayed 200 ms]
+[  297.385508] polarity 0
+[  297.385510] vconn:=1
+[  297.385593] vbus:=1 charge=0
+[  297.387938] Requesting mux state 1, usb-role 1, orientation 1
+[  297.391728] pending state change SRC_ATTACHED -> SRC_UNATTACHED @ 480 ms [rev3 NONE_AMS]
+[  297.391735] VBUS on
+[  297.391737] state change SRC_ATTACHED -> SRC_STARTUP [rev3 NONE_AMS]
+[  297.391755] AMS POWER_NEGOTIATION start
+[  297.391757] cc:=4
+[  297.391779] state change SRC_STARTUP -> AMS_START [rev3 POWER_NEGOTIATION]
+[  297.391782] state change AMS_START -> SRC_SEND_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[  297.391786] PD TX, header: 0x11a1
+[  297.393253] PD TX complete, status: 0
+[  297.393281] pending state change SRC_SEND_CAPABILITIES -> SRC_SEND_CAPABILITIES_TIMEOUT @ 60 ms [rev3 POWER_NEGOTIATION]
+[  297.394723] PD RX, header: 0x1082 [1]
+[  297.394725] state change SRC_SEND_CAPABILITIES -> SRC_NEGOTIATE_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[  297.394727] Requested 5000 mV, 1500 mA for 1500 / 1500 mA
+[  297.394728] PD TX, header: 0x3a3
+[  297.396038] PD TX complete, status: 0
+[  297.396066] Setting usb_comm capable false
+[  297.396069] pending state change SRC_NEGOTIATE_CAPABILITIES -> SRC_TRANSITION_SUPPLY @ 35 ms [rev3 POWER_NEGOTIATION]
+[  297.431096] state change SRC_NEGOTIATE_CAPABILITIES -> SRC_TRANSITION_SUPPLY [delayed 35 ms]
+[  297.431102] PD TX, header: 0x5a6
+[  297.432315] PD TX complete, status: 0
+[  297.432372] state change SRC_TRANSITION_SUPPLY -> SRC_READY [rev3 POWER_NEGOTIATION]
+[  297.432494] AMS POWER_NEGOTIATION finished
+[  297.432497] cc:=5
+[  297.432530] AMS DISCOVER_IDENTITY start
+[  297.432533] cc:=4
+[  297.448581] PD TX, header: 0x17af
+[  297.450065] PD TX complete, status: 0
+[  297.452122] PD RX, header: 0x528f [1]
+[  297.452126] Rx VDM cmd 0xff00a041 type 1 cmd 1 len 5
+[  297.452132] AMS DISCOVER_IDENTITY finished
+[  297.452133] cc:=5
+[  297.452195] Identity: 0b05:7217.9615
+[  297.452200] AMS DISCOVER_SVIDS start
+[  297.452202] cc:=4
+[  297.468258] PD TX, header: 0x19af
+[  297.469887] PD TX complete, status: 0
+[  297.471141] PD RX, header: 0x248f [1]
+[  297.471145] Rx VDM cmd 0xff00a042 type 1 cmd 2 len 2
+[  297.471150] AMS DISCOVER_SVIDS finished
+[  297.471151] cc:=5
+[  297.471174] SVID 1: 0xff01
+[  297.471177] AMS DISCOVER_MODES start
+[  297.471179] cc:=4
+[  297.487945] PD TX, header: 0x1baf
+[  297.489819] PD TX complete, status: 0
+[  297.491606] PD RX, header: 0x268f [1]
+[  297.491614] Rx VDM cmd 0xff01a043 type 1 cmd 3 len 2
+[  297.491621] AMS DISCOVER_MODES finished
+[  297.491622] cc:=5
+[  297.491646]  Alternate mode 0: SVID 0xff01, VDO 1: 0x00000c05
+[  297.492790] AMS DFP_TO_UFP_ENTER_MODE start
+[  297.492791] cc:=4
+[  297.508828] PD TX, header: 0x1daf
+[  297.510327] PD TX complete, status: 0
+[  297.511658] PD RX, header: 0x188f [1]
+[  297.511660] Rx VDM cmd 0xff01a144 type 1 cmd 4 len 1
+[  297.511663] AMS DFP_TO_UFP_ENTER_MODE finished
+[  297.511664] cc:=5
+[  297.511733] AMS STRUCTURED_VDMS start
+[  297.511734] cc:=4
+[  297.527774] PD TX, header: 0x2faf
+[  297.529444] PD TX complete, status: 0
+[  297.531119] PD RX, header: 0x2a8f [1]
+[  297.531124] Rx VDM cmd 0xff01a150 type 1 cmd 16 len 2
+[  297.531129] AMS STRUCTURED_VDMS finished
+[  297.531130] cc:=5
+[  297.531174] AMS STRUCTURED_VDMS start
+[  297.531176] cc:=4
+[  297.547395] PD TX, header: 0x21af
+[  297.549157] PD TX complete, status: 0
+[  297.550523] PD RX, header: 0x1c8f [1]
+[  297.550526] Rx VDM cmd 0xff01a151 type 1 cmd 17 len 1
+[  297.550530] AMS STRUCTURED_VDMS finished
+[  297.550530] cc:=5
+[  297.594448] PD RX, header: 0x2e8f [1]
+[  297.594454] Rx VDM cmd 0xff01a106 type 0 cmd 6 len 2
+[  299.107357] PD RX, header: 0x8a [1]
+[  299.107363] state change SRC_READY -> PR_SWAP_ACCEPT [rev3 POWER_ROLE_SWAP]
+[  299.107369] PD TX, header: 0x3a3
+[  299.108762] PD TX complete, status: 0
+[  299.109502] state change PR_SWAP_ACCEPT -> PR_SWAP_START [rev3 POWER_ROLE_SWAP]
+[  299.109506] pending state change PR_SWAP_START -> PR_SWAP_SRC_SNK_TRANSITION_OFF @ 35 ms [rev3 POWER_ROLE_SWAP]
+[  299.144543] state change PR_SWAP_START -> PR_SWAP_SRC_SNK_TRANSITION_OFF [delayed 35 ms]
+[  299.144550] vbus:=0 charge=0
+[  299.145717] pending state change PR_SWAP_SRC_SNK_TRANSITION_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF @ 625 ms [rev3 POWER_ROLE_SWAP
+[  299.145728] VBUS off
+[  299.145729] state change PR_SWAP_SRC_SNK_TRANSITION_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF [rev3 POWER_ROLE_SWAP]
+[  299.145731] VBUS VSAFE0V
+[  299.145732] cc:=2
+[  299.145745] pending state change PR_SWAP_SRC_SNK_SOURCE_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED @ 200 ms [rev3 POWER_
+[  299.345769] state change PR_SWAP_SRC_SNK_SOURCE_OFF -> PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED [delayed 200 ms]
+[  299.345841] PD TX, header: 0x4a6
+[  299.347108] PD TX complete, status: 0
+[  299.347137] pending state change PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED -> ERROR_RECOVERY @ 450 ms [rev3 POWER_ROLE_SWAP]
+[  299.370621] VBUS on
+[  299.390775] PD RX, header: 0x386 [1]
+[  299.390780] state change PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED -> PR_SWAP_SRC_SNK_SINK_ON [rev3 POWER_ROLE_SWAP]
+[  299.390785] state change PR_SWAP_SRC_SNK_SINK_ON -> SNK_STARTUP [rev3 POWER_ROLE_SWAP]
+[  299.390827] AMS POWER_ROLE_SWAP finished
+[  299.390829] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  299.390830] Setting voltage/current limit 5000 mV 0 mA
+[  299.390833] vbus=0 charge:=1
+[  299.390834] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  299.390845] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  299.433029] PD RX, header: 0x4581 [1]
+[  299.433036]  PDO 0: type 0, 5000 mV, 2000 mA [RE]
+[  299.433039]  PDO 1: type 0, 9000 mV, 2450 mA []
+[  299.433041]  PDO 2: type 0, 15000 mV, 2670 mA []
+[  299.433043]  PDO 3: type 0, 20000 mV, 2900 mA []
+[  299.433188] state change SNK_WAIT_CAPABILITIES -> SNK_NEGOTIATE_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[  299.433192] Setting usb_comm capable false
+[  299.433199] cc=2 cc1=2 cc2=1 vbus=0 vconn=source polarity=0
+[  299.433202] Requesting PDO 0: 5000 mV, 2000 mA [mismatch]
+[  299.433203] PD TX, header: 0x10a2
+[  299.434530] PD TX complete, status: 0
+[  299.434566] pending state change SNK_NEGOTIATE_CAPABILITIES -> HARD_RESET_SEND @ 60 ms [rev3 POWER_NEGOTIATION]
+[  299.435736] PD RX, header: 0x783 [1]
+[  299.435741] state change SNK_NEGOTIATE_CAPABILITIES -> SNK_TRANSITION_SINK [rev3 POWER_NEGOTIATION]
+[  299.435745] pending state change SNK_TRANSITION_SINK -> HARD_RESET_SEND @ 500 ms [rev3 POWER_NEGOTIATION]
+[  299.471002] PD RX, header: 0x986 [1]
+[  299.471007] Setting voltage/current limit 5000 mV 2000 mA
+[  299.471012] state change SNK_TRANSITION_SINK -> SNK_READY [rev3 POWER_NEGOTIATION]
+[  299.471058] AMS POWER_NEGOTIATION finished
+[  299.489435] CC1: 2 -> 5, CC2: 1 -> 0 [state SNK_READY, polarity 0, connected]
+[  299.687782] CC1: 5 -> 5, CC2: 0 -> 0 [state SNK_READY, polarity 0, connected]
+[  371.204138] VBUS off
+[  371.204144] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  371.204149] VBUS VSAFE0V
+[  371.204161] CC1: 5 -> 0, CC2: 0 -> 0 [state SNK_UNATTACHED, polarity 0, disconnected]
+[  371.206860] Start toggling
+[  371.206902] VBUS off
+[  371.206903] VBUS VSAFE0V
+[  379.422263] VBUS on
+[  379.576588] CC1: 0 -> 0, CC2: 0 -> 3 [state TOGGLING, polarity 0, connected]
+[  379.576594] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[  379.576598] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[  379.777304] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[  379.777310] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[  379.777312] polarity 1
+[  379.777314] Requesting mux state 1, usb-role 2, orientation 2
+[  379.784080] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[  379.784096] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  379.784101] Setting voltage/current limit 5000 mV 0 mA
+[  379.784105] vbus=0 charge:=1
+[  379.784107] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  379.784119] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  380.094137] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  380.094141] AMS HARD_RESET start
+[  380.094142] PD TX, type: 0x5
+[  380.200268] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  380.200290] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  380.200294] vconn:=0
+[  380.200355] Requesting mux state 1, usb-role 2, orientation 2
+[  380.200385] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  380.851104] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  380.851111] AMS HARD_RESET finished
+[  380.851124] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  380.851127] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  380.851129] Setting voltage/current limit 5000 mV 0 mA
+[  380.851136] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  380.851149] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[  381.161239] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[  381.161247] AMS HARD_RESET start
+[  381.161249] PD TX, type: 0x5
+[  381.264757] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[  381.264776] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[  381.264778] vconn:=0
+[  381.264798] Requesting mux state 1, usb-role 2, orientation 2
+[  381.264860] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[  381.915568] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[  381.915575] AMS HARD_RESET finished
+[  381.915589] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[  381.915592] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[  381.915595] Setting voltage/current limit 5000 mV 0 mA
+[  381.915603] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[  381.915617] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[  382.226334] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+## kernel this boot
+[    8.663483] guacamole kernel: Booting Linux on physical CPU 0x0000000000 [0x51df805e]
+[    8.663612] guacamole kernel: Linux version 7.0.0-sm8150-guacamole-rc4 (nura@rear-camera) (clang version 23.1.4, LLD 23.1.4) #2 SMP PREEMPT 2026-11-10 00:00:00 UTC
+[    8.663649] guacamole kernel: KASLR enabled
+[    8.663675] guacamole kernel: random: crng init done
+[    8.663703] guacamole kernel: Machine model: Qualcomm Technologies, Inc. SM8150 MTP 18821
+[    8.663731] guacamole kernel: efi: UEFI not found.
+[    8.663765] guacamole kernel: [Firmware Bug]: Kernel image misaligned at boot, please fix your bootloader!
+[    8.663798] guacamole kernel: Reserved memory: created CMA memory pool at 0x00000000fee00000, size 16 MiB
+[    8.663837] guacamole kernel: OF: reserved mem: initialized node fastrpc-shared-pool, compatible id shared-dma-pool
+[    8.663864] guacamole kernel: OF: reserved mem: 0x00000000fee00000..0x00000000ffdfffff (16384 KiB) map reusable fastrpc-shared-pool
+[    8.663892] guacamole kernel: OF: reserved mem: 0x0000000085700000..0x0000000085cfffff (6144 KiB) nomap non-reusable memory@85700000
+[    8.663923] guacamole kernel: OF: reserved mem: 0x0000000085f00000..0x0000000085f1ffff (128 KiB) nomap non-reusable memory@85f00000
+[    8.663950] guacamole kernel: OF: reserved mem: 0x0000000085f20000..0x0000000085f3ffff (128 KiB) nomap non-reusable memory@85f20000
+[    8.663978] guacamole kernel: OF: reserved mem: 0x0000000086000000..0x00000000861fffff (2048 KiB) nomap non-reusable memory@86000000
+[    8.664015] guacamole kernel: OF: reserved mem: 0x0000000086200000..0x000000008b6fffff (87040 KiB) nomap non-reusable memory@86200000
+[    8.664042] guacamole kernel: OF: reserved mem: 0x000000008b700000..0x000000008bbfffff (5120 KiB) nomap non-reusable memory@8b700000
+[    8.664064] guacamole kernel: OF: reserved mem: 0x000000008bc00000..0x000000008bd7ffff (1536 KiB) nomap non-reusable memory@8bc00000
+[    8.664097] guacamole kernel: OF: reserved mem: 0x000000008bd80000..0x000000008bdfffff (512 KiB) nomap non-reusable memory@8bd80000
+[    8.664129] guacamole kernel: OF: reserved mem: 0x000000008be00000..0x000000008dbfffff (30720 KiB) nomap non-reusable memory@8be00000
+[    8.664155] guacamole kernel: OF: reserved mem: 0x000000008dc00000..0x00000000971fffff (153600 KiB) nomap non-reusable memory@8d800000
+[    8.664189] guacamole kernel: OF: reserved mem: 0x0000000097200000..0x00000000976fffff (5120 KiB) nomap non-reusable memory@96e00000
+[    8.664217] guacamole kernel: OF: reserved mem: 0x0000000097700000..0x0000000098afffff (20480 KiB) nomap non-reusable memory@97300000
+[    8.664244] guacamole kernel: OF: reserved mem: 0x0000000098b00000..0x0000000098b0ffff (64 KiB) nomap non-reusable memory@98700000
+[    8.664270] guacamole kernel: OF: reserved mem: 0x0000000098b10000..0x0000000098b14fff (20 KiB) nomap non-reusable memory@98710000
+[    8.664297] guacamole kernel: OF: reserved mem: 0x0000000098b15000..0x0000000098b16fff (8 KiB) nomap non-reusable memory@98715000
+[    8.664323] guacamole kernel: OF: reserved mem: 0x0000000098c00000..0x0000000098cfffff (1024 KiB) nomap non-reusable memory@98800000
+[    8.664349] guacamole kernel: OF: reserved mem: 0x0000000098d00000..0x000000009a0fffff (20480 KiB) nomap non-reusable memory@98900000
+[    8.664377] guacamole kernel: OF: reserved mem: 0x000000009e400000..0x000000009f7fffff (20480 KiB) nomap non-reusable memory@9e400000
+[    8.664403] guacamole kernel: OF: reserved mem: 0x00000000f2901000..0x00000000f2b00fff (2048 KiB) nomap non-reusable memory@f2901000
+[    8.664431] guacamole kernel: OF: reserved mem: 0x000000009c000000..0x000000009e3fffff (36864 KiB) nomap non-reusable memory@9c000000
+[    8.664458] guacamole kernel: OF: reserved mem: 0x000000009fff7000..0x000000009fffffff (36 KiB) nomap non-reusable bootloader_log_mem@9fff7000
+[    8.664484] guacamole kernel: OF: reserved mem: 0x00000000a4c00000..0x00000000a87fffff (61440 KiB) nomap non-reusable memory@a4c00000
+[    8.664511] guacamole kernel: OF: reserved mem: 0x00000000a9800000..0x00000000a9bfffff (4096 KiB) map non-reusable ramoops@a9800000
+[    8.664541] guacamole kernel: OF: reserved mem: 0x00000000ac200000..0x00000000ac2fffff (1024 KiB) nomap non-reusable memory@ac200000
+[    8.664567] guacamole kernel: OF: reserved mem: 0x00000000ac300000..0x00000000acdfffff (11264 KiB) nomap non-reusable memory@ac300000
+[    8.664594] guacamole kernel: OF: reserved mem: 0x0000000085e00000..0x0000000085f3ffff (1280 KiB) nomap non-reusable memory@85e00000
+[    8.664622] guacamole kernel: OF: reserved mem: OVERLAP DETECTED!
+                                 memory@85e00000 (0x0000000085e00000--0x0000000085f40000) overlaps with memory@85f00000 (0x0000000085f00000--0x0000000085f20000)
+[    8.664655] guacamole kernel: NUMA: Faking a node at [mem 0x0000000080000000-0x000000037fffffff]
+[    8.664681] guacamole kernel: NODE_DATA(0) allocated [mem 0x37e74ebc0-0x37e7519bf]
+[    8.664708] guacamole kernel: cma: Reserved 32 MiB at 0x00000000fce00000
+[    8.664742] guacamole kernel: psci: probing for conduit method from DT.
+[    8.664768] guacamole kernel: psci: PSCIv1.1 detected in firmware.
+[    8.664794] guacamole kernel: psci: Using standard PSCI v0.2 function IDs
+[    8.664820] guacamole kernel: psci: MIGRATE_INFO_TYPE not supported.
+[    8.664846] guacamole kernel: psci: SMC Calling Convention v1.1
+[    8.664872] guacamole kernel: psci: OSI mode supported.
+[    8.664898] guacamole kernel: psci: [Firmware Bug]: failed to set PC mode: -3
+[    8.664925] guacamole kernel: Zone ranges:
+[    8.664951] guacamole kernel:   DMA      [mem 0x0000000080000000-0x00000000ffffffff]
+[    8.664977] guacamole kernel:   DMA32    empty
+[    8.665009] guacamole kernel:   Normal   [mem 0x0000000100000000-0x000000037fffffff]
+[    8.665041] guacamole kernel: Movable zone start for each node
+[    8.665068] guacamole kernel: Early memory node ranges
+[    8.665089] guacamole kernel:   node   0: [mem 0x0000000080000000-0x00000000856fffff]
+[    8.665115] guacamole kernel:   node   0: [mem 0x0000000085700000-0x0000000085cfffff]
+[    8.665136] guacamole kernel:   node   0: [mem 0x0000000085d00000-0x0000000085dfffff]
+[    8.665162] guacamole kernel:   node   0: [mem 0x0000000085e00000-0x0000000085f3ffff]
+[    8.665189] guacamole kernel:   node   0: [mem 0x0000000085f40000-0x0000000085ffffff]
+[    8.665215] guacamole kernel:   node   0: [mem 0x0000000086000000-0x0000000098b16fff]
+[    8.665242] guacamole kernel:   node   0: [mem 0x0000000098b17000-0x0000000098bfffff]
+[    8.665268] guacamole kernel:   node   0: [mem 0x0000000098c00000-0x000000009a0fffff]
+[    8.665294] guacamole kernel:   node   0: [mem 0x000000009a100000-0x000000009bffffff]
+[    8.665320] guacamole kernel:   node   0: [mem 0x000000009c000000-0x000000009f7fffff]
+[    8.665346] guacamole kernel:   node   0: [mem 0x000000009f800000-0x000000009fff6fff]
+[    8.665374] guacamole kernel:   node   0: [mem 0x000000009fff7000-0x000000009fffffff]
+[    8.665401] guacamole kernel:   node   0: [mem 0x00000000a0000000-0x00000000a4bfffff]
+[    8.665427] guacamole kernel:   node   0: [mem 0x00000000a4c00000-0x00000000a87fffff]
+[    8.665454] guacamole kernel:   node   0: [mem 0x00000000a8800000-0x00000000ac1fffff]
+[    8.665485] guacamole kernel:   node   0: [mem 0x00000000ac200000-0x00000000acdfffff]
+[    8.665511] guacamole kernel:   node   0: [mem 0x00000000ace00000-0x00000000b98fffff]
+[    8.665537] guacamole kernel:   node   0: [mem 0x00000000c0000000-0x00000000f2900fff]
+[    8.665563] guacamole kernel:   node   0: [mem 0x00000000f2901000-0x00000000f2b00fff]
+[    8.665589] guacamole kernel:   node   0: [mem 0x00000000f2b01000-0x000000037fffffff]
+[    8.665615] guacamole kernel: Initmem setup node 0 [mem 0x0000000080000000-0x000000037fffffff]
+[    8.665641] guacamole kernel: On node 0, zone DMA: 26368 pages in unavailable ranges
+[    8.665668] guacamole kernel: percpu: Embedded 34 pages/cpu s100760 r8192 d30312 u139264
+[    8.665695] guacamole kernel: pcpu-alloc: s100760 r8192 d30312 u139264 alloc=34*4096
+[    8.665722] guacamole kernel: pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 [0] 4 [0] 5 [0] 6 [0] 7 
+[    8.665743] guacamole kernel: Detected VIPT I-cache on CPU0
+[    8.665769] guacamole kernel: CPU features: detected: GICv3 CPU interface
+[    8.665796] guacamole kernel: CPU features: kernel page table isolation forced ON by KASLR
+[    8.665823] guacamole kernel: CPU features: detected: Kernel page table isolation (KPTI)
+[    8.665844] guacamole kernel: CPU features: detected: ARM errata 1165522, 1319367, or 1530923
+[    8.665870] guacamole kernel: alternatives: applying boot alternatives
+[    8.665918] guacamole kernel: Kernel command line: console=tty0 console=ttyMSM0,115200n8 earlycon ramoops.mem_address=0xa9800000 ramoops.mem_size=0x400000 ramoops.record_size=0x40000 ramoops.console_size=0x40000 ramoops.pmsg_size=0x200000 pmOS_loglevel=8 PMOS_NO_OUTPUT_REDIRECT module_blacklist=qcomtee scsi_mod.scan=sync lk_version=V1.0 androidboot.startupmode=dc_charger androidboot.mode=normal printk.disable_uart=1 phx_rus_conf.main_on=1 phx_rus_conf.recovery_method=2 phx_rus_conf.kernel_time=240 phx_rus_conf.android_time=250 smooth_soc_switch=0 simcardnum.doublesim=1 androidboot.prjname=18821 esim.status=0 androidboot.no_ese=1 androidboot.verifiedbootstate=orange androidboot.keymaster=1 root=PARTUUID=REDACTED_PARTUUID androidboot.bootdevice=1d84000.ufshc androidboot.fstab_suffix=default androidboot.serialno=REDACTED_DEVICE_SERIAL androidboot.baseband=msm msm_drm.dsi_display0=dsi_samsung_oneplus_dsc_cmd_display: androidboot.slot_suffix=_b skip_initramfs rootwait ro init=/init androidboot.dtbo_idx=0 androidboot.dtb_idx=0 \
+[    8.676815] guacamole kernel: Kernel command line: panel_type=normal androidboot.mode=fastboot androidboot.recoveryreason=000 androidboot.project_codename=guacamole androidboot.hw_version=21 androidboot.rf_version=4 androidboot.prj_version=18821 androidboot.platform_id=339 androidboot.platform_name=SM8150 androidboot.startupmode=dc_charger androidboot.enable_dm_verity=1 androidboot.at_location=factory androidboot.power_cut_test=1 androidboot.secboot=enabled androidboot.battery.absent=false androidboot.rpmb_enable=true androidboot.type=sdebug debug androidboot.prmec=true androidboot.opcarrier=none androidboot.oplus.brand=OnePlus androidboot.cust=0
+[    8.676911] guacamole kernel: Unknown kernel command line parameters "pmOS_loglevel=8 lk_version=V1.0 smooth_soc_switch=0 panel_type=normal", will be passed to user space.
+[    8.676934] guacamole kernel: printk: log buffer data + meta data: 131072 + 458752 = 589824 bytes
+[    8.676962] guacamole kernel: Dentry cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+[    8.676984] guacamole kernel: Inode-cache hash table entries: 1048576 (order: 11, 8388608 bytes, linear)
+[    8.677011] guacamole kernel: software IO TLB: area num 8.
+[    8.677039] guacamole kernel: software IO TLB: mapped [mem 0x00000000f8e00000-0x00000000fce00000] (64MB)
+[    8.677062] guacamole kernel: Fallback order for Node 0: 0 
+[    8.677083] guacamole kernel: Built 1 zonelists, mobility grouping on.  Total pages: 3119360
+[    8.677110] guacamole kernel: Policy zone: Normal
+[    8.677137] guacamole kernel: mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    8.677159] guacamole kernel: SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1
+[    8.677191] guacamole kernel: rcu: Preemptible hierarchical RCU implementation.
+[    8.677219] guacamole kernel: rcu:         RCU event tracing is enabled.
+[    8.677249] guacamole kernel:         Trampoline variant of Tasks RCU enabled.
+[    8.677276] guacamole kernel:         Tracing variant of Tasks RCU enabled.
+[    8.677308] guacamole kernel: rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+[    8.677349] guacamole kernel: RCU Tasks: Setting shift to 3 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=8.
+[    8.677380] guacamole kernel: NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    8.677407] guacamole kernel: GICv3: 928 SPIs implemented
+[    8.677434] guacamole kernel: GICv3: 0 Extended SPIs implemented
+[    8.677460] guacamole kernel: Root IRQ handler: gic_handle_irq
+[    8.677486] guacamole kernel: GICv3: GICv3 features: 16 PPIs
+[    8.677513] guacamole kernel: GICv3: GICD_CTLR.DS=0, SCR_EL3.FIQ=1
+[    8.677534] guacamole kernel: GICv3: CPU0: found redistributor 0 region 0:0x0000000017a60000
+[    8.677555] guacamole kernel: ITS: No ITS available, not enabling LPIs
+[    8.677583] guacamole kernel: rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    8.677610] guacamole kernel: arch_timer: cp15 timer running at 19.20MHz (virt).
+[    8.677641] guacamole kernel: clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+[    8.677668] guacamole kernel: sched_clock: 56 bits at 19MHz, resolution 52ns, wraps every 4398046511078ns
+[    8.677694] guacamole kernel: Console: colour dummy device 80x25
+[    8.677727] guacamole kernel: printk: legacy console [tty0] enabled
+[    8.677764] guacamole kernel: Calibrating delay loop (skipped), value calculated using timer frequency.. 38.40 BogoMIPS (lpj=19200)
+[    8.677810] guacamole kernel: pid_max: default: 32768 minimum: 301
+[    8.677845] guacamole kernel: LSM support for eBPF active
+[    8.677879] guacamole kernel: Mount-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    8.677907] guacamole kernel: Mountpoint-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    8.677941] guacamole kernel: VFS: Finished mounting rootfs on nullfs
+[    8.677980] guacamole kernel: rcu: Hierarchical SRCU implementation.
+[    8.678031] guacamole kernel: rcu:         Max phase no-delay instances is 400.
+[    8.678064] guacamole kernel: Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+[    8.678103] guacamole kernel: EFI services will not be available.
+[    8.678129] guacamole kernel: smp: Bringing up secondary CPUs ...
+[    8.678162] guacamole kernel: Detected VIPT I-cache on CPU1
+[    8.678200] guacamole kernel: GICv3: CPU1: found redistributor 100 region 0:0x0000000017a80000
+[    8.678239] guacamole kernel: CPU1: Booted secondary processor 0x0000000100 [0x51df805e]
+[    8.678277] guacamole kernel: Detected VIPT I-cache on CPU2
+[    8.678309] guacamole kernel: GICv3: CPU2: found redistributor 200 region 0:0x0000000017aa0000
+[    8.678347] guacamole kernel: CPU2: Booted secondary processor 0x0000000200 [0x51df805e]
+[    8.678379] guacamole kernel: Detected VIPT I-cache on CPU3
+[    8.678418] guacamole kernel: GICv3: CPU3: found redistributor 300 region 0:0x0000000017ac0000
+[    8.678456] guacamole kernel: CPU3: Booted secondary processor 0x0000000300 [0x51df805e]
+[    8.678489] guacamole kernel: CPU features: detected: Spectre-v2
+[    8.678522] guacamole kernel: CPU features: detected: Spectre-v4
+[    8.678554] guacamole kernel: CPU features: detected: Spectre-BHB
+[    8.678593] guacamole kernel: CPU features: detected: ARM erratum 1418040
+[    8.678626] guacamole kernel: Detected PIPT I-cache on CPU4
+[    8.678658] guacamole kernel: GICv3: CPU4: found redistributor 400 region 0:0x0000000017ae0000
+[    8.678687] guacamole kernel: arch_timer: Enabling local workaround for ARM erratum 1418040
+[    8.678721] guacamole kernel: CPU4: Booted secondary processor 0x0000000400 [0x51df804e]
+[    8.678754] guacamole kernel: Detected PIPT I-cache on CPU5
+[    8.678788] guacamole kernel: GICv3: CPU5: found redistributor 500 region 0:0x0000000017b00000
+[    8.678822] guacamole kernel: arch_timer: Enabling local workaround for ARM erratum 1418040
+[    8.678854] guacamole kernel: CPU5: Booted secondary processor 0x0000000500 [0x51df804e]
+[    8.678892] guacamole kernel: Detected PIPT I-cache on CPU6
+[    8.678926] guacamole kernel: GICv3: CPU6: found redistributor 600 region 0:0x0000000017b20000
+[    8.678954] guacamole kernel: arch_timer: Enabling local workaround for ARM erratum 1418040
+[    8.678981] guacamole kernel: CPU6: Booted secondary processor 0x0000000600 [0x51df804e]
+[    8.679025] guacamole kernel: Detected PIPT I-cache on CPU7
+[    8.679058] guacamole kernel: GICv3: CPU7: found redistributor 700 region 0:0x0000000017b40000
+[    8.679092] guacamole kernel: arch_timer: Enabling local workaround for ARM erratum 1418040
+[    8.679118] guacamole kernel: CPU7: Booted secondary processor 0x0000000700 [0x51df804e]
+[    8.679151] guacamole kernel: smp: Brought up 1 node, 8 CPUs
+[    8.679189] guacamole kernel: SMP: Total of 8 processors activated.
+[    8.679227] guacamole kernel: CPU: All CPU(s) started at EL1
+[    8.679261] guacamole kernel: CPU features: detected: 32-bit EL0 Support
+[    8.679300] guacamole kernel: CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+[    8.679333] guacamole kernel: CPU features: detected: Common not Private translations
+[    8.679360] guacamole kernel: CPU features: detected: CRC32 instructions
+[    8.679389] guacamole kernel: CPU features: detected: RCpc load-acquire (LDAPR)
+[    8.679429] guacamole kernel: CPU features: detected: LSE atomic instructions
+[    8.679456] guacamole kernel: CPU features: detected: Privileged Access Never
+[    8.679489] guacamole kernel: CPU features: detected: PMUv3
+[    8.679521] guacamole kernel: CPU features: detected: RAS Extension Support
+[    8.679543] guacamole kernel: CPU features: detected: XNX
+[    8.679565] guacamole kernel: alternatives: applying system-wide alternatives
+[    8.679598] guacamole kernel: CPU features: detected: Hardware dirty bit management on CPU4-7
+[    8.679626] guacamole kernel: Memory: 11578492K/12477440K available (19648K kernel code, 4522K rwdata, 17420K rodata, 1664K init, 485K bss, 843252K reserved, 49152K cma-reserved)
+[    8.679661] guacamole kernel: devtmpfs: initialized
+[    8.679694] guacamole kernel: clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    8.679724] guacamole kernel: posixtimers hash table entries: 4096 (order: 4, 65536 bytes, linear)
+[    8.679757] guacamole kernel: futex hash table entries: 2048 (131072 bytes on 1 NUMA nodes, total 128 KiB, linear).
+[    8.679785] guacamole kernel: 2G module region forced by RANDOMIZE_MODULE_REGION_FULL
+[    8.679824] guacamole kernel: 0 pages in range for non-PLT usage
+[    8.679857] guacamole kernel: 513280 pages in range for PLT usage
+[    8.679887] guacamole kernel: DMI not present or invalid.
+[    8.679915] guacamole kernel: NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    8.679955] guacamole kernel: DMA: preallocated 2048 KiB GFP_KERNEL pool for atomic allocations
+[    8.679984] guacamole kernel: DMA: preallocated 2048 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+[    8.680032] guacamole kernel: audit: initializing netlink subsys (disabled)
+[    8.680074] guacamole kernel: audit: type=2000 audit(0.059:1): state=initialized audit_enabled=0 res=1
+[    8.680097] guacamole kernel: ramoops: using module parameters
+[    8.680131] guacamole kernel: pstore: Using crash dump compression: deflate
+[    8.680159] guacamole kernel: printk: legacy console [ramoops-1] enabled
+[    8.680198] guacamole kernel: pstore: Registered ramoops as persistent store backend
+[    8.680225] guacamole kernel: ramoops: using 0x400000@0xa9800000, ecc: 0
+[    8.680257] guacamole kernel: thermal_sys: Registered thermal governor 'step_wise'
+[    8.680279] guacamole kernel: thermal_sys: Registered thermal governor 'power_allocator'
+[    8.680312] guacamole kernel: cpuidle: using governor menu
+[    8.680349] guacamole kernel: hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+[    8.680388] guacamole kernel: ASID allocator initialised with 32768 entries
+[    8.680426] guacamole kernel: Serial: AMBA PL011 UART driver
+[    8.680454] guacamole kernel: ramoops: already initialized
+[    8.680667] guacamole kernel: ramoops __abl_dtbo_quarantine__:sink:ramoops@0xA9800000: probe with driver ramoops failed with error -22
+[    8.680704] guacamole kernel: ramoops: already initialized
+[    8.681234] guacamole kernel: ramoops a9800000.ramoops: probe with driver ramoops failed with error -22
+[    8.681292] guacamole kernel: CPUidle PSCI: Initialized CPU PM domain topology using OSI mode
+[    8.681316] guacamole kernel: /soc@0/ufshc@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d87000
+[    8.681345] guacamole kernel: /soc@0/phy@1d87000: Fixed dependency cycle(s) with /soc@0/ufshc@1d84000
+[    8.681375] guacamole kernel: /soc@0/display-subsystem@ae00000/phy@ae94400: Fixed dependency cycle(s) with /soc@0/clock-controller@af00000
+[    8.681415] guacamole kernel: /soc@0/clock-controller@af00000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/phy@ae94400
+[    8.681443] guacamole kernel: /soc@0/interrupt-controller@17a00000: Fixed dependency cycle(s) with /soc@0/interrupt-controller@17a00000
+[    8.681472] guacamole kernel: /soc@0/ufshc@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d87000
+[    8.681499] guacamole kernel: /soc@0/ufshc@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d87000
+[    8.681522] guacamole kernel: /soc@0/phy@1d87000: Fixed dependency cycle(s) with /soc@0/ufshc@1d84000
+[    8.681553] guacamole kernel: /soc@0/funnel@6041000: Fixed dependency cycle(s) with /soc@0/stm@6002000/out-ports/port
+[    8.681580] guacamole kernel: /soc@0/funnel@6045000: Fixed dependency cycle(s) with /soc@0/funnel@6043000/out-ports/port
+[    8.681615] guacamole kernel: /soc@0/funnel@6045000: Fixed dependency cycle(s) with /soc@0/funnel@6042000/out-ports/port
+[    8.681642] guacamole kernel: /soc@0/funnel@6045000: Fixed dependency cycle(s) with /soc@0/funnel@6041000/out-ports/port
+[    8.681665] guacamole kernel: /soc@0/etf@6047000: Fixed dependency cycle(s) with /soc@0/funnel@6045000/out-ports/port
+[    8.681693] guacamole kernel: /soc@0/etf@6047000: Fixed dependency cycle(s) with /soc@0/replicator@6046000/in-ports/port
+[    8.681721] guacamole kernel: /soc@0/etr@6048000: Fixed dependency cycle(s) with /soc@0/replicator@6046000/out-ports/port@0
+[    8.681751] guacamole kernel: /soc@0/replicator@604a000: Fixed dependency cycle(s) with /soc@0/replicator@6046000/out-ports/port@1
+[    8.681784] guacamole kernel: /soc@0/funnel@6b08000: Fixed dependency cycle(s) with /soc@0/replicator@604a000/out-ports/port@1
+[    8.681812] guacamole kernel: /soc@0/etf@6b09000: Fixed dependency cycle(s) with /soc@0/funnel@6b08000/out-ports/port
+[    8.681846] guacamole kernel: /soc@0/replicator@6b0a000: Fixed dependency cycle(s) with /soc@0/etf@6b09000/out-ports/port
+[    8.681875] guacamole kernel: /soc@0/replicator@6b0a000: Fixed dependency cycle(s) with /soc@0/funnel@6042000/in-ports/port@4
+[    8.681902] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7740000/out-ports/port
+[    8.681932] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7640000/out-ports/port
+[    8.681971] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7540000/out-ports/port
+[    8.682011] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7440000/out-ports/port
+[    8.682034] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7340000/out-ports/port
+[    8.682068] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7240000/out-ports/port
+[    8.682097] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7140000/out-ports/port
+[    8.682130] guacamole kernel: /soc@0/funnel@7800000: Fixed dependency cycle(s) with /soc@0/etm@7040000/out-ports/port
+[    8.682157] guacamole kernel: /soc@0/funnel@7810000: Fixed dependency cycle(s) with /soc@0/funnel@7800000/out-ports/port
+[    8.682186] guacamole kernel: /soc@0/funnel@7810000: Fixed dependency cycle(s) with /soc@0/funnel@6043000/in-ports/port@2
+[    8.682215] guacamole kernel: /soc@0/display-subsystem@ae00000: Fixed dependency cycle(s) with /soc@0/clock-controller@af00000
+[    8.682243] guacamole kernel: /soc@0/display-subsystem@ae00000/phy@ae94400: Fixed dependency cycle(s) with /soc@0/clock-controller@af00000
+[    8.682272] guacamole kernel: /soc@0/display-subsystem@ae00000/phy@ae94400: Fixed dependency cycle(s) with /soc@0/clock-controller@af00000
+[    8.682300] guacamole kernel: /soc@0/display-subsystem@ae00000: Fixed dependency cycle(s) with /soc@0/clock-controller@af00000
+[    8.682323] guacamole kernel: /soc@0/clock-controller@af00000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/phy@ae94400
+[    8.682356] guacamole kernel: /soc@0/rsc@18200000/pm8150-rpmh-regulators: Fixed dependency cycle(s) with /soc@0/rsc@18200000/pm8150-rpmh-regulators/smps5
+[    8.682385] guacamole kernel: /soc@0/rsc@18200000/pm8150-rpmh-regulators: Fixed dependency cycle(s) with /soc@0/rsc@18200000/pm8150-rpmh-regulators/smps6
+[    8.682412] guacamole kernel: /soc@0/rsc@18200000/pm8150l-rpmh-regulators: Fixed dependency cycle(s) with /soc@0/rsc@18200000/pm8150l-rpmh-regulators/bob
+[    8.682435] guacamole kernel: /soc@0/rsc@18200000/pm8150l-rpmh-regulators: Fixed dependency cycle(s) with /soc@0/rsc@18200000/pm8150l-rpmh-regulators/smps8
+[    8.682463] guacamole kernel: HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+[    8.682491] guacamole kernel: HugeTLB: 0 KiB vmemmap can be freed for a 1.00 GiB page
+[    8.682519] guacamole kernel: HugeTLB: registered 32.0 MiB page size, pre-allocated 0 pages
+[    8.682552] guacamole kernel: HugeTLB: 0 KiB vmemmap can be freed for a 32.0 MiB page
+[    8.682581] guacamole kernel: HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+[    8.682609] guacamole kernel: HugeTLB: 0 KiB vmemmap can be freed for a 2.00 MiB page
+[    8.682631] guacamole kernel: HugeTLB: registered 64.0 KiB page size, pre-allocated 0 pages
+[    8.682660] guacamole kernel: HugeTLB: 0 KiB vmemmap can be freed for a 64.0 KiB page
+[    8.682682] guacamole kernel: raid6: neonx8   gen()  4374 MB/s
+[    8.682720] guacamole kernel: raid6: neonx4   gen()  4381 MB/s
+[    8.682753] guacamole kernel: raid6: neonx2   gen()  4004 MB/s
+[    8.682785] guacamole kernel: raid6: neonx1   gen()  3101 MB/s
+[    8.682807] guacamole kernel: raid6: int64x8  gen()  1781 MB/s
+[    8.682836] guacamole kernel: raid6: int64x4  gen()  2012 MB/s
+[    8.682862] guacamole kernel: raid6: int64x2  gen()  1686 MB/s
+[    8.682896] guacamole kernel: raid6: int64x1  gen()  1400 MB/s
+[    8.682918] guacamole kernel: raid6: using algorithm neonx4 gen() 4381 MB/s
+[    8.682947] guacamole kernel: raid6: .... xor() 3399 MB/s, rmw enabled
+[    8.682973] guacamole kernel: raid6: using neon recovery algorithm
+[    8.682995] guacamole kernel: ACPI: Interpreter disabled.
+[    8.683036] guacamole kernel: iommu: Default domain type: Translated
+[    8.683076] guacamole kernel: iommu: DMA domain TLB invalidation policy: strict mode
+[    8.683103] guacamole kernel: SCSI subsystem initialized
+[    8.683132] guacamole kernel: usbcore: registered new interface driver usbfs
+[    8.683156] guacamole kernel: usbcore: registered new interface driver hub
+[    8.683185] guacamole kernel: usbcore: registered new device driver usb
+[    8.683223] guacamole kernel: pps_core: LinuxPPS API ver. 1 registered
+[    8.683253] guacamole kernel: pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    8.683280] guacamole kernel: PTP clock support registered
+[    8.683316] guacamole kernel: EDAC MC: Ver: 3.0.0
+[    8.683349] guacamole kernel: scmi_core: SCMI protocol bus registered
+[    8.683878] guacamole kernel: qcom_scm firmware:scm: SHM Bridge not supported
+[    8.683926] guacamole kernel: qcom_scm: convention: smc arm 64
+[    8.684430] guacamole kernel: qcom_scm firmware:scm: qseecom: found qseecom with version 0x1400000
+[    8.684925] guacamole kernel: qcom_scm firmware:scm: qseecom: untested machine, skipping
+[    8.684959] guacamole kernel: vgaarb: loaded
+[    8.684982] guacamole kernel: clocksource: Switched to clocksource arch_sys_counter
+[    8.685019] guacamole kernel: VFS: Disk quotas dquot_6.6.0
+[    8.685047] guacamole kernel: VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[    8.685074] guacamole kernel: pnp: PnP ACPI: disabled
+[    8.685097] guacamole kernel: NET: Registered PF_INET protocol family
+[    8.685126] guacamole kernel: IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+[    8.685159] guacamole kernel: tcp_listen_portaddr_hash hash table entries: 8192 (order: 5, 131072 bytes, linear)
+[    8.685189] guacamole kernel: Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    8.685216] guacamole kernel: TCP established hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    8.685245] guacamole kernel: TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, linear)
+[    8.685273] guacamole kernel: TCP: Hash tables configured (established 131072 bind 65536)
+[    8.685308] guacamole kernel: UDP hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    8.685336] guacamole kernel: UDP-Lite hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    8.685359] guacamole kernel: NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    8.685386] guacamole kernel: RPC: Registered named UNIX socket transport module.
+[    8.685410] guacamole kernel: RPC: Registered udp transport module.
+[    8.685433] guacamole kernel: RPC: Registered tcp transport module.
+[    8.685456] guacamole kernel: RPC: Registered tcp-with-tls transport module.
+[    8.685478] guacamole kernel: RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    8.685506] guacamole kernel: PCI: CLS 0 bytes, default 64
+[    8.685543] guacamole kernel: Trying to unpack rootfs image as initramfs...
+[    8.685565] guacamole kernel: kvm [1]: HYP mode not available
+[    8.685599] guacamole kernel: Initialise system trusted keyrings
+[    8.685632] guacamole kernel: workingset: timestamp_bits=42 max_order=22 bucket_order=0
+[    8.685656] guacamole kernel: squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    8.685684] guacamole kernel: NFS: Registering the id_resolver key type
+[    8.685714] guacamole kernel: Key type id_resolver registered
+[    8.685748] guacamole kernel: Key type id_legacy registered
+[    8.685780] guacamole kernel: nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    8.685815] guacamole kernel: nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+[    8.685845] guacamole kernel: Key type cifs.idmap registered
+[    8.685872] guacamole kernel: NET: Registered PF_ALG protocol family
+[    8.685901] guacamole kernel: xor: measuring software checksum speed
+[    8.685928] guacamole kernel:    8regs           :  5522 MB/sec
+[    8.685961] guacamole kernel:    32regs          :  5488 MB/sec
+[    8.685990] guacamole kernel:    arm64_neon      :  5957 MB/sec
+[    8.686020] guacamole kernel: xor: using function: arm64_neon (5957 MB/sec)
+[    8.686055] guacamole kernel: Key type asymmetric registered
+[    8.686078] guacamole kernel: Asymmetric key parser 'x509' registered
+[    8.686101] guacamole kernel: Asymmetric key parser 'pkcs8' registered
+[    8.686124] guacamole kernel: Block layer SCSI generic (bsg) driver version 0.4 loaded (major 241)
+[    8.686157] guacamole kernel: io scheduler mq-deadline registered
+[    8.686180] guacamole kernel: io scheduler kyber registered
+[    8.686203] guacamole kernel: io scheduler bfq registered
+[    8.686230] guacamole kernel: ledtrig-cpu: registered to indicate activity on CPUs
+[    8.686726] guacamole kernel: qcom-ice 1d90000.crypto: Found QC Inline Crypto Engine (ICE) v3.1.79
+[    8.687236] guacamole kernel: qcom-ice 1d90000.crypto: A supported HWKM is not present. Supporting raw keys only.
+[    8.687273] guacamole kernel: Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+[    8.687307] guacamole kernel: msm_serial: driver initialized
+[    8.687330] guacamole kernel: STM32 USART driver initialized
+[    8.687835] guacamole kernel: arm-smmu 2ca0000.iommu: probing hardware configuration...
+[    8.688359] guacamole kernel: arm-smmu 2ca0000.iommu: SMMUv2 with:
+[    8.688843] guacamole kernel: arm-smmu 2ca0000.iommu:         stage 1 translation
+[    8.689330] guacamole kernel: arm-smmu 2ca0000.iommu:         non-coherent table walk
+[    8.689809] guacamole kernel: arm-smmu 2ca0000.iommu:         (IDR0.CTTW overridden by FW configuration)
+[    8.690310] guacamole kernel: arm-smmu 2ca0000.iommu:         stream matching with 6 register groups
+[    8.690809] guacamole kernel: arm-smmu 2ca0000.iommu:         5 context banks (0 stage-2 only)
+[    8.691327] guacamole kernel: arm-smmu 2ca0000.iommu:         Supported page sizes: 0x61311000
+[    8.691831] guacamole kernel: arm-smmu 2ca0000.iommu:         Stage-1: 48-bit VA -> 48-bit IPA
+[    8.692327] guacamole kernel: arm-smmu 2ca0000.iommu:         preserved 0 boot mappings
+[    8.692842] guacamole kernel: platform 2c00000.gpu: Adding to iommu group 0
+[    8.693325] guacamole kernel: platform 2c6a000.gmu: Adding to iommu group 1
+[    8.693835] guacamole kernel: arm-smmu 15000000.iommu: probing hardware configuration...
+[    8.694340] guacamole kernel: arm-smmu 15000000.iommu: SMMUv2 with:
+[    8.694810] guacamole kernel: arm-smmu 15000000.iommu:         stage 1 translation
+[    8.695294] guacamole kernel: arm-smmu 15000000.iommu:         coherent table walk
+[    8.695771] guacamole kernel: arm-smmu 15000000.iommu:         stream matching with 94 register groups
+[    8.696253] guacamole kernel: arm-smmu 15000000.iommu:         56 context banks (0 stage-2 only)
+[    8.696741] guacamole kernel: arm-smmu 15000000.iommu:         Supported page sizes: 0x61311000
+[    8.697229] guacamole kernel: arm-smmu 15000000.iommu:         Stage-1: 48-bit VA -> 48-bit IPA
+[    8.697709] guacamole kernel: arm-smmu 15000000.iommu:         preserved 0 boot mappings
+[    8.698234] guacamole kernel: platform 8c0000.geniqup: Adding to iommu group 2
+[    8.698766] guacamole kernel: platform ac0000.geniqup: Adding to iommu group 3
+[    8.699255] guacamole kernel: platform c00000.dma-controller: Adding to iommu group 4
+[    8.699806] guacamole kernel: platform cc0000.geniqup: Adding to iommu group 5
+[    8.700384] guacamole kernel: platform 1d84000.ufshc: Adding to iommu group 6
+[    8.700870] guacamole kernel: platform 1dc4000.dma-controller: Adding to iommu group 7
+[    8.701384] guacamole kernel: platform 1dfa000.crypto: Adding to iommu group 7
+[    8.701856] guacamole kernel: platform 1e40000.ipa: Adding to iommu group 8
+[    8.702341] guacamole kernel: platform ae00000.display-subsystem: Adding to iommu group 9
+[    8.702819] guacamole kernel: platform 17184000.dma-controller: Adding to iommu group 10
+[    8.703353] guacamole kernel: platform 171c0000.slim-ngd: Adding to iommu group 10
+[    8.703850] guacamole kernel: platform 18800000.wifi: Adding to iommu group 11
+[    8.704346] guacamole kernel: platform acb3000.camss: Adding to iommu group 12
+[    8.704854] guacamole kernel: amba 6048000.etr: Adding to iommu group 13
+[    8.704883] guacamole kernel: brd: module loaded
+[    8.704915] guacamole kernel: loop: module loaded
+[    8.705430] guacamole kernel: spmi_pmic_arb c440000.spmi: PMIC arbiter version v5 (0x50000000)
+[    8.705466] guacamole kernel: tun: Universal TUN/TAP device driver, 1.6
+[    8.705495] guacamole kernel: thunder_xcv, ver 1.0
+[    8.705525] guacamole kernel: thunder_bgx, ver 1.0
+[    8.705548] guacamole kernel: nicpf, ver 1.0
+[    8.705576] guacamole kernel: e1000: Intel(R) PRO/1000 Network Driver
+[    8.705603] guacamole kernel: e1000: Copyright (c) 1999-2006 Intel Corporation.
+[    8.705627] guacamole kernel: e1000e: Intel(R) PRO/1000 Network Driver
+[    8.705663] guacamole kernel: e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
+[    8.705685] guacamole kernel: sky2: driver version 1.30
+[    8.705708] guacamole kernel: VFIO - User Level meta-driver version: 0.3
+[    8.705748] guacamole kernel: usbcore: registered new interface driver usb-storage
+[    8.705772] guacamole kernel: i2c_dev: i2c /dev entries driver
+[    8.705800] guacamole kernel: input: pm8941_pwrkey as /devices/platform/soc@0/c440000.spmi/spmi-0/0-00/c440000.spmi:pmic@0:pon@800/c440000.spmi:pmic@0:pon@800:pwrkey/input/input0
+[    8.705832] guacamole kernel: device-mapper: ioctl: 4.50.0-ioctl (2025-04-28) initialised: dm-devel@lists.linux.dev
+[    8.705862] guacamole kernel: sdhci: Secure Digital Host Controller Interface driver
+[    8.705889] guacamole kernel: sdhci: Copyright(c) Pierre Ossman
+[    8.705911] guacamole kernel: Synopsys Designware Multimedia Card Interface Driver
+[    8.705940] guacamole kernel: sdhci-pltfm: SDHCI platform and OF driver helper
+[    8.705963] guacamole kernel: clocksource: arch_mmio_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+[    8.706494] guacamole kernel: arch-timer-mmio 17c20000.timer: mmio timer running at 19.20MHz (virt)
+[    8.706542] guacamole kernel: hid: raw HID events driver (C) Jiri Kosina
+[    8.706580] guacamole kernel: hw perfevents: enabled with armv8_pmuv3 PMU driver, 7 (0,8000003f) counters available
+[    8.706603] guacamole kernel: Freeing initrd memory: 12460K
+[    8.706627] guacamole kernel: NET: Registered PF_PACKET protocol family
+[    8.706658] guacamole kernel: Key type dns_resolver registered
+[    8.706687] guacamole kernel: registered taskstats version 1
+[    8.706710] guacamole kernel: Loading compiled-in X.509 certificates
+[    8.706746] guacamole kernel: Demotion targets for Node 0: null
+[    8.706770] guacamole kernel: Key type .fscrypt registered
+[    8.706793] guacamole kernel: Key type fscrypt-provisioning registered
+[    8.706817] guacamole kernel: Btrfs loaded, zoned=no, fsverity=no
+[    8.707271] guacamole kernel: cpu cpu0: EM: created perf domain
+[    8.707722] guacamole kernel: cpu cpu4: EM: created perf domain
+[    8.708159] guacamole kernel: cpu cpu7: EM: created perf domain
+[    8.708193] guacamole kernel: c8c000.serial: ttyHS1 at MMIO 0xc8c000 (irq = 138, base_baud = 0) is a MSM
+[    8.708719] guacamole kernel: serial serial0: tty port ttyHS1 registered
+[    8.708765] guacamole kernel: bob: Setting 3008000-4000000uV
+[    8.708788] guacamole kernel: smps8: Setting 1352000-1352000uV
+[    8.708810] guacamole kernel: ldo1: Setting 1800000-1800000uV
+[    8.708838] guacamole kernel: ldo2: Setting 1304000-1304000uV
+[    8.708860] guacamole kernel: ldo3: Setting 1200000-1200000uV
+[    8.708883] guacamole kernel: ldo4: Setting 1704000-2928000uV
+[    8.708905] guacamole kernel: ldo5: Setting 1704000-2928000uV
+[    8.708928] guacamole kernel: ldo6: Setting 1800000-2960000uV
+[    8.708950] guacamole kernel: ldo7: Setting 2856000-3104000uV
+[    8.708972] guacamole kernel: ldo8: Setting 1800000-1800000uV
+[    8.709007] guacamole kernel: ldo9: Setting 2704000-2960000uV
+[    8.709030] guacamole kernel: ldo10: Setting 3000000-3312000uV
+[    8.709052] guacamole kernel: ldo11: Setting 3000000-3312000uV
+[    8.709074] guacamole kernel: /soc@0/display-subsystem@ae00000/displayport-controller@ae90000: Fixed dependency cycle(s) with /soc@0/phy@88e8000/ports/port@2
+[    8.709102] guacamole kernel: /soc@0/display-subsystem@ae00000/displayport-controller@ae90000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/display-controller@ae01000/ports/port@2
+[    8.709125] guacamole kernel: /soc@0/display-subsystem@ae00000/displayport-controller@ae90000: Fixed dependency cycle(s) with /soc@0/phy@88e8000
+[    8.709165] guacamole kernel: /soc@0/display-subsystem@ae00000/dsi@ae94000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/dsi@ae94000/panel@0/port
+[    8.709191] guacamole kernel: /soc@0/display-subsystem@ae00000/dsi@ae94000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/display-controller@ae01000/ports/port@0
+[    8.709712] guacamole kernel: platform a600000.usb: Adding to iommu group 14
+[    8.709741] guacamole kernel: /soc@0/usb@a6f8800/usb@a600000: Fixed dependency cycle(s) with /soc@0/phy@88e8000/ports/port@1
+[    8.709764] guacamole kernel: /soc@0/usb@a6f8800/usb@a600000: Fixed dependency cycle(s) with /soc@0/phy@88e8000
+[    8.710318] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: Generation SMB5
+[    8.710864] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (init): rc=0 readback=0x08
+[    8.711416] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: charge limits: float=4350000 uV fast=3000000 uA input=500000 uA
+[    8.711443] guacamole kernel: smps5: Setting 1904000-2040000uV
+[    8.711474] guacamole kernel: ldo2: Setting 1056000-1056000uV
+[    8.711497] guacamole kernel: smps6: Setting 920000-1128000uV
+[    8.711519] guacamole kernel: ldo5: Setting 2800000-2800000uV
+[    8.711542] guacamole kernel: ldo1: Setting 752000-752000uV
+[    8.711564] guacamole kernel: ldo6: Setting 2856000-2856000uV
+[    8.711586] guacamole kernel: ldo2: Setting 3072000-3072000uV
+[    8.711609] guacamole kernel: ldo3: Setting 480000-932000uV
+[    8.711641] guacamole kernel: ldo1: Setting 1104000-1104000uV
+[    8.711663] guacamole kernel: ldo5: Setting 880000-880000uV
+[    8.711691] guacamole kernel: ldo4: Setting 1056000-1056000uV
+[    8.711714] guacamole kernel: ldo6: Setting 1200000-1200000uV
+[    8.711736] guacamole kernel: ldo3: Setting 1056000-1056000uV
+[    8.711765] guacamole kernel: ldo7: Setting 1800000-1800000uV
+[    8.711800] guacamole kernel: input: gpio-keys as /devices/platform/gpio-keys/input/input1
+[    8.711827] guacamole kernel: ldo9: Setting 1200000-1200000uV
+[    8.711850] guacamole kernel: input: Alert slider as /devices/platform/alert-slider/input/input2
+[    8.711878] guacamole kernel: ldo10: Setting 2504000-2960000uV
+[    8.711900] guacamole kernel: ldo11: Setting 800000-800000uV
+[    8.711929] guacamole kernel: ldo12: Setting 1800000-1800000uV
+[    8.711951] guacamole kernel: ldo13: Setting 2704000-2704000uV
+[    8.711974] guacamole kernel: ldo14: Setting 1800000-1880000uV
+[    8.711997] guacamole kernel: ldo15: Setting 1704000-1704000uV
+[    8.712025] guacamole kernel: ldo16: Setting 2704000-2960000uV
+[    8.712048] guacamole kernel: ldo17: Setting 2856000-3008000uV
+[    8.712584] guacamole kernel: ufshcd-qcom 1d84000.ufshc: ufshcd_populate_vreg: Unable to find vdd-hba-supply regulator, assuming enabled
+[    8.712613] guacamole kernel: clk: Disabling unused clocks
+[    8.712636] guacamole kernel: PM: genpd: Disabling unused power domains
+[    8.712664] guacamole kernel: Freeing unused kernel memory: 1664K
+[    8.712687] guacamole kernel: Run /init as init process
+[    8.712715] guacamole kernel:   with arguments:
+[    8.712744] guacamole kernel:     /init
+[    8.712766] guacamole kernel:   with environment:
+[    8.712789] guacamole kernel:     HOME=/
+[    8.712812] guacamole kernel:     TERM=linux
+[    8.712847] guacamole kernel:     pmOS_loglevel=8
+[    8.712869] guacamole kernel:     lk_version=V1.0
+[    8.712902] guacamole kernel:     smooth_soc_switch=0
+[    8.712925] guacamole kernel:     panel_type=normal
+[    8.713445] guacamole kernel: ufshcd-qcom 1d84000.ufshc: ufshcd_populate_vreg: Unable to find vdd-hba-supply regulator, assuming enabled
+[    8.713963] guacamole kernel: ufshcd-qcom 1d84000.ufshc: limiting HS gear to G3 (was G4)
+[    8.713992] guacamole unknown: syslogd started: BusyBox v1.38.0
+[    8.714455] guacamole kernel: scsi host0: ufshcd
+[    8.714492] guacamole :   ❬❬ PMOS STAGE 1 ❭❭
+[    8.714518] guacamole : initramfs version: 3.12.6-r1
+[    8.714549] guacamole :   ❬❬ PMOS STAGE 2 ❭❭
+[    8.715039] guacamole kernel: scsi 0:0:0:49488: Well-known LUN    SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.715524] guacamole kernel: scsi 0:0:0:49476: Well-known LUN    SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.715552] guacamole kernel: /soc@0/display-subsystem@ae00000/dsi@ae94000/panel@0: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/dsi@ae94000/ports/port@1
+[    8.716064] guacamole kernel: msm_dpu ae01000.display-controller: bound ae94000.dsi (ops dsi_ops)
+[    8.716542] guacamole kernel: scsi 0:0:0:49456: Well-known LUN    SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.717051] guacamole kernel: msm_dpu ae01000.display-controller: bound ae90000.displayport-controller (ops msm_dp_display_comp_ops)
+[    8.717524] guacamole kernel: adreno 2c00000.gpu: supply vdd not found, using dummy regulator
+[    8.717991] guacamole kernel: adreno 2c00000.gpu: supply vddcx not found, using dummy regulator
+[    8.718487] guacamole kernel: scsi 0:0:0:0: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.718967] guacamole kernel: sd 0:0:0:0: [sda] 61409280 4096-byte logical blocks: (252 GB/234 GiB)
+[    8.719483] guacamole kernel: scsi 0:0:0:1: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.720010] guacamole kernel: sd 0:0:0:0: [sda] Write Protect is off
+[    8.720501] guacamole kernel: sd 0:0:0:0: [sda] Mode Sense: 00 32 00 10
+[    8.720982] guacamole kernel: sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.721528] guacamole kernel: sd 0:0:0:0: [sda] Preferred minimum I/O size 524288 bytes
+[    8.722026] guacamole kernel: sd 0:0:0:0: [sda] Optimal transfer size 524288 bytes
+[    8.722514] guacamole kernel: scsi 0:0:0:2: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.723015] guacamole kernel: sd 0:0:0:1: [sdb] 2048 4096-byte logical blocks: (8.39 MB/8.00 MiB)
+[    8.723516] guacamole kernel: sd 0:0:0:1: [sdb] Write Protect is off
+[    8.723992] guacamole kernel: sd 0:0:0:1: [sdb] Mode Sense: 00 32 00 10
+[    8.724480] guacamole kernel: sd 0:0:0:1: [sdb] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.724957] guacamole kernel: sd 0:0:0:1: [sdb] Preferred minimum I/O size 524288 bytes
+[    8.725453] guacamole kernel: sd 0:0:0:1: [sdb] Optimal transfer size 524288 bytes
+[    8.725941] guacamole kernel: scsi 0:0:0:3: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.726440] guacamole kernel: sd 0:0:0:2: [sdc] 2048 4096-byte logical blocks: (8.39 MB/8.00 MiB)
+[    8.726934] guacamole kernel: sd 0:0:0:2: [sdc] Write Protect is off
+[    8.727427] guacamole kernel: sd 0:0:0:2: [sdc] Mode Sense: 00 32 00 10
+[    8.727913] guacamole kernel: sd 0:0:0:2: [sdc] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.728449] guacamole kernel: sd 0:0:0:2: [sdc] Preferred minimum I/O size 524288 bytes
+[    8.728928] guacamole kernel: sd 0:0:0:2: [sdc] Optimal transfer size 524288 bytes
+[    8.729425] guacamole kernel: sd 0:0:0:3: [sdd] 8192 4096-byte logical blocks: (33.6 MB/32.0 MiB)
+[    8.729904] guacamole kernel: sd 0:0:0:3: [sdd] Write Protect is off
+[    8.730391] guacamole kernel: sd 0:0:0:3: [sdd] Mode Sense: 00 32 00 10
+[    8.730877] guacamole kernel: sd 0:0:0:3: [sdd] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.731383] guacamole kernel: sd 0:0:0:3: [sdd] Preferred minimum I/O size 524288 bytes
+[    8.731864] guacamole kernel: sd 0:0:0:3: [sdd] Optimal transfer size 524288 bytes
+[    8.732356] guacamole kernel: scsi 0:0:0:4: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.732386] guacamole kernel:  sda: sda1 sda2 sda3 sda4 sda5 sda6 sda7 sda8 sda9 sda10 sda11 sda12 sda13 sda14 sda15 sda16 sda17 sda18 sda19
+[    8.732894] guacamole kernel: msm_dpu ae01000.display-controller: bound 2c00000.gpu (ops a3xx_ops)
+[    8.733409] guacamole kernel: sd 0:0:0:4: [sde] 1048576 4096-byte logical blocks: (4.29 GB/4.00 GiB)
+[    8.733893] guacamole kernel: sd 0:0:0:4: [sde] Write Protect is off
+[    8.734421] guacamole kernel: sd 0:0:0:4: [sde] Mode Sense: 00 32 00 10
+[    8.734923] guacamole kernel: sd 0:0:0:4: [sde] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.735469] guacamole kernel: sd 0:0:0:4: [sde] Preferred minimum I/O size 524288 bytes
+[    8.735958] guacamole kernel: sd 0:0:0:4: [sde] Optimal transfer size 524288 bytes
+[    8.736456] guacamole kernel: scsi 0:0:0:5: Direct-Access     SAMSUNG  KLUEG8UHDB-C2D1  0400 PQ: 0 ANSI: 6
+[    8.736487] guacamole kernel:  sdc: sdc1 sdc2
+[    8.736967] guacamole kernel: sd 0:0:0:5: [sdf] 8192 4096-byte logical blocks: (33.6 MB/32.0 MiB)
+[    8.737466] guacamole kernel: sd 0:0:0:5: [sdf] Write Protect is off
+[    8.737935] guacamole kernel: sd 0:0:0:5: [sdf] Mode Sense: 00 32 00 10
+[    8.738402] guacamole kernel: sd 0:0:0:5: [sdf] Write cache: enabled, read cache: enabled, supports DPO and FUA
+[    8.738857] guacamole kernel: sd 0:0:0:5: [sdf] Preferred minimum I/O size 524288 bytes
+[    8.739334] guacamole kernel: sd 0:0:0:5: [sdf] Optimal transfer size 524288 bytes
+[    8.739797] guacamole kernel: sd 0:0:0:2: [sdc] Attached SCSI disk
+[    8.740271] guacamole kernel: sd 0:0:0:0: [sda] Attached SCSI disk
+[    8.740299] guacamole kernel: [drm] Initialized msm 1.13.0 for ae01000.display-controller on minor 0
+[    8.740805] guacamole kernel: msm_dpu ae01000.display-controller: [drm:adreno_request_fw] loaded qcom/a630_sqe.fw from new location
+[    8.741311] guacamole kernel: msm_dpu ae01000.display-controller: [drm:adreno_request_fw] loaded qcom/a640_gmu.bin from new location
+[    8.741340] guacamole kernel: [drm] Loaded GMU firmware v2.0.261
+[    8.741364] guacamole kernel:  sdb: sdb1 sdb2
+[    8.741829] guacamole kernel: sd 0:0:0:1: [sdb] Attached SCSI disk
+[    8.741856] guacamole kernel:  sdd: sdd1 sdd2 sdd3 sdd4
+[    8.742330] guacamole kernel: sd 0:0:0:3: [sdd] Attached SCSI disk
+[    8.742359] guacamole kernel:  sde: sde1 sde2 sde3 sde4 sde5 sde6 sde7 sde8 sde9 sde10 sde11 sde12 sde13 sde14 sde15 sde16 sde17 sde18 sde19 sde20 sde21 sde22 sde23 sde24 sde25 sde26 sde27 sde28 sde29 sde30 sde31 sde32 sde33 sde34 sde35 sde36 sde37 sde38 sde39 sde40 sde41 sde42 sde43 sde44 sde45 sde46 sde47 sde48 sde49 sde50 sde51 sde52 sde53 sde54 sde55 sde56 sde57 sde58 sde59 sde60 sde61 sde62 sde63 sde64 sde65 sde66 sde67 sde68 sde69 sde70 sde71 sde72 sde73 sde74 sde75 sde76 sde77 sde78 sde79 sde80
+[    8.742391] guacamole kernel:  sdf: sdf1 sdf2 sdf3 sdf4 sdf5 sdf6 sdf7 sdf8 sdf9
+[    8.742864] guacamole kernel: sd 0:0:0:5: [sdf] Attached SCSI disk
+[    8.743337] guacamole kernel: sd 0:0:0:4: [sde] Attached SCSI disk
+[    8.743817] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[    8.744339] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c000c00, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.744801] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.745274] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.745742] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c065900, fsynr=0x7b0021, cbfrsynra=0x800, cb=12
+[    8.746227] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0x800
+[    8.746681] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.747148] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c07a600, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.747606] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.748067] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.748528] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c07c740, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.749025] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.749494] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.749965] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c08e400, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.750463] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.750941] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.751407] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c090400, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.751878] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.752351] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.752815] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c09a300, fsynr=0x7b0021, cbfrsynra=0x800, cb=12
+[    8.753279] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0x800
+[    8.753730] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.754211] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c0aa900, fsynr=0x7b0021, cbfrsynra=0x800, cb=12
+[    8.754663] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0x800
+[    8.755129] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.755581] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c0ab400, fsynr=0x7b0021, cbfrsynra=0xc20, cb=12
+[    8.756053] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0xc20
+[    8.756530] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.756999] guacamole kernel: arm-smmu 15000000.iommu: Unhandled context fault: fsr=0x402, iova=0x9c0bcb00, fsynr=0x7b0021, cbfrsynra=0x800, cb=12
+[    8.757470] guacamole kernel: arm-smmu 15000000.iommu: FSR    = 00000402 [Format=2 TF], SID=0x800
+[    8.757923] guacamole kernel: arm-smmu 15000000.iommu: FSYNR0 = 007b0021 [S1CBNDX=123 PNU PLVL=1]
+[    8.757951] guacamole kernel: fb0: sys_imageblit: framebuffer is not in virtual address space.
+[    8.757984] guacamole kernel: Console: switching to colour frame buffer device 180x195
+[    8.758499] guacamole kernel: msm_dpu ae01000.display-controller: [drm] fb0: msmdrmfb frame buffer device
+[    8.758529] guacamole kernel: /soc@0/display-subsystem@ae00000/dsi@ae94000: Fixed dependency cycle(s) with /soc@0/display-subsystem@ae00000/dsi@ae94000/panel@0
+[    8.758552] guacamole kernel: BPF: [162450] FUNC  
+[    8.758581] guacamole kernel: BPF: type_id=59678
+[    8.758604] guacamole kernel: BPF:  
+[    8.758626] guacamole kernel: BPF: Invalid name
+[    8.758648] guacamole kernel: BPF: 
+[    8.758677] guacamole kernel: failed to validate module [evdev] BTF: -22
+[    8.758708] guacamole kernel: BPF: [162450] FUNC  
+[    8.758731] guacamole kernel: BPF: type_id=59678
+[    8.758753] guacamole kernel: BPF:  
+[    8.758775] guacamole kernel: BPF: Invalid name
+[    8.758798] guacamole kernel: BPF: 
+[    8.758820] guacamole kernel: failed to validate module [evdev] BTF: -22
+[    8.758845] guacamole :   Setting up USB gadget through configfs
+[    8.759322] guacamole kernel: configfs-gadget.g1 gadget.0: HOST MAC REDACTED_MAC
+[    8.759766] guacamole kernel: configfs-gadget.g1 gadget.0: MAC REDACTED_MAC
+[    8.759795] guacamole : Trying to start server with parameters: Server IP addr: 172.16.42.1:67, client IP addr: 172.16.42.2, interface: usb0
+[    8.759820] guacamole : netboot hook: no NBD root on the cmdline, using the local rootfs
+[    8.759845] guacamole : couldn't open /dev/input/: No such file or directory
+[    8.759869] guacamole : couldn't open /dev/input/: No such file or directory
+[    8.760421] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[    8.760454] guacamole : Trying to mount subpartitions for 10 seconds...
+[    8.760977] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[    8.761015] guacamole : Mount subpartitions of /dev/sda19
+[    8.761039] guacamole kernel: loop0: detected capacity change from 0 to 475706264
+[    8.761062] guacamole kernel:  loop0: p1 p2
+[    8.761086] guacamole : Not resizing root partition (/dev/loop0p2): no free space left
+[    8.761118] guacamole : Auto-repair and check 'ext' filesystem (/dev/loop0p2)
+[    8.761142] guacamole : pmOS_root: recovering journal
+[    8.761174] guacamole : pmOS_root: Clearing orphaned inode 779505 (uid=10000, gid=10000, mode=0100644, size=1424)
+[    8.761199] guacamole : pmOS_root: clean, 110036/29332992 files, 2850498/59213166 blocks
+[    8.761229] guacamole : Resize 'ext4' root filesystem (/dev/loop0p2)
+[    8.761253] guacamole : resize2fs 1.47.4 (6-Mar-2025)
+[    8.761277] guacamole : The filesystem is already 59213166 (4k) blocks long.  Nothing to do!
+[    8.761301] guacamole : Mount root partition (/dev/loop0p2) to /sysroot (read-write) with options 
+[    8.761324] guacamole kernel: EXT4-fs (loop0p2): mounted filesystem REDACTED_ROOT_FS_UUID r/w with ordered data mode. Quota mode: none.
+[    8.761348] guacamole : Switching root
+[    8.761370] guacamole unknown: syslogd exiting
+[    8.761395] guacamole systemd[1]: Setting '/proc/sys/kernel/printk_devkmsg' to 'on'
+[    8.761428] guacamole systemd[1]: Smack is not enabled in the kernel.
+[    8.761453] guacamole systemd[1]: Skipping AppArmor initialization: not supported by the kernel, disabled, or libapparmor not installed.
+[    8.761477] guacamole systemd[1]: IMA support is disabled in the kernel, ignoring: No such file or directory
+[    8.761502] guacamole systemd[1]: IPE support is disabled in the kernel, ignoring: No such file or directory
+[    8.761526] guacamole systemd[1]: System time advanced to timestamp on /var/lib/systemd/timesync/clock: Fri 2026-11-13 20:31:26 UTC
+[    8.761552] guacamole systemd[1]: Your kernel apparently lacks built-in ipv6 support. Might be a good idea to compile it in. We'll now try to work around this by loading the module...
+[    8.761577] guacamole systemd[1]: Loaded shared library 'libkmod.so.2' via dlopen().
+[    8.761607] guacamole systemd[1]: Loading module: ipv6
+[    8.761630] guacamole kernel: NET: Registered PF_INET6 protocol family
+[    8.761653] guacamole kernel: Segment Routing with IPv6
+[    8.761679] guacamole kernel: In-situ OAM (IOAM) with IPv6
+[    8.761703] guacamole systemd[1]: Inserted module 'ipv6'
+[    8.761727] guacamole systemd[1]: No virtualization found in DMI vendor table.
+[    8.761751] guacamole systemd[1]: Unable to read /sys/firmware/dmi/entries/0-0/raw, using the virtualization information found in DMI vendor table, ignoring: No such file or directory
+[    8.761776] guacamole systemd[1]: UML virtualization not found in /proc/cpuinfo.
+[    8.761802] guacamole systemd[1]: Virtualization XEN not found, /proc/xen does not exist
+[    8.761833] guacamole systemd[1]: No virtualization found in CPUID
+[    8.761857] guacamole systemd[1]: No virtualization found in /proc/device-tree/*
+[    8.761881] guacamole systemd[1]: This platform does not support /proc/sysinfo
+[    8.761913] guacamole systemd[1]: Found VM virtualization none
+[    8.761937] guacamole systemd[1]: Loading module: dmi-sysfs
+[    8.761961] guacamole systemd[1]: Failed to find module 'dmi-sysfs'
+[    8.761985] guacamole systemd[1]: Not enabling 'usrquota' for 'tmpfs' as kernel lacks support for it.
+[    8.762017] guacamole systemd[1]: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.762049] guacamole systemd[1]: Mounting tmpfs (tmpfs) on /dev/shm (MS_NOSUID|MS_NODEV|MS_STRICTATIME "mode=01777")...
+[    8.762074] guacamole systemd[1]: Mounting cgroup2 (cgroup2) on /sys/fs/cgroup (MS_NOSUID|MS_NODEV|MS_NOEXEC "nsdelegate,memory_recursiveprot,memory_hugetlb_accounting")...
+[    8.762099] guacamole systemd[1]: Mounting pstore (pstore) on /sys/fs/pstore (MS_NOSUID|MS_NODEV|MS_NOEXEC "")...
+[    8.762123] guacamole systemd[1]: Mounting bpf (bpf) on /sys/fs/bpf (MS_NOSUID|MS_NODEV|MS_NOEXEC "mode=0700")...
+[    8.762147] guacamole systemd[1]: Failed to symlink /proc/self/fd to /dev/fd: File exists
+[    8.762172] guacamole systemd[1]: ProtectSystem=auto selected, but not running in an initrd, skipping.
+[    8.762198] guacamole systemd[1]: systemd 262.2 running in system mode (+PAM +AUDIT -SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF +XKBCOMMON -UTMP +LIBARCHIVE)
+[    8.762229] guacamole systemd[1]: Detected architecture arm64.
+[    8.762253] guacamole systemd[1]: Detected initialized system, this is not the first boot.
+[    8.762277] guacamole systemd[1]: Kernel version 7.0.0-sm8150-guacamole-rc4, our baseline is 5.14
+[    8.762301] guacamole systemd[1]: No credentials passed via fw_cfg.
+[    8.762325] guacamole systemd[1]: No credentials passed from initrd.
+[    8.762349] guacamole systemd[1]: Acquired 0 regular credentials, 0 untrusted credentials.
+[    8.762373] guacamole systemd[1]: Successfully opened existing '/etc/machine-id' file in writable mode.
+[    8.762405] guacamole systemd[1]: Hostname set to <guacamole>.
+[    8.762429] guacamole systemd[1]: Successfully added address 127.0.0.1 to loopback interface
+[    8.762467] guacamole systemd[1]: Successfully added address ::1 to loopback interface
+[    8.762491] guacamole systemd[1]: Successfully brought loopback interface up
+[    8.762516] guacamole systemd[1]: Setting '/proc/sys/net/unix/max_dgram_qlen' to '512'
+[    8.762540] guacamole systemd[1]: Setting '/proc/sys/fs/file-max' to '9223372036854775807'
+[    8.762564] guacamole systemd[1]: Setting '/proc/sys/fs/nr_open' to '2147483584'
+[    8.762588] guacamole systemd[1]: Successfully bumped fs.nr_open to 2147483584
+[    8.762619] guacamole systemd[1]: OSC sequence for boot successfully written: \033]3008;start=237f19eb203b4da798ce25f55d1e8edf;user=root;hostname=guacamole;machineid=22c04225758f414e9f84f509277c91c8;bootid=a226b3ab4af64f398d01ebc6c2f37777;pid=1;pidfdid=1;comm=systemd;type=boot\033\\
+[    8.762643] guacamole systemd[1]: Cannot stat /usr/local/sbin: No such file or directory
+[    8.762668] guacamole systemd[1]: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.762692] guacamole systemd[1]: libbpf: prog 'sd_bind4': failed to attach to cgroup: -EBADF
+[    8.762716] guacamole systemd[1]: libbpf: prog 'sd_restrictif_i': failed to attach to cgroup: -EBADF
+[    8.762741] guacamole systemd[1]: libbpf: prog 'sd_bind_interface': failed to attach to cgroup: -EBADF
+[    8.762772] guacamole systemd[1]: Controller 'cpu' supported: yes
+[    8.762797] guacamole systemd[1]: Controller 'cpuacct' supported: no
+[    8.762822] guacamole systemd[1]: Controller 'cpuset' supported: yes
+[    8.762852] guacamole systemd[1]: Controller 'io' supported: yes
+[    8.762876] guacamole systemd[1]: Controller 'blkio' supported: no
+[    8.762902] guacamole systemd[1]: Controller 'memory' supported: yes
+[    8.762926] guacamole systemd[1]: Controller 'devices' supported: no
+[    8.762950] guacamole systemd[1]: Controller 'pids' supported: yes
+[    8.762976] guacamole systemd[1]: Controller 'bpf-firewall' supported: yes
+[    8.763006] guacamole systemd[1]: Controller 'bpf-devices' supported: yes
+[    8.763031] guacamole systemd[1]: Controller 'bpf-foreign' supported: yes
+[    8.763055] guacamole systemd[1]: Controller 'bpf-socket-bind' supported: yes
+[    8.763084] guacamole systemd[1]: Controller 'bpf-restrict-network-interfaces' supported: yes
+[    8.763109] guacamole systemd[1]: Controller 'bpf-bind-network-interface' supported: yes
+[    8.763133] guacamole systemd[1]: Set up TFD_TIMER_CANCEL_ON_SET timerfd.
+[    8.763158] guacamole systemd[1]: libbpf: prog 'restrict_filesystems': failed to attach: -ENOTSUPP
+[    8.763182] guacamole systemd[1]: bpf-restrict-fs: Failed to link 'restrict_filesystems' LSM BPF program: Not supported
+[    8.763206] guacamole systemd[1]: Using systemd-executor binary /usr/lib/systemd/systemd-executor.
+[    8.763230] guacamole systemd[1]: Enabling (yes) showing of status (command line).
+[    8.763255] guacamole systemd[1]: Serializing environment-generators to memfd.
+[    8.763284] guacamole systemd[1]: Successfully forked off '(environment-generators)' as PID 461.
+[    8.763308] guacamole (environme[461]: Serializing 60-flatpak-system-only to memfd.
+[    8.763333] guacamole (environme[461]: About to execute /usr/lib/systemd/system-environment-generators/60-flatpak-system-only
+[    8.763359] guacamole (environme[461]: Successfully forked off '(exec-inner)' as PID 462.
+[    8.763383] guacamole (environme[461]: '/usr/lib/systemd/system-environment-generators/60-flatpak-system-only' succeeded.
+[    8.763407] guacamole systemd[1]: '(environment-generators)' succeeded.
+[    8.763431] guacamole systemd[1]: Successfully forked off '(sd-gens)' as PID 463.
+[    8.763456] guacamole (sd-gens)[463]: Successfully forked off '(generators)' as PID 464.
+[    8.763487] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/nm-initrd-generator.sh
+[    8.763513] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 465.
+[    8.763538] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/system-generators-plasma-mobile-user-override
+[    8.763562] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 466.
+[    8.763592] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-bless-boot-generator
+[    8.763616] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 467.
+[    8.763640] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-clonesetup-generator
+[    8.763665] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 468.
+[    8.763694] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-cryptsetup-generator
+[    8.763724] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 469.
+[    8.763748] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-debug-generator
+[    8.763781] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 470.
+[    8.763814] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-factory-reset-generator
+[    8.763837] guacamole kernel: fb0: sys_fillrect: framebuffer is not in virtual address space.
+[    8.763861] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 472.
+[    8.763886] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-fstab-generator
+[    8.763916] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 474.
+[    8.763941] guacamole systemd-bless-boot-generator[467]: Skipping generator, not an EFI boot.
+[    8.763972] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-getty-generator
+[    8.763998] guacamole systemd-factory-reset-generator[472]: Not booted in EFI mode, not checking FactoryResetRequest variable.
+[    8.764030] guacamole systemd-factory-reset-generator[472]: Not in factory reset mode, skipping.
+[    8.764054] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 475.
+[    8.764078] guacamole systemd-fstab-generator[474]: Parsing /etc/fstab...
+[    8.764111] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-gpt-auto-generator
+[    8.764135] guacamole systemd-fstab-generator[474]: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.764159] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 476.
+[    8.764184] guacamole systemd-fstab-generator[474]: Found entry what=/dev/disk/by-uuid/REDACTED_ROOT_FS_UUID where=/ type=ext4 makefs=no growfs=no pcrfs=no validatefs=no noauto=no nofail=no
+[    8.764208] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-imds-generator
+[    8.764233] guacamole systemd-getty-generator[475]: Checking credentials for configuration...
+[    8.764258] guacamole systemd-fstab-generator[474]: Found entry what=/dev/disk/by-uuid/REDACTED_BOOT_FS_UUID where=/boot type=ext2 makefs=no growfs=no pcrfs=no validatefs=no noauto=no nofail=no
+[    8.764287] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 477.
+[    8.764312] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-import-generator
+[    8.764336] guacamole systemd-imds-generator[477]: No DMI device found, assuming IMDS is not available.
+[    8.764362] guacamole systemd-gpt-auto-generator[476]: Disabling partition auto-detection, root= is neither unset, nor set to 'gpt-auto', 'gpt-auto-force', 'dissect' or 'dissect-force'.
+[    8.764387] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 481.
+[    8.764411] guacamole systemd-imds-generator[477]: IMDS not enabled, skipping generator.
+[    8.764442] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-integritysetup-generator
+[    8.764466] guacamole systemd-gpt-auto-generator[476]: Failed to chase block device, ignoring: No such file or directory
+[    8.764491] guacamole systemd-gpt-auto-generator[476]: Loaded shared library 'libblkid.so.1' via dlopen().
+[    8.764515] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 482.
+[    8.764543] guacamole systemd-gpt-auto-generator[476]: Dissecting esp partition with label primary and UUID REDACTED_ESP_UUID.
+[    8.764573] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-run-generator
+[    8.764604] guacamole systemd-gpt-auto-generator[476]: Dissecting root partition with label primary and UUID REDACTED_ROOT_PART_UUID.
+[    8.764636] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 483.
+[    8.764660] guacamole systemd-gpt-auto-generator[476]: Found for designator root: encrypted+encryptedwithintegrity+unprotected+unused.
+[    8.764685] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-ssh-generator
+[    8.764709] guacamole systemd-gpt-auto-generator[476]: Found for designator usr: absent.
+[    8.764734] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 484.
+[    8.764759] guacamole systemd-gpt-auto-generator[476]: Found for designator home: absent.
+[    8.764784] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-system-update-generator
+[    8.764813] guacamole systemd-gpt-auto-generator[476]: Found for designator srv: absent.
+[    8.764837] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 485.
+[    8.764862] guacamole systemd-ssh-generator[484]: Disabling SSH generator logic, since sshd is not installed.
+[    8.764887] guacamole systemd-gpt-auto-generator[476]: Found for designator esp: encrypted+encryptedwithintegrity+unprotected+unused.
+[    8.764912] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-tpm2-generator
+[    8.764936] guacamole systemd-gpt-auto-generator[476]: Found for designator xbootldr: absent.
+[    8.764961] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 486.
+[    8.764985] guacamole systemd-gpt-auto-generator[476]: Found for designator swap: absent.
+[    8.765016] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/systemd-veritysetup-generator
+[    8.765052] guacamole systemd-gpt-auto-generator[476]: Found for designator root-verity: absent.
+[    8.765077] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 487.
+[    8.765101] guacamole systemd-gpt-auto-generator[476]: Found for designator usr-verity: absent.
+[    8.765126] guacamole (generato[464]: About to execute /usr/lib/systemd/system-generators/umtprd-config-generator
+[    8.765150] guacamole systemd-gpt-auto-generator[476]: Found for designator root-verity-sig: absent.
+[    8.765175] guacamole (generato[464]: Successfully forked off '(exec-inner)' as PID 488.
+[    8.765199] guacamole systemd-gpt-auto-generator[476]: Found for designator usr-verity-sig: absent.
+[    8.765223] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-ssh-generator' succeeded.
+[    8.765253] guacamole systemd-gpt-auto-generator[476]: Found for designator tmp: absent.
+[    8.765279] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-cryptsetup-generator' succeeded.
+[    8.765304] guacamole systemd-gpt-auto-generator[476]: Found for designator var: absent.
+[    8.765328] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-getty-generator' succeeded.
+[    8.765353] guacamole systemd-tpm2-generator[486]: Loaded shared library 'libtss2-esys.so.0' via dlopen().
+[    8.765379] guacamole systemd-tpm2-generator[486]: Loaded shared library 'libtss2-rc.so.0' via dlopen().
+[    8.765409] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-import-generator' succeeded.
+[    8.765433] guacamole systemd-tpm2-generator[486]: Loaded shared library 'libtss2-mu.so.0' via dlopen().
+[    8.765458] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-run-generator' succeeded.
+[    8.765482] guacamole systemd-gpt-auto-generator[476]: Probed fstype 'ext4' on partition /dev/disk/by-diskseq/31-part2.
+[    8.765507] guacamole systemd-gpt-auto-generator[476]: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.765532] guacamole systemd-gpt-auto-generator[476]: Found mount entries in the /boot/ or /efi/ hierarchies in fstab, not generating ESP or XBOOTLDR mounts.
+[    8.765557] guacamole systemd-gpt-auto-generator[476]: Root partition not marked for growing the file system in the GPT partition table, not generating drop-in for systemd-growfs-root.service.
+[    8.765581] guacamole systemd-gpt-auto-generator[476]: Parameter ro/rw specified on kernel command line, not generating drop-in for systemd-remount-fs.service.
+[    8.765606] guacamole systemd-tpm2-generator[486]: Not generating tpm2.target synchronization point or activating software TPM, as userspace support for TPM2 is not complete.
+[    8.765637] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-imds-generator' succeeded.
+[    8.765661] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-veritysetup-generator' succeeded.
+[    8.765686] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-system-update-generator' succeeded.
+[    8.765710] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-tpm2-generator' succeeded.
+[    8.765734] guacamole (generato[464]: '/usr/lib/systemd/system-generators/umtprd-config-generator' succeeded.
+[    8.765759] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-debug-generator' succeeded.
+[    8.765783] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-fstab-generator' succeeded.
+[    8.765807] guacamole (generato[464]: '/usr/lib/systemd/system-generators/system-generators-plasma-mobile-user-override' succeeded.
+[    8.765837] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-bless-boot-generator' succeeded.
+[    8.765862] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-integritysetup-generator' succeeded.
+[    8.765886] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-factory-reset-generator' succeeded.
+[    8.765910] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-clonesetup-generator' succeeded.
+[    8.765935] guacamole (generato[464]: '/usr/lib/systemd/system-generators/nm-initrd-generator.sh' succeeded.
+[    8.765959] guacamole (generato[464]: '/usr/lib/systemd/system-generators/systemd-gpt-auto-generator' succeeded.
+[    8.765983] guacamole (sd-gens)[463]: '(generators)' succeeded.
+[    8.766014] guacamole systemd[1]: '(sd-gens)' succeeded.
+[    8.766044] guacamole systemd[1]: Looking for unit files in (higher priority first):
+[    8.766074] guacamole systemd[1]:         /etc/systemd/system.control
+[    8.766098] guacamole systemd[1]:         /run/systemd/system.control
+[    8.766123] guacamole systemd[1]:         /run/systemd/transient
+[    8.766147] guacamole systemd[1]:         /run/systemd/generator.early
+[    8.766172] guacamole systemd[1]:         /etc/systemd/system
+[    8.766196] guacamole systemd[1]:         /etc/systemd/system.attached
+[    8.766220] guacamole systemd[1]:         /run/systemd/system
+[    8.766244] guacamole systemd[1]:         /run/systemd/system.attached
+[    8.766273] guacamole systemd[1]:         /run/systemd/generator
+[    8.766298] guacamole systemd[1]:         /usr/local/lib/systemd/system
+[    8.766322] guacamole systemd[1]:         /usr/lib/systemd/system
+[    8.766346] guacamole systemd[1]:         /run/systemd/generator.late
+[    8.766370] guacamole systemd[1]: Failed to determine whether '/run/systemd/transient' is the root file system: No such file or directory
+[    8.766395] guacamole systemd[1]: Modification times have changed, need to update cache.
+[    8.766420] guacamole systemd[1]: Linked unit file: /run/systemd/generator/NetworkManager-wait-online-initrd.service → /dev/null
+[    8.766445] guacamole systemd[1]: Linked unit file: /run/systemd/generator/NetworkManager-initrd.service → /dev/null
+[    8.766470] guacamole systemd[1]: Linked unit file: /run/systemd/generator/NetworkManager-config-initrd.service → /dev/null
+[    8.766500] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /run/systemd/generator/boot.mount
+[    8.766525] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /run/systemd/generator/-.mount
+[    8.766550] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/machines.target
+[    8.766575] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/system-update-cleanup.service
+[    8.766600] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/fwupd-refresh.service
+[    8.766625] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-cryptenroll.socket
+[    8.766649] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/hkdm.service
+[    8.766674] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-hostnamed.service
+[    8.766704] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/getty@.service
+[    8.766728] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-report-sign-plain@.service
+[    8.766753] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-hostnamed.socket
+[    8.766777] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-pcrlock-firmware-config.service
+[    8.766802] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/plasma-mobile.service
+[    8.766826] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/graphical.target
+[    8.766876] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/shutdown.target
+[    8.766907] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/plymouth-quit.service
+[    8.766932] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/system-cups.slice
+[    8.766957] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-update-done.service
+[    8.766981] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-creds@.service
+[    8.767011] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-rfkill.socket
+[    8.767036] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/fwupd-refresh.timer
+[    8.767060] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/swap.target
+[    8.767086] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-pcrphase-sysinit.service
+[    8.767116] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/alsa-card-wait@.service
+[    8.767141] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/cups-lpd@.service
+[    8.767166] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/accounts-daemon.service
+[    8.767191] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-kexec.service
+[    8.767220] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-growfs-root.service
+[    8.767245] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-factory-reset.socket
+[    8.767270] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/hexagonrpcd-adsp-rootpd.service
+[    8.767295] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-pcrextend.socket
+[    8.767319] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/rtkit-daemon.service
+[    8.767344] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/initrd-udevadm-cleanup-db.service
+[    8.767368] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/veritysetup.target
+[    8.767393] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-resolved.service
+[    8.767422] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-imds-early-network.service
+[    8.767447] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-nsresourced.socket
+[    8.767471] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/polkit-agent-helper.socket
+[    8.767521] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/time-set.target
+[    8.767546] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-machined.socket
+[    8.767571] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/local-fs.target
+[    8.767596] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/imports.target
+[    8.767625] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-tpm2-setup-early.service
+[    8.767649] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-reboot.service
+[    8.767674] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/resolv-conf-stub-link.service
+[    8.767699] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/proc-sys-fs-binfmt_misc.automount
+[    8.767724] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-journalctl.socket
+[    8.767748] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/polkit.service
+[    8.767772] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-report-basic.socket
+[    8.767804] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-imds-import.service
+[    8.767834] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysupdate-notify-sysext@.service
+[    8.767859] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/sys-fs-fuse-connections.mount
+[    8.767883] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-suspend.service
+[    8.767908] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/avahi-daemon.service
+[    8.767934] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/system-systemd\x2dmute\x2dconsole.slice
+[    8.767958] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-repart.socket
+[    8.767982] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysupdate-notify-sysext.socket
+[    8.768012] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/apk-inhibit.path
+[    8.768041] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/NetworkManager-dispatcher.service
+[    8.768066] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-imdsd@.service
+[    8.768091] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-localed.service
+[    8.768116] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/remote-integritysetup.target
+[    8.768140] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/breakpoint-pre-switch-root.service
+[    8.768165] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/wpa_supplicant@.service
+[    8.768190] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-pcrosseparator.service
+[    8.768215] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/rmtfs.service
+[    8.768245] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-timesyncd.service
+[    8.768270] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-mute-console@.service
+[    8.768294] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysusers.service
+[    8.768319] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-machine-tag@.service
+[    8.768344] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysupdate-reboot.service
+[    8.768368] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-logind.service
+[    8.768392] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-tmpfiles-setup-dev-early.service
+[    8.768417] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-report-sign-tpm2@.service
+[    8.768447] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/clonesetup.target
+[    8.768472] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/postmarketos-zram-swap.service
+[    8.768496] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/user-runtime-dir@.service
+[    8.768521] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/initrd-fs.target
+[    8.768553] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-exit.service
+[    8.768577] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/basic.target
+[    8.768602] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/capsule@.service
+[    8.768627] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-pcrphase-initrd.service
+[    8.768658] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-imdsd.socket
+[    8.768683] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/sound.target
+[    8.768708] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/msm-modem-uim-selection.service
+[    8.768733] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-report-cgroup@.service
+[    8.768758] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/unudhcpd@.service
+[    8.768782] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-storage-fs@.service
+[    8.768807] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/plymouth-kexec.service
+[    8.768831] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/suspend.target
+[    8.768860] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/reboot.target
+[    8.768885] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/var-lib-machines.mount
+[    8.768910] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-mountfsd.socket
+[    8.768935] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-tpm2-swtpm.service
+[    8.768959] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-imds-metrics@.service
+[    8.768984] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-ask-password-console.service
+[    8.769015] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-battery-check.service
+[    8.769040] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/console-getty.service
+[    8.769070] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/guacamole-chgctrl.service
+[    8.769095] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/plymouth-reboot.service
+[    8.769122] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysext.socket
+[    8.769146] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/network-pre.target
+[    8.769171] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/nura-boot-diagnostics.service
+[    8.769195] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-journal-flush.service
+[    8.769220] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-binfmt.service
+[    8.769245] guacamole systemd[1]: unit_file_build_name_map: normal unit file: /usr/lib/systemd/system/systemd-sysupdate-notify-bootctl@.service
+[    8.769275] guacamole systemd[1]: Too many messages being logged to kmsg, ignoring
+[    8.769299] guacamole (mount)[495]: dev-hugepages.mount: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.769324] guacamole (mount)[496]: dev-mqueue.mount: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.769350] guacamole (mount)[497]: sys-kernel-debug.mount: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.769375] guacamole (mount)[496]: dev-mqueue.mount: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.769400] guacamole (mount)[495]: dev-hugepages.mount: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.769423] guacamole (mount)[495]: dev-hugepages.mount: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.769448] guacamole (mount)[496]: dev-mqueue.mount: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.769478] guacamole (mount)[496]: dev-mqueue.mount: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.769502] guacamole (mount)[496]: dev-mqueue.mount: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.769527] guacamole (mount)[496]: dev-mqueue.mount: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.769552] guacamole (mount)[496]: dev-mqueue.mount: dev-mqueue.mount: Executing: /bin/mount mqueue /dev/mqueue -t mqueue -o nosuid,nodev,noexec
+[    8.769576] guacamole (mount)[497]: sys-kernel-debug.mount: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.769601] guacamole (mount)[495]: dev-hugepages.mount: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.769625] guacamole (mount)[498]: sys-kernel-tracing.mount: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.769661] guacamole (mount)[497]: sys-kernel-debug.mount: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.769685] guacamole (mount)[495]: dev-hugepages.mount: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.769710] guacamole (mount)[498]: sys-kernel-tracing.mount: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.769734] guacamole (mount)[498]: sys-kernel-tracing.mount: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.769759] guacamole (mount)[498]: sys-kernel-tracing.mount: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.769784] guacamole (mount)[498]: sys-kernel-tracing.mount: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.769808] guacamole (mount)[498]: sys-kernel-tracing.mount: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.769833] guacamole (mount)[498]: sys-kernel-tracing.mount: sys-kernel-tracing.mount: Executing: /bin/mount tracefs /sys/kernel/tracing -t tracefs -o nosuid,nodev,noexec
+[    8.769863] guacamole (mount)[497]: sys-kernel-debug.mount: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.769887] guacamole (mount)[495]: dev-hugepages.mount: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.769912] guacamole (kmod)[499]: kmod-static-nodes.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.769938] guacamole (mount)[497]: sys-kernel-debug.mount: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.769962] guacamole (kmod)[499]: kmod-static-nodes.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.769987] guacamole (mount)[495]: dev-hugepages.mount: dev-hugepages.mount: Executing: /bin/mount hugetlbfs /dev/hugepages -t hugetlbfs -o nosuid,nodev
+[    8.770018] guacamole (mount)[497]: sys-kernel-debug.mount: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.770048] guacamole (kmod)[499]: kmod-static-nodes.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.770072] guacamole (mount)[497]: sys-kernel-debug.mount: sys-kernel-debug.mount: Executing: /bin/mount debugfs /sys/kernel/debug -t debugfs -o nosuid,nodev,noexec
+[    8.770097] guacamole (kmod)[499]: kmod-static-nodes.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.770121] guacamole (kmod)[499]: kmod-static-nodes.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.770145] guacamole (kmod)[499]: kmod-static-nodes.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.770171] guacamole (kmod)[499]: kmod-static-nodes.service: kmod-static-nodes.service: Executing: /bin/kmod static-nodes --format=tmpfiles --output=/run/tmpfiles.d/static-nodes.conf
+[    8.770195] guacamole (modprobe)[500]: modprobe@fuse.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.770225] guacamole (modprobe)[500]: modprobe@fuse.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.770250] guacamole (modprobe)[500]: modprobe@fuse.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.770276] guacamole (modprobe)[500]: modprobe@fuse.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.770306] guacamole (modprobe)[500]: modprobe@fuse.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.770331] guacamole (modprobe)[500]: modprobe@fuse.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.770356] guacamole (modprobe)[500]: modprobe@fuse.service: Cannot stat /usr/local/sbin: No such file or directory
+[    8.770381] guacamole (modprobe)[500]: modprobe@fuse.service: modprobe@fuse.service: Executing: modprobe -abq fuse
+[    8.770405] guacamole (nft)[501]: nftables.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.770431] guacamole (sh)[502]: postmarketos-zram-swap.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.770457] guacamole (nft)[501]: nftables.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.770488] guacamole (sh)[502]: postmarketos-zram-swap.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.770514] guacamole (nft)[501]: nftables.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.770538] guacamole (sh)[502]: postmarketos-zram-swap.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.770563] guacamole (nft)[501]: nftables.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.770586] guacamole kernel: fuse: init (API version 7.45)
+[    8.770615] guacamole (sh)[502]: postmarketos-zram-swap.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.770641] guacamole (nft)[501]: nftables.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.770665] guacamole (sh)[502]: postmarketos-zram-swap.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.770691] guacamole (nft)[501]: nftables.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.770717] guacamole (sh)[502]: postmarketos-zram-swap.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.770747] guacamole (nft)[501]: nftables.service: Changing mount propagation / (MS_REC|MS_SLAVE "")
+[    8.770772] guacamole (sh)[502]: postmarketos-zram-swap.service: Cannot stat /usr/local/sbin: No such file or directory
+[    8.770797] guacamole (nft)[501]: nftables.service: Bind-mounting / on /run/systemd/mount-rootfs (MS_BIND|MS_REC "")...
+[    8.770822] guacamole (sh)[502]: postmarketos-zram-swap.service: postmarketos-zram-swap.service: Executing: sh -c ". /usr/share/misc/source_deviceinfo"
+[    8.770847] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/boot
+[    8.770871] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/mount-rootfs/boot on /run/systemd/mount-rootfs/boot (MS_BIND|MS_REC "")...
+[    8.770896] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/mount-rootfs/boot to /run/systemd/mount-rootfs/boot
+[    8.770921] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/efi
+[    8.770952] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/etc
+[    8.770976] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/mount-rootfs/etc on /run/systemd/mount-rootfs/etc (MS_BIND|MS_REC "")...
+[    8.771016] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/mount-rootfs/etc to /run/systemd/mount-rootfs/etc
+[    8.771042] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/home
+[    8.771067] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/inaccessible/dir on /run/systemd/mount-rootfs/home (MS_BIND|MS_REC "")...
+[    8.771092] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/inaccessible/dir to /run/systemd/mount-rootfs/home
+[    8.771116] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/root
+[    8.771145] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/inaccessible/dir on /run/systemd/mount-rootfs/root (MS_BIND|MS_REC "")...
+[    8.771170] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/inaccessible/dir to /run/systemd/mount-rootfs/root
+[    8.771194] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/run/credentials
+[    8.771219] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/inaccessible/dir on /run/systemd/mount-rootfs/run/credentials (MS_BIND|MS_REC "")...
+[    8.771243] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/inaccessible/dir to /run/systemd/mount-rootfs/run/credentials
+[    8.771267] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/run/user
+[    8.771291] guacamole (nft)[501]: nftables.service: Applying namespace mount on /run/systemd/mount-rootfs/usr
+[    8.771316] guacamole (nft)[501]: nftables.service: Bind-mounting /run/systemd/mount-rootfs/usr on /run/systemd/mount-rootfs/usr (MS_BIND|MS_REC "")...
+[    8.771346] guacamole (nft)[501]: nftables.service: Successfully mounted /run/systemd/mount-rootfs/usr to /run/systemd/mount-rootfs/usr
+[    8.771370] guacamole (nft)[501]: nftables.service: Successfully switched root to '/run/systemd/mount-rootfs'.
+[    8.771394] guacamole (nft)[501]: nftables.service: Set up mount namespace
+[    8.771418] guacamole (nft)[501]: nftables.service: nftables.service: Executing: /usr/sbin/nft "flush ruleset; include \"/etc/nftables.nft\""
+[    8.771494] guacamole (d-modules-load)[504]: systemd-modules-load.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.771525] guacamole (d-modules-load)[504]: systemd-modules-load.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.771575] guacamole (d-modules-load)[504]: systemd-modules-load.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.771624] guacamole (d-modules-load)[504]: systemd-modules-load.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.771674] guacamole (d-modules-load)[504]: systemd-modules-load.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.771728] guacamole (d-modules-load)[504]: systemd-modules-load.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.771779] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.771804] guacamole (d-modules-load)[504]: systemd-modules-load.service: systemd-modules-load.service: Executing: /usr/lib/systemd/systemd-modules-load
+[    8.771828] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.771907] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.771957] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.772012] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.772062] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.772117] guacamole (emd-remount-fs)[507]: systemd-remount-fs.service: systemd-remount-fs.service: Executing: /usr/lib/systemd/systemd-remount-fs
+[    8.772418] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Credential search path is: /etc/credstore:/run/credstore:/usr/local/lib/credstore:/usr/lib/credstore
+[    8.772444] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Credential search path is: /etc/credstore.encrypted:/run/credstore.encrypted:/usr/local/lib/credstore.encrypted:/usr/lib/credstore.encrypted
+[    8.772493] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Credential search path is: /etc/credstore:/run/credstore:/usr/local/lib/credstore:/usr/lib/credstore
+[    8.772524] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Credential search path is: /etc/credstore.encrypted:/run/credstore.encrypted:/usr/local/lib/credstore.encrypted:/usr/lib/credstore.encrypted
+[    8.772549] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libacl.so.1' via dlopen().
+[    8.772573] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Successfully reconfigured credentials fs to be read only.
+[    8.772599] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.772622] guacamole kernel: EXT4-fs (loop0p2): re-mounted REDACTED_ROOT_FS_UUID.
+[    8.772646] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.772671] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.772696] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.772726] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.772752] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.772780] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: Cannot stat /usr/local/sbin: No such file or directory
+[    8.772810] guacamole (udevadm)[512]: systemd-udev-load-credentials.service: systemd-udev-load-credentials.service: Executing: udevadm control --load-credentials
+[    8.773061] guacamole (udevadm)[515]: systemd-udev-trigger.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.773121] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Credential search path is: /etc/credstore:/run/credstore:/usr/local/lib/credstore:/usr/lib/credstore
+[    8.773148] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Credential search path is: /etc/credstore.encrypted:/run/credstore.encrypted:/usr/local/lib/credstore.encrypted:/usr/lib/credstore.encrypted
+[    8.773173] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libacl.so.1' via dlopen().
+[    8.773198] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Successfully reconfigured credentials fs to be read only.
+[    8.773223] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.773254] guacamole (udevadm)[515]: systemd-udev-trigger.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.773529] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.773587] guacamole (udevadm)[515]: systemd-udev-trigger.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.773612] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.773636] guacamole (udevadm)[515]: systemd-udev-trigger.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.773734] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.773758] guacamole (udevadm)[515]: systemd-udev-trigger.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.773783] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.773808] guacamole (udevadm)[515]: systemd-udev-trigger.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.773832] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.773856] guacamole (udevadm)[515]: systemd-udev-trigger.service: Cannot stat /usr/local/sbin: No such file or directory
+[    8.773881] guacamole (vconsole-setup)[516]: systemd-vconsole-setup.service: systemd-vconsole-setup.service: Executing: /usr/lib/systemd/systemd-vconsole-setup
+[    8.773911] guacamole (udevadm)[515]: systemd-udev-trigger.service: systemd-udev-trigger.service: Executing: udevadm trigger --type=all --action=add --prioritized-subsystem=module,block,tpmrm,net,tty,input
+[    8.773935] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.773961] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.773986] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.774020] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.774045] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.774069] guacamole (zramstart)[522]: postmarketos-zram-swap.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.774094] guacamole (zramstart)[522]: postmarketos-zram-swap.service: postmarketos-zram-swap.service: Executing: /usr/bin/zramstart
+[    8.774124] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.787051] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.793711] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.796754] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.799743] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.806574] guacamole (mount)[525]: sys-fs-fuse-connections.mount: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.808178] guacamole (mount)[525]: sys-fs-fuse-connections.mount: sys-fs-fuse-connections.mount: Executing: /bin/mount fusectl /sys/fs/fuse/connections -t fusectl -o nosuid,nodev,noexec
+[    8.816091] guacamole kernel: zram: Added device: zram0
+[    8.822130] guacamole kernel: zram0: detected capacity change from 0 to 34942976
+[    8.822296] guacamole (md-random-seed)[534]: systemd-random-seed.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.822371] guacamole (md-random-seed)[534]: systemd-random-seed.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.831020] guacamole (md-random-seed)[534]: systemd-random-seed.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.831097] guacamole (md-random-seed)[534]: systemd-random-seed.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.831139] guacamole (md-random-seed)[534]: systemd-random-seed.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.831190] guacamole (md-random-seed)[534]: systemd-random-seed.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.831863] guacamole (md-random-seed)[534]: systemd-random-seed.service: systemd-random-seed.service: Executing: /usr/lib/systemd/systemd-random-seed load
+[    8.853844] guacamole kernel: Adding 17471484k swap on /dev/zram0.  Priority:300 extents:1 across:17471484k SS
+[    8.866123] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Credential search path is: /etc/credstore:/run/credstore:/usr/local/lib/credstore:/usr/lib/credstore
+[    8.870020] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Credential search path is: /etc/credstore.encrypted:/run/credstore.encrypted:/usr/local/lib/credstore.encrypted:/usr/lib/credstore.encrypted
+[    8.871015] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libacl.so.1' via dlopen().
+[    8.871062] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Successfully reconfigured credentials fs to be read only.
+[    8.871156] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Credential search path is: /etc/credstore:/run/credstore:/usr/local/lib/credstore:/usr/lib/credstore
+[    8.871208] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Credential search path is: /etc/credstore.encrypted:/run/credstore.encrypted:/usr/local/lib/credstore.encrypted:/usr/lib/credstore.encrypted
+[    8.871247] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libacl.so.1' via dlopen().
+[    8.871286] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Successfully reconfigured credentials fs to be read only.
+[    8.871324] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.878618] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.878676] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libbpf.so.1' via dlopen().
+[    8.880192] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.886739] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libcryptsetup.so.12' via dlopen().
+[    8.886808] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.888109] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libmount.so.1' via dlopen().
+[    8.889478] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.890841] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libseccomp.so.2' via dlopen().
+[    8.890882] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.893621] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Shared library 'libcrypto.so.4' is not available: Error loading shared library libcrypto.so.4: No such file or directory
+[    8.895024] guacamole (systemd-sysctl)[539]: systemd-sysctl.service: systemd-sysctl.service: Executing: /usr/lib/systemd/systemd-sysctl
+[    8.895067] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Loaded shared library 'libcrypto.so.3' via dlopen().
+[    8.912625] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: Cannot stat /usr/local/sbin: No such file or directory
+[    8.912775] guacamole (stemd-tmpfiles)[545]: systemd-tmpfiles-setup-dev-early.service: systemd-tmpfiles-setup-dev-early.service: Executing: systemd-tmpfiles --prefix=/dev --create --boot --graceful
+[   12.257030] guacamole kernel: gcc-sm8150 100000.clock-controller: sync_state() pending due to 2c6a000.gmu
+[   12.257616] guacamole kernel: sm8150-gpucc 2c90000.clock-controller: sync_state() pending due to 2c6a000.gmu
+[   12.258138] guacamole kernel: qcom-rpmhpd 18200000.rsc:power-controller: sync_state() pending due to 17300000.remoteproc
+[   12.258650] guacamole kernel: qcom-rpmhpd 18200000.rsc:power-controller: sync_state() pending due to 4080000.remoteproc
+[   12.259169] guacamole kernel: qcom-rpmhpd 18200000.rsc:power-controller: sync_state() pending due to 2400000.remoteproc
+[   12.259660] guacamole kernel: camcc-sm8150 ad00000.clock-controller: sync_state() pending due to ac4a000.cci
+[   12.261469] guacamole kernel: camcc-sm8150 ad00000.clock-controller: sync_state() pending due to ac4b000.cci
+[   12.261946] guacamole kernel: gcc-sm8150 100000.clock-controller: sync_state() pending due to acb3000.camss
+[   12.262423] guacamole kernel: camcc-sm8150 ad00000.clock-controller: sync_state() pending due to acb3000.camss
+[   12.523094] guacamole kernel: Module qcomtee is blacklisted
+[   12.559168] guacamole kernel: NET: Registered PF_QIPCRTR protocol family
+[   12.626155] guacamole kernel: cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[   12.634035] guacamole kernel: Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[   12.634193] guacamole kernel: Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[   12.696024] guacamole kernel:  cs_system_cfg: CoreSight Configuration manager initialised
+[   12.700032] guacamole kernel: remoteproc remoteproc0: slpi is available
+[   12.711167] guacamole kernel: remoteproc remoteproc0: powering up slpi
+[   12.725527] guacamole kernel: remoteproc remoteproc0: Booting fw image qcom/sm8150/oneplus7/slpi.mdt, size 8380
+[   12.731896] guacamole kernel: ipa 1e40000.ipa: IPA driver initialized
+[   12.738921] guacamole kernel: remoteproc remoteproc1: modem is available
+[   12.741762] guacamole kernel: ipa 1e40000.ipa: IPA driver setup completed successfully
+[   12.753151] guacamole kernel: coresight stm0: STM32 initialized
+[   12.756065] guacamole kernel: mc: Linux media interface: v0.10
+[   12.768049] guacamole kernel: ath10k_snoc 18800000.wifi: supply vdd-3.3-ch1 not found, using dummy regulator
+[   12.779195] guacamole kernel: /soc@0/cci@ac4a000/i2c-bus@0/camera@10: Fixed dependency cycle(s) with /soc@0/camss@acb3000/ports/port@0
+[   12.779271] guacamole kernel: videodev: Linux video capture interface: v2.00
+[   12.781464] guacamole kernel: /soc@0/cci@ac4a000/i2c-bus@1/camera@1a: Fixed dependency cycle(s) with /soc@0/camss@acb3000/ports/port@1
+[   12.796665] guacamole kernel: /soc@0/cci@ac4b000/i2c-bus@1/camera@1a: Fixed dependency cycle(s) with /soc@0/camss@acb3000/ports/port@3
+[   12.796750] guacamole kernel: remoteproc remoteproc2: adsp is available
+[   12.811640] guacamole kernel: remoteproc remoteproc2: powering up adsp
+[   12.824879] guacamole kernel: remoteproc remoteproc2: Booting fw image qcom/sm8150/oneplus7/adsp.mdt, size 7900
+[   12.862133] guacamole kernel: input: Awinic AW8697 haptics as /devices/platform/soc@0/8c0000.geniqup/89c000.i2c/i2c-2/2-005a/input/input3
+[   12.862288] guacamole kernel: aw8697-haptics 2-005a: AW8697 haptics controller detected
+[   12.880102] guacamole kernel: remoteproc remoteproc0: remote processor slpi is now up
+[   12.978040] guacamole kernel: remoteproc remoteproc2: remote processor adsp is now up
+[   12.993345] guacamole kernel: qcom-camss acb3000.camss: supply vdda-phy not found, using dummy regulator
+[   13.003085] guacamole kernel: qcom-camss acb3000.camss: supply vdda-pll not found, using dummy regulator
+[   13.003828] guacamole kernel: qcom-camss acb3000.camss: supply vdda-phy not found, using dummy regulator
+[   13.004509] guacamole kernel: qcom-camss acb3000.camss: supply vdda-pll not found, using dummy regulator
+[   13.005177] guacamole kernel: rtc-pm8xxx c440000.spmi:pmic@0:rtc@6000: registered as rtc0
+[   13.056062] guacamole kernel: qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:3
+[   13.072058] guacamole kernel: qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:4
+[   13.073459] guacamole kernel: qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:7
+[   13.074952] guacamole kernel: qcom,apr 17300000.remoteproc:glink-edge.apr_audio_svc.-1.-1: Adding APR/GPR dev: aprsvc:apr-service:4:8
+[   13.177036] guacamole kernel: Bluetooth: Core ver 2.22
+[   13.177225] guacamole kernel: NET: Registered PF_BLUETOOTH protocol family
+[   13.177289] guacamole kernel: Bluetooth: HCI device and connection manager initialized
+[   13.177348] guacamole kernel: Bluetooth: HCI socket layer initialized
+[   13.177406] guacamole kernel: Bluetooth: L2CAP socket layer initialized
+[   13.177464] guacamole kernel: Bluetooth: SCO socket layer initialized
+[   13.214034] guacamole kernel: Bluetooth: HCI UART driver ver 2.3
+[   13.214183] guacamole kernel: Bluetooth: HCI UART protocol H4 registered
+[   13.216032] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   13.222424] guacamole kernel: Bluetooth: HCI UART protocol LL registered
+[   13.238049] guacamole kernel: Bluetooth: HCI UART protocol Broadcom registered
+[   13.238181] guacamole kernel: Bluetooth: HCI UART protocol QCA registered
+[   13.238244] guacamole kernel: Bluetooth: HCI UART protocol Marvell registered
+[   13.239244] guacamole kernel: qcom,fastrpc 2400000.remoteproc:glink-edge.fastrpcglink-apps-dsp.-1.-1: assigned reserved memory node fastrpc-shared-pool
+[   13.246271] guacamole kernel: platform 2400000.remoteproc:glink-edge:fastrpc:compute-cb@1: Adding to iommu group 15
+[   13.252037] guacamole kernel: s6sy761 4-0048: the axis have not been set
+[   13.253355] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM controller Registered
+[   13.254224] guacamole kernel: platform 2400000.remoteproc:glink-edge:fastrpc:compute-cb@2: Adding to iommu group 16
+[   13.254476] guacamole kernel: input: s6sy761 as /devices/platform/soc@0/cc0000.geniqup/c80000.i2c/i2c-4/4-0048/input/input4
+[   13.254540] guacamole kernel: Bluetooth: hci0: setting up wcn399x
+[   13.257034] guacamole kernel: platform 2400000.remoteproc:glink-edge:fastrpc:compute-cb@3: Adding to iommu group 17
+[   13.259838] guacamole kernel: qcom,fastrpc 17300000.remoteproc:glink-edge.fastrpcglink-apps-dsp.-1.-1: no reserved DMA memory for FASTRPC
+[   13.274049] guacamole kernel: platform 17300000.remoteproc:glink-edge:apr:apr-service@7:dais: Adding to iommu group 18
+[   13.279225] guacamole kernel: platform 17300000.remoteproc:glink-edge:fastrpc:compute-cb@3: Adding to iommu group 19
+[   13.280798] guacamole kernel: platform 17300000.remoteproc:glink-edge:fastrpc:compute-cb@4: Adding to iommu group 20
+[   13.283434] guacamole kernel: platform 17300000.remoteproc:glink-edge:fastrpc:compute-cb@5: Adding to iommu group 21
+[   13.301047] guacamole kernel: wcd934x-slim 217:250:1:0: WCD934x chip id major 0x108, minor 0x1
+[   13.306045] guacamole kernel: platform wcd934x-gpio.3.auto: DMA mask not set
+[   13.308289] guacamole kernel: platform wcd934x-soundwire.4.auto: DMA mask not set
+[   13.329059] guacamole kernel: Bluetooth: hci0: Frame reassembly failed (-84)
+[   13.358039] guacamole kernel: wcd934x-slim 217:250:1:0: missing qcom,mbhc-buttons-vthreshold-microvolt entry
+[   13.374207] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: WCD934X Minor:0x1 Version:0x411
+[   13.381033] guacamole kernel: Bluetooth: hci0: QCA Product ID   :0x0000000a
+[   13.381111] guacamole kernel: Bluetooth: hci0: QCA SOC Version  :0x40010224
+[   13.381171] guacamole kernel: Bluetooth: hci0: QCA ROM Version  :0x00001001
+[   13.381262] guacamole kernel: Bluetooth: hci0: QCA Patch Version:0x00006699
+[   13.392028] guacamole kernel: Bluetooth: hci0: QCA controller version 0x02241001
+[   13.392122] guacamole kernel: Bluetooth: hci0: QCA Downloading qca/crbtfw21.tlv
+[   13.414042] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT0 MIX2 INP has no paths
+[   13.415185] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT1 MIX2 INP has no paths
+[   13.416362] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT2 MIX2 INP has no paths
+[   13.417738] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT3 MIX2 INP has no paths
+[   13.418699] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT4 MIX2 INP has no paths
+[   13.419605] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux RX INT7 MIX2 INP has no paths
+[   13.420673] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX9 MUX has no paths
+[   13.421662] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX10 MUX has no paths
+[   13.422652] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX11 MUX has no paths
+[   13.423704] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX11 INP1 MUX has no paths
+[   13.424820] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX13 MUX has no paths
+[   13.425934] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: ASoC: mux CDC_IF TX13 INP1 MUX has no paths
+[   13.426984] guacamole kernel: input: OnePlus 7 Pro Headset Jack as /devices/platform/sound/sound/card0/input5
+[   13.428301] guacamole kernel: qcom-soundwire wcd934x-soundwire.4.auto: din-ports (2) mismatch with controller (6)
+[   14.056141] guacamole kernel: EXT4-fs (loop0p1): mounting ext2 file system using the ext4 subsystem
+[   14.057269] guacamole kernel: EXT4-fs (loop0p1): warning: mounting unchecked fs, running e2fsck is recommended
+[   14.058148] guacamole kernel: EXT4-fs (loop0p1): mounted filesystem REDACTED_BOOT_FS_UUID r/w without journal. Quota mode: none.
+[   14.350096] guacamole kernel: remoteproc remoteproc1: powering up modem
+[   14.354929] guacamole kernel: remoteproc remoteproc1: Booting fw image qcom/sm8150/oneplus7/modem.mdt, size 9260
+[   14.355755] guacamole kernel: ipa 1e40000.ipa: received modem starting event
+[   14.382421] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   14.426162] guacamole kernel: Bluetooth: hci0: QCA Downloading qca/crnv21.bin
+[   14.508119] guacamole kernel: Bluetooth: BNEP (Ethernet Emulation) ver 1.3
+[   14.508249] guacamole kernel: Bluetooth: BNEP filters: protocol multicast
+[   14.508367] guacamole kernel: Bluetooth: BNEP socket layer initialized
+[   14.578030] guacamole kernel: Bluetooth: hci0: QCA setup on UART is completed
+[   14.935143] guacamole kernel: ipa 1e40000.ipa: received modem running event
+[   14.935974] guacamole kernel: remoteproc remoteproc1: remote processor modem is now up
+[   15.029031] guacamole kernel: Bluetooth: MGMT ver 1.23
+[   15.037164] guacamole kernel: Bluetooth: hci0: setting up wcn399x
+[   15.103213] guacamole kernel: Bluetooth: hci0: Frame reassembly failed (-84)
+[   15.164222] guacamole kernel: Bluetooth: hci0: QCA Product ID   :0x0000000a
+[   15.164352] guacamole kernel: Bluetooth: hci0: QCA SOC Version  :0x40010224
+[   15.164390] guacamole kernel: Bluetooth: hci0: QCA ROM Version  :0x00001001
+[   15.164424] guacamole kernel: Bluetooth: hci0: QCA Patch Version:0x00006699
+[   15.175305] guacamole kernel: Bluetooth: hci0: QCA controller version 0x02241001
+[   15.175396] guacamole kernel: Bluetooth: hci0: QCA Downloading qca/crbtfw21.tlv
+[   16.177229] guacamole kernel: Bluetooth: hci0: QCA Downloading qca/crnv21.bin
+[   16.325033] guacamole kernel: Bluetooth: hci0: QCA setup on UART is completed
+[   17.050183] guacamole kernel: ath10k_snoc 18800000.wifi: qmi chip_id 0x30224 chip_family 0x4001 board_id 0xff soc_id 0x40060000
+[   17.051200] guacamole kernel: ath10k_snoc 18800000.wifi: qmi fw_version 0x300180e8 fw_build_timestamp 2022-08-03 05:34 fw_build_id QC_IMAGE_VERSION_STRING=WLAN.HL.3.0.c8-00232-QCAHLSWMTPLZ-1.513311.2.516802.1
+[   17.186147] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   17.318019] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   18.400132] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: QMI wait timeout
+[   21.097043] guacamole kernel: ath10k_snoc 18800000.wifi: wcn3990 hw1.0 target 0x00000008 chip_id 0x00000000 sub 0000:0000
+[   21.098093] guacamole kernel: ath10k_snoc 18800000.wifi: kconfig debug 1 debugfs 1 tracing 0 dfs 0 testmode 0
+[   21.098771] guacamole kernel: ath10k_snoc 18800000.wifi: firmware ver  api 5 features wowlan,mgmt-tx-by-reference,non-bmi crc32 b3d4b790
+[   21.128044] guacamole kernel: ath10k_snoc 18800000.wifi: htt-ver 3.70 wmi-op 4 htt-op 3 cal file max-sta 32 raw 0 hwcrypto 1
+[   21.218186] guacamole kernel: ath10k_snoc 18800000.wifi: invalid MAC address; choosing random
+[   21.218936] guacamole kernel: ath: EEPROM regdomain: 0x0
+[   21.219087] guacamole kernel: ath: EEPROM indicates default country code should be used
+[   21.219195] guacamole kernel: ath: doing EEPROM country->regdmn map search
+[   21.219297] guacamole kernel: ath: country maps to regdmn code: 0x3a
+[   21.219454] guacamole kernel: ath: Country alpha2 being used: US
+[   21.219572] guacamole kernel: ath: Regpair used: 0x3a
+[   22.573501] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[   24.431036] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[   24.648087] guacamole kernel: wlan0: authenticate with REDACTED_MAC (local address=REDACTED_MAC)
+[   24.648291] guacamole kernel: wlan0: send auth to REDACTED_MAC (try 1/3)
+[   24.652072] guacamole kernel: wlan0: authenticated
+[   24.652275] guacamole kernel: wlan0: associate with REDACTED_MAC (try 1/3)
+[   24.656349] guacamole kernel: wlan0: RX AssocResp from REDACTED_MAC (capab=0x1011 status=0 aid=27)
+[   24.725040] guacamole kernel: wlan0: associated
+[   24.725310] guacamole kernel: wlan0: Limiting TX power to 23 (23 - 0) dBm as advertised by REDACTED_MAC
+[   24.734031] guacamole kernel: qcom,slim-ngd-ctrl 171c0000.slim-ngd: SLIM SAT: Rcvd master capability
+[   25.134795] guacamole kernel: Bluetooth: RFCOMM TTY layer initialized
+[   25.135136] guacamole kernel: Bluetooth: RFCOMM socket layer initialized
+[   25.135247] guacamole kernel: Bluetooth: RFCOMM ver 1.11
+[   26.474406] guacamole kernel: msm_dpu ae01000.display-controller: [drm:recover_worker] *ERROR* 6.4.0.1: hangcheck recover!
+[   26.475714] guacamole kernel: msm_dpu ae01000.display-controller: [drm:recover_worker] *ERROR* 6.4.0.1: offending task: plasmash:gdrv0 (/usr/bin/plasmashell --no-respawn)
+[   26.476812] guacamole kernel: revision: 640 (6.4.0.1)
+[   26.476854] guacamole kernel: rb 0: fence:    221/227
+[   26.476891] guacamole kernel: rptr:     1117
+[   26.476926] guacamole kernel: rb wptr:  1545
+[   87.947296] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[   94.488226] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[   96.348196] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[   97.522266] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[  105.945211] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[  117.001092] guacamole kernel: panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+[  215.585094] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  223.641483] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  223.827201] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  224.135144] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  224.892061] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  225.203402] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  225.954062] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  226.265188] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  232.405602] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  232.415213] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  237.960288] guacamole kernel: xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  237.961309] guacamole kernel: xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 1
+[  237.962133] guacamole kernel: xhci-hcd xhci-hcd.5.auto: hcc params 0x0230ffe5 hci version 0x110 quirks 0x0000808000000010
+[  237.963173] guacamole kernel: xhci-hcd xhci-hcd.5.auto: irq 173, io mem 0x0a600000
+[  237.964388] guacamole kernel: xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  237.965424] guacamole kernel: xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 2
+[  237.966483] guacamole kernel: xhci-hcd xhci-hcd.5.auto: Host supports USB 3.1 Enhanced SuperSpeed
+[  237.968099] guacamole kernel: usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.00
+[  237.969115] guacamole kernel: usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  237.969980] guacamole kernel: usb usb1: Product: xHCI Host Controller
+[  237.970863] guacamole kernel: usb usb1: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  237.971747] guacamole kernel: usb usb1: SerialNumber: REDACTED_USB_SERIAL
+[  237.972635] guacamole kernel: hub 1-0:1.0: USB hub found
+[  237.973835] guacamole kernel: hub 1-0:1.0: 1 port detected
+[  237.974962] guacamole kernel: usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[  237.976128] guacamole kernel: usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.00
+[  237.977032] guacamole kernel: usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  237.977902] guacamole kernel: usb usb2: Product: xHCI Host Controller
+[  237.978786] guacamole kernel: usb usb2: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  237.979667] guacamole kernel: usb usb2: SerialNumber: REDACTED_USB_SERIAL
+[  237.980540] guacamole kernel: hub 2-0:1.0: USB hub found
+[  237.981651] guacamole kernel: hub 2-0:1.0: 1 port detected
+[  237.982692] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  238.151791] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  238.153110] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_L = 0(ohms)
+[  238.323208] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_mbhc_get_result_params: Impedance detect ramp error, c1=0, x1=0x0
+[  238.324969] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_R = 0(ohms)
+[  238.349208] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: MONO plug type detected
+[  239.193075] guacamole kernel: usb 1-1: new high-speed USB device number 2 using xhci-hcd
+[  239.319664] guacamole kernel: usb 1-1: New USB device found, idVendor=2109, idProduct=2817, bcdDevice=90.13
+[  239.320802] guacamole kernel: usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  239.321744] guacamole kernel: usb 1-1: Product: USB2.0 Hub             
+[  239.322647] guacamole kernel: usb 1-1: Manufacturer: [hub-vendor]         
+[  239.323551] guacamole kernel: usb 1-1: SerialNumber: REDACTED_USB_SERIAL
+[  239.371031] guacamole kernel: hub 1-1:1.0: USB hub found
+[  239.372426] guacamole kernel: hub 1-1:1.0: 4 ports detected
+[  239.434224] guacamole kernel: usb 2-1: new SuperSpeed USB device number 2 using xhci-hcd
+[  239.586734] guacamole kernel: usb 2-1: New USB device found, idVendor=2109, idProduct=0817, bcdDevice=90.13
+[  239.588385] guacamole kernel: usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  239.589037] guacamole kernel: usb 2-1: Product: USB3.0 Hub             
+[  239.589658] guacamole kernel: usb 2-1: Manufacturer: [hub-vendor]         
+[  239.591314] guacamole kernel: usb 2-1: SerialNumber: REDACTED_USB_SERIAL
+[  239.611324] guacamole kernel: hub 2-1:1.0: USB hub found
+[  239.613887] guacamole kernel: hub 2-1:1.0: 4 ports detected
+[  239.665442] guacamole kernel: usbcore: registered new device driver onboard-usb-dev
+[  240.165301] guacamole kernel: usb 1-1.2: new high-speed USB device number 3 using xhci-hcd
+[  240.305672] guacamole kernel: usb 1-1.2: New USB device found, idVendor=1a40, idProduct=0101, bcdDevice= 1.11
+[  240.306699] guacamole kernel: usb 1-1.2: New USB device strings: Mfr=0, Product=1, SerialNumber=0
+[  240.308482] guacamole kernel: usb 1-1.2: Product: USB 2.0 Hub
+[  240.363209] guacamole kernel: hub 1-1.2:1.0: USB hub found
+[  240.365570] guacamole kernel: hub 1-1.2:1.0: 4 ports detected
+[  240.492044] guacamole kernel: usb 1-1.3: new full-speed USB device number 4 using xhci-hcd
+[  240.618080] guacamole kernel: usb 1-1.3: device descriptor read/64, error -32
+[  240.845186] guacamole kernel: usb 1-1.3: device descriptor read/64, error -32
+[  241.075078] guacamole kernel: usb 1-1.3: new full-speed USB device number 5 using xhci-hcd
+[  241.168563] guacamole kernel: usb 1-1: USB disconnect, device number 2
+[  241.200125] guacamole kernel: usb 1-1.3: device descriptor read/64, error -32
+[  241.304158] guacamole kernel: usb 1-1-port3: attempt power cycle
+[  241.304565] guacamole kernel: usb 1-1.2-port2: attempt power cycle
+[  241.552228] guacamole kernel: usb 2-1: USB disconnect, device number 2
+[  241.662168] guacamole kernel: xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  241.662728] guacamole kernel: usb usb2: USB disconnect, device number 1
+[  241.668989] guacamole kernel: xhci-hcd xhci-hcd.5.auto: USB bus 2 deregistered
+[  241.669447] guacamole kernel: xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  241.669816] guacamole kernel: usb usb1: USB disconnect, device number 1
+[  241.683502] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  241.760273] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  242.369100] guacamole kernel: usb 1-1.2: USB disconnect, device number 3
+[  242.414250] guacamole kernel: xhci-hcd xhci-hcd.5.auto: USB bus 1 deregistered
+[  242.629314] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  242.809249] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  243.120044] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  243.821781] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  243.874258] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  244.184040] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  244.938096] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  245.249337] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  246.690161] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  255.361749] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  255.372189] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  264.028420] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  264.111945] guacamole kernel: ------------[ cut here ]------------
+[  264.112627] guacamole kernel: ln_bb_clk2 already disabled
+[  264.113064] guacamole kernel: WARNING: drivers/clk/clk.c:1188 at clk_core_disable+0x88/0xa8, CPU#0: kworker/0:0/9
+[  264.114703] guacamole kernel:  slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem joydev evdev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nf_tables uinput uhid nfnetlink fuse ipv6 [last unloaded: cpufreq_conservative]
+[  264.115185] guacamole kernel: CPU: 0 UID: 0 PID: 9 Comm: kworker/0:0 Not tainted 7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  264.115573] guacamole kernel: Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  264.115893] guacamole kernel: Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  264.116341] guacamole kernel: pstate: 604000c5 (nZCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  264.116684] guacamole kernel: pc : clk_core_disable+0x88/0xa8
+[  264.117113] guacamole kernel: lr : clk_core_disable+0x88/0xa8
+[  264.117636] guacamole kernel: sp : ffff80008009bc50
+[  264.117978] guacamole kernel: x29: ffff80008009bc50 x28: ffffc93c8ee87000 x27: 000000007fffffff
+[  264.118416] guacamole kernel: x26: ffff000080057408 x25: 0000000000000000 x24: ffff00008368f490
+[  264.118785] guacamole kernel: x23: ffff0000802d2f40 x22: ffffc93c8f34d000 x21: ffffc93c8f34d000
+[  264.119253] guacamole kernel: x20: ffff000081408000 x19: ffff000081408000 x18: ffffc93c8eeb08c0
+[  264.119594] guacamole kernel: x17: 0000000000000001 x16: 80000000fffff16b x15: 0000000000000003
+[  264.119933] guacamole kernel: x14: ffffc93c8eec6710 x13: 0000000000000003 x12: 0000000000000003
+[  264.120343] guacamole kernel: x11: 00000000ffffefff x10: 0000000000000001 x9 : 42b5d56da15ca400
+[  264.120721] guacamole kernel: x8 : 42b5d56da15ca400 x7 : 205d303839363131 x6 : 312e34363220205b
+[  264.121085] guacamole kernel: x5 : ffffc93c8f318f60 x4 : ffff80008009b827 x3 : 0000000000000000
+[  264.121449] guacamole kernel: x2 : 0000000000000000 x1 : ffff80008009ba20 x0 : 000000000000001b
+[  264.121783] guacamole kernel: Call trace:
+[  264.122186] guacamole kernel:  clk_core_disable+0x88/0xa8 (P)
+[  264.122521] guacamole kernel:  clk_core_disable_lock+0x88/0x10c
+[  264.122882] guacamole kernel:  clk_disable+0x20/0x2c
+[  264.123392] guacamole kernel:  __wcd934x_cdc_mclk_enable+0x2dc/0x34c [snd_soc_wcd934x]
+[  264.123729] guacamole kernel:  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  264.124201] guacamole kernel:  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  264.124589] guacamole kernel:  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  264.124961] guacamole kernel:  process_scheduled_works+0x1b0/0x4ec
+[  264.125387] guacamole kernel:  worker_thread+0x270/0x3e8
+[  264.125734] guacamole kernel:  kthread+0x104/0x130
+[  264.126098] guacamole kernel:  ret_from_fork+0x10/0x20
+[  264.126512] guacamole kernel: ---[ end trace 0000000000000000 ]---
+[  264.126869] guacamole kernel: ------------[ cut here ]------------
+[  264.127257] guacamole kernel: ln_bb_clk2 already unprepared
+[  264.127623] guacamole kernel: WARNING: drivers/clk/clk.c:1048 at clk_core_unprepare+0xbc/0xf4, CPU#0: kworker/0:0/9
+[  264.128781] guacamole kernel:  slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem joydev evdev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nf_tables uinput uhid nfnetlink fuse ipv6 [last unloaded: cpufreq_conservative]
+[  264.129181] guacamole kernel: CPU: 0 UID: 0 PID: 9 Comm: kworker/0:0 Tainted: G        W           7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  264.129547] guacamole kernel: Tainted: [W]=WARN
+[  264.129854] guacamole kernel: Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  264.130192] guacamole kernel: Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  264.130549] guacamole kernel: pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  264.130836] guacamole kernel: pc : clk_core_unprepare+0xbc/0xf4
+[  264.131275] guacamole kernel: lr : clk_core_unprepare+0xbc/0xf4
+[  264.131587] guacamole kernel: sp : ffff80008009bc60
+[  264.131950] guacamole kernel: x29: ffff80008009bc60 x28: ffffc93c8ee87000 x27: 000000007fffffff
+[  264.132403] guacamole kernel: x26: ffff000080057408 x25: 0000000000000000 x24: ffff00008368f490
+[  264.132757] guacamole kernel: x23: ffff00008005e605 x22: ffff0000802d2f40 x21: ffffc93c8f34d000
+[  264.133108] guacamole kernel: x20: ffffc93c8f34d000 x19: ffff000081408000 x18: ffffc93c8eeb0dd0
+[  264.133516] guacamole kernel: x17: 0000000000000001 x16: 80000000fffff1a1 x15: 0000000000000003
+[  264.133803] guacamole kernel: x14: ffffc93c8eec6710 x13: 0000000000000003 x12: 0000000000000003
+[  264.134170] guacamole kernel: x11: 00000000ffffefff x10: 0000000000000001 x9 : 42b5d56da15ca400
+[  264.134525] guacamole kernel: x8 : 42b5d56da15ca400 x7 : 205d323731303231 x6 : 312e34363220205b
+[  264.134932] guacamole kernel: x5 : ffffc93c8f318f60 x4 : ffff80008009b837 x3 : 0000000000000000
+[  264.135337] guacamole kernel: x2 : 0000000000000000 x1 : ffff80008009ba30 x0 : 000000000000001d
+[  264.135656] guacamole kernel: Call trace:
+[  264.135983] guacamole kernel:  clk_core_unprepare+0xbc/0xf4 (P)
+[  264.136425] guacamole kernel:  clk_core_unprepare_lock+0x74/0xf0
+[  264.136755] guacamole kernel:  clk_unprepare+0x20/0x2c
+[  264.137203] guacamole kernel:  __wcd934x_cdc_mclk_enable+0x2e4/0x34c [snd_soc_wcd934x]
+[  264.137569] guacamole kernel:  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  264.137851] guacamole kernel:  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  264.138168] guacamole kernel:  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  264.138500] guacamole kernel:  process_scheduled_works+0x1b0/0x4ec
+[  264.138837] guacamole kernel:  worker_thread+0x270/0x3e8
+[  264.139195] guacamole kernel:  kthread+0x104/0x130
+[  264.140347] guacamole kernel:  ret_from_fork+0x10/0x20
+[  264.140681] guacamole kernel: ---[ end trace 0000000000000000 ]---
+[  264.214302] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  264.525138] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  265.282280] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  265.593151] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  266.348903] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  266.660206] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  275.357297] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  275.366045] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  277.818270] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  280.676314] guacamole kernel: ath10k_snoc 18800000.wifi: chan info: invalid frequency 0 (idx 41 out of bounds)
+[  297.359076] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_L = 53(ohms)
+[  297.399226] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: impedance on HPH_R = 64(ohms)
+[  297.431311] guacamole kernel: wcd934x-codec wcd934x-codec.2.auto: wcd934x_wcd_mbhc_calc_impedance: stereo plug type detected
+[  297.488220] guacamole kernel: xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  297.490103] guacamole kernel: xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 1
+[  297.491597] guacamole kernel: xhci-hcd xhci-hcd.5.auto: hcc params 0x0230ffe5 hci version 0x110 quirks 0x0000808000000010
+[  297.493592] guacamole kernel: xhci-hcd xhci-hcd.5.auto: irq 173, io mem 0x0a600000
+[  297.495049] guacamole kernel: xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[  297.496584] guacamole kernel: xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 2
+[  297.498054] guacamole kernel: xhci-hcd xhci-hcd.5.auto: Host supports USB 3.1 Enhanced SuperSpeed
+[  297.499464] guacamole kernel: usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.00
+[  297.500739] guacamole kernel: usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  297.502052] guacamole kernel: usb usb1: Product: xHCI Host Controller
+[  297.503264] guacamole kernel: usb usb1: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  297.503880] guacamole kernel: usb usb1: SerialNumber: REDACTED_USB_SERIAL
+[  297.504810] guacamole kernel: hub 1-0:1.0: USB hub found
+[  297.506615] guacamole kernel: hub 1-0:1.0: 1 port detected
+[  297.508089] guacamole kernel: usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[  297.510111] guacamole kernel: usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.00
+[  297.511854] guacamole kernel: usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[  297.513481] guacamole kernel: usb usb2: Product: xHCI Host Controller
+[  297.515043] guacamole kernel: usb usb2: Manufacturer: Linux 7.0.0-sm8150-guacamole-rc4 xhci-hcd
+[  297.516617] guacamole kernel: usb usb2: SerialNumber: REDACTED_USB_SERIAL
+[  297.518222] guacamole kernel: hub 2-0:1.0: USB hub found
+[  297.519552] guacamole kernel: hub 2-0:1.0: 1 port detected
+[  297.694344] guacamole kernel: [drm:msm_dp_bridge_get_modes] *ERROR* failed to get DP sink modes, rc=0
+[  297.730261] guacamole kernel: usb 1-1: new high-speed USB device number 2 using xhci-hcd
+[  297.863342] guacamole kernel: usb 1-1: New USB device found, idVendor=0bda, idProduct=5411, bcdDevice= 1.01
+[  297.865348] guacamole kernel: usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  297.867950] guacamole kernel: usb 1-1: Product: USB2.1 Hub
+[  297.870493] guacamole kernel: usb 1-1: Manufacturer: Generic
+[  297.906037] guacamole kernel: hub 1-1:1.0: USB hub found
+[  297.907412] guacamole kernel: hub 1-1:1.0: 4 ports detected
+[  299.188725] guacamole kernel: usb 2-1: new SuperSpeed USB device number 2 using xhci-hcd
+[  299.208908] guacamole kernel: usb 2-1: New USB device found, idVendor=0bda, idProduct=0411, bcdDevice= 1.01
+[  299.210871] guacamole kernel: usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  299.212881] guacamole kernel: usb 2-1: Product: USB3.2 Hub
+[  299.214482] guacamole kernel: usb 2-1: Manufacturer: Generic
+[  299.235648] guacamole kernel: hub 2-1:1.0: USB hub found
+[  299.240251] guacamole kernel: hub 2-1:1.0: 4 ports detected
+[  299.244301] guacamole kernel: usb 1-1: USB disconnect, device number 2
+[  299.384029] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  299.463033] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  299.513229] guacamole kernel: usb 2-1.4: new SuperSpeed USB device number 3 using xhci-hcd
+[  299.526050] guacamole kernel: usb 2-1.4: New USB device found, idVendor=0bda, idProduct=8153, bcdDevice=30.00
+[  299.528183] guacamole kernel: usb 2-1.4: New USB device strings: Mfr=1, Product=2, SerialNumber=6
+[  299.529825] guacamole kernel: usb 2-1.4: Product: USB 10/100/1000 LAN
+[  299.531310] guacamole kernel: usb 2-1.4: Manufacturer: [nic-vendor]
+[  299.532938] guacamole kernel: usb 2-1.4: SerialNumber: REDACTED_USB_SERIAL
+[  299.616028] guacamole kernel: usbcore: registered new device driver r8152-cfgselector
+[  299.639221] guacamole kernel: usb 1-1: new high-speed USB device number 3 using xhci-hcd
+[  299.784507] guacamole kernel: usb 1-1: New USB device found, idVendor=0bda, idProduct=5411, bcdDevice= 1.01
+[  299.785657] guacamole kernel: usb 1-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  299.788414] guacamole kernel: usb 1-1: Product: USB2.1 Hub
+[  299.791092] guacamole kernel: usb 1-1: Manufacturer: Generic
+[  299.827278] guacamole kernel: hub 1-1:1.0: USB hub found
+[  299.830866] guacamole kernel: hub 1-1:1.0: 4 ports detected
+[  299.890074] guacamole kernel: r8152-cfgselector 2-1.4: reset SuperSpeed USB device number 3 using xhci-hcd
+[  299.944216] guacamole kernel: r8152 2-1.4:1.0: Direct firmware load for rtl_nic/rtl8153a-4.fw failed with error -2
+[  299.945557] guacamole kernel: r8152 2-1.4:1.0: unable to load firmware patch rtl_nic/rtl8153a-4.fw (-2)
+[  299.971718] guacamole kernel: usbcore: registered new interface driver r8152
+[  299.980042] guacamole kernel: usbcore: registered new interface driver cdc_ether
+[  299.984040] guacamole kernel: usbcore: registered new interface driver r8153_ecm
+[  335.767819] guacamole kernel: msm_dpu ae01000.display-controller: [drm:recover_worker] *ERROR* 6.4.0.1: hangcheck recover!
+[  335.769487] guacamole kernel: msm_dpu ae01000.display-controller: [drm:recover_worker] *ERROR* 6.4.0.1: offending task: plasmash:gdrv0 (/usr/bin/plasmashell --no-respawn)
+[  335.770897] guacamole kernel: revision: 640 (6.4.0.1)
+[  335.771127] guacamole kernel: rb 0: fence:    33751/33758
+[  335.771293] guacamole kernel: rptr:     3502
+[  335.771430] guacamole kernel: rb wptr:  3950
+[  371.187633] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  371.197068] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  371.200446] guacamole kernel: xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  371.201669] guacamole kernel: usb usb2: USB disconnect, device number 1
+[  371.208982] guacamole kernel: usb 2-1: USB disconnect, device number 2
+[  371.217701] guacamole kernel: r8152-cfgselector 2-1.4: USB disconnect, device number 3
+[  371.224080] guacamole kernel: r8152 2-1.4:1.0 eth0: Stop submitting intr, status -108
+[  371.255054] guacamole kernel: xhci-hcd xhci-hcd.5.auto: USB bus 2 deregistered
+[  371.256481] guacamole kernel: xhci-hcd xhci-hcd.5.auto: remove, state 1
+[  371.289106] guacamole kernel: hub 1-0:1.0: activate --> -108
+[  371.289976] guacamole kernel: hub 1-0:1.0: hub_ext_port_status failed (err = -108)
+[  371.290901] guacamole kernel: usb usb1: USB disconnect, device number 1
+[  371.291733] guacamole kernel: usb 1-1: USB disconnect, device number 3
+[  371.317055] guacamole kernel: xhci-hcd xhci-hcd.5.auto: USB bus 1 deregistered
+[  379.435250] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  379.673602] guacamole kernel: ------------[ cut here ]------------
+[  379.674136] guacamole kernel: ln_bb_clk2 already disabled
+[  379.674456] guacamole kernel: WARNING: drivers/clk/clk.c:1188 at clk_core_disable+0x88/0xa8, CPU#0: kworker/0:0/9
+[  379.676086] guacamole kernel:  qcom_pil_info qcom_q6v5 qrtr rfkill slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem joydev evdev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nf_tables uinput uhid nfnetlink fuse ipv6 [last unloaded: cpufreq_conservative]
+[  379.676428] guacamole kernel: CPU: 0 UID: 0 PID: 9 Comm: kworker/0:0 Tainted: G        W           7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  379.676606] guacamole kernel: Tainted: [W]=WARN
+[  379.676694] guacamole kernel: Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  379.676803] guacamole kernel: Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  379.676885] guacamole kernel: pstate: 604000c5 (nZCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  379.676967] guacamole kernel: pc : clk_core_disable+0x88/0xa8
+[  379.677057] guacamole kernel: lr : clk_core_disable+0x88/0xa8
+[  379.677135] guacamole kernel: sp : ffff80008009bc50
+[  379.677205] guacamole kernel: x29: ffff80008009bc50 x28: ffffc93c8ee87000 x27: 000000007fffffff
+[  379.677284] guacamole kernel: x26: ffff000080057408 x25: 0000000000000000 x24: ffff00008368f490
+[  379.677381] guacamole kernel: x23: ffff0000802d2f40 x22: ffffc93c8f34d000 x21: ffffc93c8f34d000
+[  379.677465] guacamole kernel: x20: ffff000081408000 x19: ffff000081408000 x18: ffffc93c8eeb2378
+[  379.677546] guacamole kernel: x17: 0000000000000001 x16: 80000000fffff288 x15: 0000000000000003
+[  379.677628] guacamole kernel: x14: ffffc93c8eec6710 x13: 0000000000000003 x12: 0000000000000003
+[  379.677708] guacamole kernel: x11: 00000000ffffefff x10: 0000000000000001 x9 : 42b5d56da15ca400
+[  379.677811] guacamole kernel: x8 : 42b5d56da15ca400 x7 : 205d323631393736 x6 : 362e39373320205b
+[  379.677893] guacamole kernel: x5 : ffffc93c8f318f60 x4 : ffff80008009b827 x3 : 0000000000000000
+[  379.677966] guacamole kernel: x2 : 0000000000000000 x1 : ffff80008009ba20 x0 : 000000000000001b
+[  379.678066] guacamole kernel: Call trace:
+[  379.678149] guacamole kernel:  clk_core_disable+0x88/0xa8 (P)
+[  379.678242] guacamole kernel:  clk_core_disable_lock+0x88/0x10c
+[  379.678330] guacamole kernel:  clk_disable+0x20/0x2c
+[  379.678412] guacamole kernel:  __wcd934x_cdc_mclk_enable+0x2dc/0x34c [snd_soc_wcd934x]
+[  379.678479] guacamole kernel:  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  379.678567] guacamole kernel:  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  379.678687] guacamole kernel:  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  379.679349] guacamole kernel:  process_scheduled_works+0x1b0/0x4ec
+[  379.679682] guacamole kernel:  worker_thread+0x270/0x3e8
+[  379.679902] guacamole kernel:  kthread+0x104/0x130
+[  379.679979] guacamole kernel:  ret_from_fork+0x10/0x20
+[  379.680086] guacamole kernel: ---[ end trace 0000000000000000 ]---
+[  379.680183] guacamole kernel: ------------[ cut here ]------------
+[  379.680244] guacamole kernel: ln_bb_clk2 already unprepared
+[  379.680334] guacamole kernel: WARNING: drivers/clk/clk.c:1048 at clk_core_unprepare+0xbc/0xf4, CPU#0: kworker/0:0/9
+[  379.680660] guacamole kernel:  qcom_pil_info qcom_q6v5 qrtr rfkill slim_qcom_ngd_ctrl qcom_sysmon qcom_common qcom_glink_smem joydev evdev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nf_tables uinput uhid nfnetlink fuse ipv6 [last unloaded: cpufreq_conservative]
+[  379.680749] guacamole kernel: CPU: 0 UID: 0 PID: 9 Comm: kworker/0:0 Tainted: G        W           7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  379.680838] guacamole kernel: Tainted: [W]=WARN
+[  379.680918] guacamole kernel: Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  379.681024] guacamole kernel: Workqueue: events mbhc_plug_detect_fn [snd_soc_wcd_mbhc]
+[  379.681364] guacamole kernel: pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  379.681714] guacamole kernel: pc : clk_core_unprepare+0xbc/0xf4
+[  379.681998] guacamole kernel: lr : clk_core_unprepare+0xbc/0xf4
+[  379.682376] guacamole kernel: sp : ffff80008009bc60
+[  379.682665] guacamole kernel: x29: ffff80008009bc60 x28: ffffc93c8ee87000 x27: 000000007fffffff
+[  379.682974] guacamole kernel: x26: ffff000080057408 x25: 0000000000000000 x24: ffff00008368f490
+[  379.683360] guacamole kernel: x23: ffff00008005e605 x22: ffff0000802d2f40 x21: ffffc93c8f34d000
+[  379.683670] guacamole kernel: x20: ffffc93c8f34d000 x19: ffff000081408000 x18: ffffc93c8eeb2798
+[  379.684067] guacamole kernel: x17: 0000000000000001 x16: 80000000fffff2b4 x15: 0000000000000003
+[  379.684444] guacamole kernel: x14: ffffc93c8eec6710 x13: 0000000000000003 x12: 0000000000000003
+[  379.684749] guacamole kernel: x11: 00000000ffffefff x10: 0000000000000001 x9 : 42b5d56da15ca400
+[  379.685056] guacamole kernel: x8 : 42b5d56da15ca400 x7 : 205d303834323836 x6 : 362e39373320205b
+[  379.685552] guacamole kernel: x5 : ffffc93c8f318f60 x4 : ffff80008009b837 x3 : 0000000000000000
+[  379.685925] guacamole kernel: x2 : 0000000000000000 x1 : ffff80008009ba30 x0 : 000000000000001d
+[  379.686299] guacamole kernel: Call trace:
+[  379.686672] guacamole kernel:  clk_core_unprepare+0xbc/0xf4 (P)
+[  379.686990] guacamole kernel:  clk_core_unprepare_lock+0x74/0xf0
+[  379.687410] guacamole kernel:  clk_unprepare+0x20/0x2c
+[  379.688388] guacamole kernel:  __wcd934x_cdc_mclk_enable+0x2e4/0x34c [snd_soc_wcd934x]
+[  379.688682] guacamole kernel:  wcd934x_mbhc_request_micbias+0x70/0x84 [snd_soc_wcd934x]
+[  379.688963] guacamole kernel:  wcd_mbhc_report_plug+0x288/0x308 [snd_soc_wcd_mbhc]
+[  379.689320] guacamole kernel:  mbhc_plug_detect_fn+0x25c/0x2bc [snd_soc_wcd_mbhc]
+[  379.689626] guacamole kernel:  process_scheduled_works+0x1b0/0x4ec
+[  379.689904] guacamole kernel:  worker_thread+0x270/0x3e8
+[  379.690193] guacamole kernel:  kthread+0x104/0x130
+[  379.690833] guacamole kernel:  ret_from_fork+0x10/0x20
+[  379.691195] guacamole kernel: ---[ end trace 0000000000000000 ]---
+[  380.087259] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  381.153139] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+## state
+disconnected
+source [sink]
+host [device]
+debug-off
+Connection to 172.16.42.1 closed.
