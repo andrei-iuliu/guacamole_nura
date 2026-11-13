@@ -1,0 +1,359 @@
+[sudo password prompt omitted]
+--- /sys/kernel/debug/usb/tcpm-c440000.spmi:pmic@2:typec@1500
+[0;0mlog[m
+[  968.962603] VBUS on
+[  968.965449] CC1: 0 -> 0, CC2: 3 -> 0 [state SNK_READY, polarity 1, disconnected]
+[  968.965455] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[  968.967064] Start toggling
+[  973.700394] CC1: 0 -> 2, CC2: 0 -> 1 [state TOGGLING, polarity 0, connected]
+[  973.700399] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[  989.368359] CC1: 2 -> 0, CC2: 1 -> 0 [state SRC_ATTACH_WAIT, polarity 0, disconnected]
+[  989.368364] state change SRC_ATTACH_WAIT -> SRC_UNATTACHED [rev3 NONE_AMS]
+[  989.368367] Start toggling
+[  991.351883] CC1: 0 -> 2, CC2: 0 -> 1 [state TOGGLING, polarity 0, connected]
+[  991.351888] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[  994.075361] CC1: 2 -> 0, CC2: 1 -> 0 [state SRC_ATTACH_WAIT, polarity 0, disconnected]
+[  994.075366] state change SRC_ATTACH_WAIT -> SRC_UNATTACHED [rev3 NONE_AMS]
+[  994.075370] Start toggling
+[ 1020.242946] VBUS on
+[ 1020.242976] CC1: 0 -> 0, CC2: 0 -> 4 [state TOGGLING, polarity 0, connected]
+[ 1020.242979] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1020.242983] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[ 1020.243311] CC1: 0 -> 0, CC2: 4 -> 4 [state SNK_ATTACH_WAIT, polarity 0, connected]
+[ 1020.443693] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[ 1020.443698] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[ 1020.443701] polarity 1
+[ 1020.443702] Requesting mux state 1, usb-role 2, orientation 2
+[ 1020.446119] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1020.446158] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1020.446160] Setting voltage/current limit 5000 mV 1500 mA
+[ 1020.446163] vbus=0 charge:=1
+[ 1020.446164] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1020.446177] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1020.570739] CC1: 0 -> 0, CC2: 4 -> 5 [state SNK_WAIT_CAPABILITIES, polarity 1, connected]
+[ 1020.756472] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1020.756476] AMS HARD_RESET start
+[ 1020.756478] PD TX, type: 0x5
+[ 1020.863976] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1020.863996] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1020.863998] vconn:=0
+[ 1020.864018] Requesting mux state 1, usb-role 2, orientation 2
+[ 1020.864072] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1021.514779] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1021.514784] AMS HARD_RESET finished
+[ 1021.514799] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1021.514846] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1021.514847] Setting voltage/current limit 5000 mV 3000 mA
+[ 1021.514851] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1021.514865] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1021.825577] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1021.825581] AMS HARD_RESET start
+[ 1021.825583] PD TX, type: 0x5
+[ 1021.928950] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1021.928977] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1021.928979] vconn:=0
+[ 1021.928998] Requesting mux state 1, usb-role 2, orientation 2
+[ 1021.929062] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1022.579773] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1022.579778] AMS HARD_RESET finished
+[ 1022.579790] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1022.579793] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1022.579794] Setting voltage/current limit 5000 mV 3000 mA
+[ 1022.579802] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1022.579815] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[ 1022.890536] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[ 1066.497202] VBUS on
+[ 1066.500012] CC1: 0 -> 0, CC2: 5 -> 0 [state SNK_READY, polarity 1, disconnected]
+[ 1066.500019] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[ 1066.501610] Start toggling
+[ 1073.778640] VBUS on
+[ 1073.778664] CC1: 0 -> 4, CC2: 0 -> 0 [state TOGGLING, polarity 0, connected]
+[ 1073.778668] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1073.778671] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[ 1073.978688] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[ 1073.978693] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[ 1073.978696] polarity 0
+[ 1073.978697] Requesting mux state 1, usb-role 2, orientation 1
+[ 1073.983554] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1073.983595] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1073.983597] Setting voltage/current limit 5000 mV 1500 mA
+[ 1073.983600] vbus=0 charge:=1
+[ 1073.983601] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1073.983614] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1074.118813] CC1: 4 -> 5, CC2: 0 -> 0 [state SNK_WAIT_CAPABILITIES, polarity 0, connected]
+[ 1074.293644] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1074.293649] AMS HARD_RESET start
+[ 1074.293651] PD TX, type: 0x5
+[ 1074.400561] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1074.400581] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1074.400583] vconn:=0
+[ 1074.400604] Requesting mux state 1, usb-role 2, orientation 1
+[ 1074.400668] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1075.051375] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1075.051381] AMS HARD_RESET finished
+[ 1075.051395] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1075.051442] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1075.051445] Setting voltage/current limit 5000 mV 3000 mA
+[ 1075.051448] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1075.051461] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1075.362154] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1075.362159] AMS HARD_RESET start
+[ 1075.362161] PD TX, type: 0x5
+[ 1075.464820] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1075.464850] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1075.464853] vconn:=0
+[ 1075.464871] Requesting mux state 1, usb-role 2, orientation 1
+[ 1075.464927] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1076.114952] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1076.114956] AMS HARD_RESET finished
+[ 1076.114968] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1076.114970] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1076.114971] Setting voltage/current limit 5000 mV 3000 mA
+[ 1076.114977] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1076.114991] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[ 1076.425701] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+[ 1096.007406] VBUS on
+[ 1096.010520] CC1: 5 -> 0, CC2: 0 -> 0 [state SNK_READY, polarity 0, disconnected]
+[ 1096.010526] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[ 1096.012079] Start toggling
+[ 1113.481955] VBUS on
+[ 1113.534384] CC1: 0 -> 5, CC2: 0 -> 0 [state TOGGLING, polarity 0, connected]
+[ 1113.534389] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1113.534393] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[ 1113.534424] CC1: 5 -> 5, CC2: 0 -> 0 [state SNK_ATTACH_WAIT, polarity 0, connected]
+[ 1113.735092] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[ 1113.735098] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[ 1113.735100] polarity 0
+[ 1113.735102] Requesting mux state 1, usb-role 2, orientation 1
+[ 1113.739240] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1113.739246] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1113.739248] Setting voltage/current limit 5000 mV 3000 mA
+[ 1113.739258] vbus=0 charge:=1
+[ 1113.739260] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1113.739273] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1113.742472] PD RX, header: 0x41a1 [1]
+[ 1113.742481]  PDO 0: type 0, 5000 mV, 2000 mA [RDE]
+[ 1113.742485]  PDO 1: type 0, 9000 mV, 2450 mA []
+[ 1113.742488]  PDO 2: type 0, 15000 mV, 2670 mA []
+[ 1113.742491]  PDO 3: type 0, 20000 mV, 2900 mA []
+[ 1113.742727] state change SNK_WAIT_CAPABILITIES -> SNK_NEGOTIATE_CAPABILITIES [rev3 POWER_NEGOTIATION]
+[ 1113.742734] Setting usb_comm capable false
+[ 1113.742751] cc=2 cc1=5 cc2=0 vbus=0 vconn=sink polarity=0
+[ 1113.742755] Requesting PDO 0: 5000 mV, 2000 mA [mismatch]
+[ 1113.742758] PD TX, header: 0x1082
+[ 1113.744129] PD TX complete, status: 0
+[ 1113.744811] pending state change SNK_NEGOTIATE_CAPABILITIES -> HARD_RESET_SEND @ 60 ms [rev3 POWER_NEGOTIATION]
+[ 1113.745944] PD RX, header: 0x3a3 [1]
+[ 1113.745950] state change SNK_NEGOTIATE_CAPABILITIES -> SNK_TRANSITION_SINK [rev3 POWER_NEGOTIATION]
+[ 1113.745958] pending state change SNK_TRANSITION_SINK -> HARD_RESET_SEND @ 500 ms [rev3 POWER_NEGOTIATION]
+[ 1114.246668] state change SNK_TRANSITION_SINK -> HARD_RESET_SEND [delayed 500 ms]
+[ 1114.246674] AMS POWER_NEGOTIATION finished
+[ 1114.246676] AMS HARD_RESET start
+[ 1114.246677] PD TX, type: 0x5
+[ 1114.352404] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1114.352419] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1114.352421] vconn:=0
+[ 1114.352441] vbus=0 charge:=0
+[ 1114.352449] Requesting mux state 1, usb-role 2, orientation 1
+[ 1114.352508] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1114.352512] PD RX, header: 0x5a9 [1]
+[ 1114.352514] state change SNK_HARD_RESET_SINK_OFF -> SNK_READY [rev3 HARD_RESET]
+[ 1114.352582] AMS HARD_RESET finished
+[ 1114.352583] state change SNK_READY -> DR_SWAP_ACCEPT [rev3 DATA_ROLE_SWAP]
+[ 1114.352585] PD TX, header: 0x283
+[ 1114.352620] state change DR_SWAP_ACCEPT -> DR_SWAP_CHANGE_DR [rev3 DATA_ROLE_SWAP]
+[ 1114.352622] Requesting mux state 1, usb-role 1, orientation 1
+[ 1114.352674] AMS DATA_ROLE_SWAP finished
+[ 1114.352675] state change DR_SWAP_CHANGE_DR -> SNK_READY [rev3 NONE_AMS]
+[ 1128.854890] VBUS on
+[ 1128.855906] CC1: 5 -> 0, CC2: 0 -> 0 [state SNK_READY, polarity 0, disconnected]
+[ 1128.855911] state change SNK_READY -> SNK_UNATTACHED [rev3 NONE_AMS]
+[ 1128.858255] Start toggling
+[ 1135.486799] CC1: 0 -> 0, CC2: 0 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1135.486803] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1135.487097] CC1: 0 -> 0, CC2: 2 -> 2 [state SRC_ATTACH_WAIT, polarity 0, connected]
+[ 1136.042959] Received hard reset
+[ 1136.042962] state change SRC_ATTACH_WAIT -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1136.042978] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1136.042980] vconn:=0
+[ 1136.043001] Requesting mux state 1, usb-role 2, orientation 1
+[ 1136.047499] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1136.672021] Received hard reset
+[ 1136.672024] state change SNK_HARD_RESET_SINK_OFF -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1136.672039] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1136.672042] vconn:=0
+[ 1136.672062] Requesting mux state 1, usb-role 2, orientation 1
+[ 1136.672120] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1137.301205] Received hard reset
+[ 1137.301209] state change SNK_HARD_RESET_SINK_OFF -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1137.301213] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1137.301216] Setting usb_comm capable false
+[ 1137.301247] Setting voltage/current limit 0 mV 0 mA
+[ 1137.301255] polarity 0
+[ 1137.301256] Requesting mux state 0, usb-role 0, orientation 0
+[ 1137.303416] cc:=0
+[ 1137.303439] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1137.404151] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1137.404157] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1137.929286] Received hard reset
+[ 1138.324865] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1138.324871] Start toggling
+[ 1138.324907] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[ 1138.619615] CC1: 0 -> 1, CC2: 2 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1138.619621] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1138.619920] CC1: 1 -> 1, CC2: 2 -> 2 [state SRC_ATTACH_WAIT, polarity 0, connected]
+[ 1139.175566] Received hard reset
+[ 1139.175568] state change SRC_ATTACH_WAIT -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1139.175572] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1139.175576] Setting usb_comm capable false
+[ 1139.175614] Setting voltage/current limit 0 mV 0 mA
+[ 1139.175621] polarity 0
+[ 1139.175622] Requesting mux state 0, usb-role 0, orientation 0
+[ 1139.175687] cc:=0
+[ 1139.175706] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1139.275729] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1139.275734] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1139.805038] Received hard reset
+[ 1140.195754] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1140.195760] Start toggling
+[ 1140.195792] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[ 1140.490400] CC1: 1 -> 1, CC2: 2 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1140.490405] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1141.045638] Received hard reset
+[ 1141.045643] state change SRC_ATTACH_WAIT -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1141.045649] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1141.045654] Setting usb_comm capable false
+[ 1141.045689] Setting voltage/current limit 0 mV 0 mA
+[ 1141.045699] polarity 0
+[ 1141.045700] Requesting mux state 0, usb-role 0, orientation 0
+[ 1141.045797] cc:=0
+[ 1141.045818] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1141.146017] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1141.146022] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1141.674997] Received hard reset
+[ 1142.066034] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1142.066039] Start toggling
+[ 1142.066082] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[ 1142.361573] CC1: 1 -> 1, CC2: 2 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1142.361578] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1142.361618] CC1: 1 -> 1, CC2: 2 -> 2 [state SRC_ATTACH_WAIT, polarity 0, connected]
+[ 1142.917695] Received hard reset
+[ 1142.917700] state change SRC_ATTACH_WAIT -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1142.917704] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1142.917707] Setting usb_comm capable false
+[ 1142.917739] Setting voltage/current limit 0 mV 0 mA
+[ 1142.917749] polarity 0
+[ 1142.917751] Requesting mux state 0, usb-role 0, orientation 0
+[ 1142.917820] cc:=0
+[ 1142.917839] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1143.018559] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1143.018565] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1143.545711] Received hard reset
+[ 1143.938580] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1143.938598] Start toggling
+[ 1143.938634] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[ 1144.231920] CC1: 1 -> 1, CC2: 2 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1144.231927] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1144.787430] Received hard reset
+[ 1144.787435] state change SRC_ATTACH_WAIT -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1144.787441] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1144.787446] Setting usb_comm capable false
+[ 1144.787481] Setting voltage/current limit 0 mV 0 mA
+[ 1144.787491] polarity 0
+[ 1144.787492] Requesting mux state 0, usb-role 0, orientation 0
+[ 1144.787595] cc:=0
+[ 1144.787617] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1144.887633] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1144.887643] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1145.417404] Received hard reset
+[ 1145.808993] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1145.809000] Start toggling
+[ 1145.809034] state change SNK_UNATTACHED -> TOGGLING [rev3 NONE_AMS]
+[ 1146.265306] CC1: 1 -> 1, CC2: 2 -> 2 [state TOGGLING, polarity 0, connected]
+[ 1146.265313] state change TOGGLING -> SRC_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1146.821015] Received hard reset
+[ 1146.821019] state change SRC_ATTACH_WAIT -> ERROR_RECOVERY [rev3 NONE_AMS]
+[ 1146.821023] state change ERROR_RECOVERY -> PORT_RESET [rev3 NONE_AMS]
+[ 1146.821027] Setting usb_comm capable false
+[ 1146.821057] Setting voltage/current limit 0 mV 0 mA
+[ 1146.821067] polarity 0
+[ 1146.821068] Requesting mux state 0, usb-role 0, orientation 0
+[ 1146.821138] cc:=0
+[ 1146.821162] pending state change PORT_RESET -> PORT_RESET_WAIT_OFF @ 100 ms [rev3 NONE_AMS]
+[ 1146.922357] state change PORT_RESET -> PORT_RESET_WAIT_OFF [delayed 100 ms]
+[ 1146.922364] pending state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED @ 920 ms [rev3 NONE_AMS]
+[ 1147.450769] Received hard reset
+[ 1147.495297] CC1: 1 -> 0, CC2: 2 -> 0 [state PORT_RESET_WAIT_OFF, polarity 0, disconnected]
+[ 1147.495588] CC1: 0 -> 0, CC2: 0 -> 0 [state PORT_RESET_WAIT_OFF, polarity 0, disconnected]
+[ 1147.843078] state change PORT_RESET_WAIT_OFF -> SNK_UNATTACHED [delayed 920 ms]
+[ 1147.843085] Start toggling
+[ 1154.174210] VBUS on
+[ 1154.306390] CC1: 0 -> 0, CC2: 0 -> 3 [state TOGGLING, polarity 0, connected]
+[ 1154.306398] state change TOGGLING -> SNK_ATTACH_WAIT [rev3 NONE_AMS]
+[ 1154.306402] pending state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED @ 200 ms [rev3 NONE_AMS]
+[ 1154.507749] state change SNK_ATTACH_WAIT -> SNK_DEBOUNCED [delayed 200 ms]
+[ 1154.507756] state change SNK_DEBOUNCED -> SNK_ATTACHED [rev3 NONE_AMS]
+[ 1154.507759] polarity 1
+[ 1154.507761] Requesting mux state 1, usb-role 2, orientation 2
+[ 1154.515239] state change SNK_ATTACHED -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1154.515279] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1154.515281] Setting voltage/current limit 5000 mV 0 mA
+[ 1154.515284] vbus=0 charge:=1
+[ 1154.515286] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1154.515301] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1154.825324] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1154.825329] AMS HARD_RESET start
+[ 1154.825331] PD TX, type: 0x5
+[ 1154.927584] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1154.927604] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1154.927606] vconn:=0
+[ 1154.927629] Requesting mux state 1, usb-role 2, orientation 2
+[ 1154.927694] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1155.577900] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1155.577904] AMS HARD_RESET finished
+[ 1155.577919] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1155.577922] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1155.577924] Setting voltage/current limit 5000 mV 0 mA
+[ 1155.577931] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1155.577945] pending state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND @ 310 ms [rev3 NONE_AMS]
+[ 1155.888618] state change SNK_WAIT_CAPABILITIES -> HARD_RESET_SEND [delayed 310 ms]
+[ 1155.888622] AMS HARD_RESET start
+[ 1155.888623] PD TX, type: 0x5
+[ 1155.992541] state change HARD_RESET_SEND -> HARD_RESET_START [rev3 HARD_RESET]
+[ 1155.992573] state change HARD_RESET_START -> SNK_HARD_RESET_SINK_OFF [rev3 HARD_RESET]
+[ 1155.992576] vconn:=0
+[ 1155.992602] Requesting mux state 1, usb-role 2, orientation 2
+[ 1155.992667] pending state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON @ 650 ms [rev3 HARD_RESET]
+[ 1156.643379] state change SNK_HARD_RESET_SINK_OFF -> SNK_HARD_RESET_SINK_ON [delayed 650 ms]
+[ 1156.643384] AMS HARD_RESET finished
+[ 1156.643398] state change SNK_HARD_RESET_SINK_ON -> SNK_STARTUP [rev3 NONE_AMS]
+[ 1156.643402] state change SNK_STARTUP -> SNK_DISCOVERY [rev3 NONE_AMS]
+[ 1156.643403] Setting voltage/current limit 5000 mV 0 mA
+[ 1156.643410] state change SNK_DISCOVERY -> SNK_WAIT_CAPABILITIES [rev3 NONE_AMS]
+[ 1156.643424] pending state change SNK_WAIT_CAPABILITIES -> SNK_READY @ 310 ms [rev3 NONE_AMS]
+[ 1156.954136] state change SNK_WAIT_CAPABILITIES -> SNK_READY [delayed 310 ms]
+## charger + typec kernel lines 600-700 s
+[  618.418132] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  662.471485] guacamole kernel: Modules linked in: cpufreq_conservative r8153_ecm cdc_ether usbnet r8152 onboard_usb_dev typec_displayport rfcomm algif_hash algif_skcipher bnep snd_soc_wcd934x soundwire_qcom snd_soc_wcd_common snd_soc_wcd_mbhc gpio_wcd934x snd_soc_wcd_classh q6afe_dai q6asm_dai q6routing q6afe_clocks q6adm wcd934x regmap_slimbus q6asm q6afe q6core imx586 snd_q6dsp_common imx481 ak7375 s5k3m5 v4l2_cci fastrpc qrtr_smd rpmsg_ctrl hci_uart qcom_pd_mapper btqca btbcm bluetooth ecdh_generic ecc s6sy761 leds_qcom_lpg qcom_pbs snd_soc_sm8150 led_class_multicolor leds_qcom_flash snd_soc_hdmi_codec snd_soc_qcom_common snd_soc_tfa9874 snd_soc_core snd_compress rtc_pm8xxx qcom_camss snd_pcm videobuf2_v4l2 soundwire_bus videobuf2_dma_sg videobuf2_memops snd_timer videobuf2_common snd v4l2_fwnode soundcore v4l2_async aw8697_haptics videodev mxm1120 mc i2c_qcom_cci qcom_stats ath10k_snoc ath10k_core coresight_stm ath coresight_tmc stm_core coresight_replicator coresight_funnel mac80211 coresight ipa cfg80211 qcom_q6v5_pas rfkill
+[  662.479344] guacamole kernel: Modules linked in: cpufreq_conservative r8153_ecm cdc_ether usbnet r8152 onboard_usb_dev typec_displayport rfcomm algif_hash algif_skcipher bnep snd_soc_wcd934x soundwire_qcom snd_soc_wcd_common snd_soc_wcd_mbhc gpio_wcd934x snd_soc_wcd_classh q6afe_dai q6asm_dai q6routing q6afe_clocks q6adm wcd934x regmap_slimbus q6asm q6afe q6core imx586 snd_q6dsp_common imx481 ak7375 s5k3m5 v4l2_cci fastrpc qrtr_smd rpmsg_ctrl hci_uart qcom_pd_mapper btqca btbcm bluetooth ecdh_generic ecc s6sy761 leds_qcom_lpg qcom_pbs snd_soc_sm8150 led_class_multicolor leds_qcom_flash snd_soc_hdmi_codec snd_soc_qcom_common snd_soc_tfa9874 snd_soc_core snd_compress rtc_pm8xxx qcom_camss snd_pcm videobuf2_v4l2 soundwire_bus videobuf2_dma_sg videobuf2_memops snd_timer videobuf2_common snd v4l2_fwnode soundcore v4l2_async aw8697_haptics videodev mxm1120 mc i2c_qcom_cci qcom_stats ath10k_snoc ath10k_core coresight_stm ath coresight_tmc stm_core coresight_replicator coresight_funnel mac80211 coresight ipa cfg80211 qcom_q6v5_pas rfkill
+[  666.110206] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  666.175124] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  667.044063] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  667.867021] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  668.179072] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  668.932214] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  669.242231] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  669.995550] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  670.306468] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  676.727218] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  676.740359] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+[  679.253126] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (plug): rc=0 readback=0x08
+[  679.436088] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  679.748085] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  680.499304] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  680.810548] guacamole kernel: qcom,pmic-typec c440000.spmi:pmic@2:typec@1500: isr: tx_sig
+[  681.563094] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  681.873020] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  698.375175] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm): rc=0 readback=0x01
+[  698.387236] guacamole kernel: qcom-smbx-charger c440000.spmi:pmic@2:charger@1000: input window override (tcpm-off): rc=0 readback=0x08
+Connection to 172.16.42.1 closed.

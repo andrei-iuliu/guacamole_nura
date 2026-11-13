@@ -1,0 +1,160 @@
+# rc4 unblank hang, 2026-11-13 (kernel log streamed over USB SSH; S = per-second sampler)
+      1 S 15:16:23	dpms=On
+      1 S 15:16:24	dpms=On
+      1 S 15:16:25	dpms=On
+      1 S 15:16:26	dpms=On
+      1 S 15:16:27	dpms=On
+      1 S 15:16:28	dpms=On
+      1 S 15:16:29	dpms=On
+      1 S 15:16:30	dpms=On
+      1 S 15:16:31	dpms=On
+      1 S 15:16:32	dpms=On
+      1 S 15:16:33	dpms=On
+      1 S 15:16:34	dpms=On
+      1 S 15:16:35	dpms=On
+      1 S 15:16:36	dpms=On
+      1 S 15:16:37	dpms=On
+      1 S 15:16:38	dpms=Off
+      1 S 15:16:39	dpms=Off
+      1 S 15:16:40	dpms=Off
+      1 S 15:16:41	dpms=Off
+      1 S 15:16:42	dpms=Off
+      1 S 15:16:43	dpms=Off
+      1 S 15:16:44	dpms=Off
+      1 S 15:16:45	dpms=Off
+      1 S 15:16:46	dpms=Off
+      1 S 15:16:47	dpms=Off
+      1 S 15:16:48	dpms=Off
+      1 S 15:16:49	dpms=Off
+      1 S 15:16:50	dpms=Off
+      1 S 15:16:51	dpms=Off
+      1 S 15:16:52	dpms=Off
+      1 S 15:16:53	dpms=Off
+      1 S 15:16:55	dpms=Off
+      1 S 15:16:56	dpms=Off
+      1 S 15:16:57	dpms=Off
+      1 S 15:16:58	dpms=Off
+      1 S 15:16:59	dpms=Off
+K [  882.400075] x11: 00000000ffffefff x10: 0000000000000001 x9 : 3d724840571b9f00
+K [  882.400089] x8 : 3d724840571b9f00 x7 : 205d303233393933 x6 : 332e32383820205b
+K [  882.400104] x5 : ffffd56241b18f60 x4 : ffff8000a3fd2f87 x3 : 0000000000000000
+K [  882.400119] x2 : 0000000000000000 x1 : 0000000019d6fed8 x0 : 0000000000000048
+K [  882.400133] Call trace:
+K [  882.400139]  divider_recalc_rate+0xdc/0xe4 (P)
+K [  882.400151]  clk_divider_recalc_rate+0x64/0x70
+K [  882.400162]  clk_calc_subtree+0x10c/0x138
+K [  882.400172]  clk_calc_subtree+0xbc/0x138
+K [  882.400182]  clk_calc_subtree+0xbc/0x138
+K [  882.400193]  clk_calc_new_rates+0x31c/0x328
+K [  882.400204]  clk_calc_new_rates+0x300/0x328
+K [  882.400214]  clk_calc_new_rates+0x300/0x328
+K [  882.400224]  clk_calc_new_rates+0x2e0/0x328
+K [  882.400234]  clk_core_set_rate_nolock+0x188/0x26c
+K [  882.400244]  clk_set_rate+0x90/0x130
+K [  882.400253]  _opp_config_clk_single+0x38/0x88
+K [  882.400265]  _set_opp+0x200/0x4a0
+K [  882.400276]  dev_pm_opp_set_rate+0x12c/0x1d4
+K [  882.400286]  dsi_link_clk_set_rate_6g+0x44/0xb8
+K [  882.400298]  msm_dsi_host_power_on+0xe0/0xa5c
+K [  882.400310]  dsi_mgr_bridge_pre_enable+0x1e0/0x42c
+K [  882.400320]  drm_atomic_bridge_chain_pre_enable+0xc4/0x148
+K [  882.400332]  drm_atomic_helper_commit_encoder_bridge_pre_enable+0x80/0xf8
+K [  882.400344]  drm_atomic_helper_commit_modeset_enables+0xf0/0x194
+K [  882.400355]  msm_atomic_commit_tail+0x1e0/0x5c0
+K [  882.400368]  commit_tail+0xa8/0x168
+K [  882.400380]  drm_atomic_helper_commit+0x244/0x25c
+K [  882.400391]  drm_atomic_commit+0xac/0xd8
+K [  882.400402]  drm_mode_atomic_ioctl+0x58c/0xb50
+K [  882.400412]  drm_ioctl_kernel+0xc4/0x10c
+K [  882.400421]  drm_ioctl+0x268/0x3d0
+K [  882.400432]  __arm64_sys_ioctl+0x88/0xd0
+K [  882.400444]  invoke_syscall+0x40/0xcc
+K [  882.400453]  el0_svc_common+0x8c/0xd4
+K [  882.400463]  do_el0_svc+0x1c/0x28
+K [  882.400473]  el0_svc+0x38/0xa4
+K [  882.400484]  el0t_64_sync_handler+0x68/0xdc
+K [  882.400494]  el0t_64_sync+0x198/0x19c
+K [  882.400504] ---[ end trace 0000000000000000 ]---
+K [  882.400570] ------------[ cut here ]------------
+K [  882.400578] dsi0_pll_bit_clk: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set
+K [  882.400620] WARNING: drivers/clk/clk-divider.c:147 at divider_recalc_rate+0xdc/0xe4, CPU#1: kwin_wayland/1101
+K [  882.400635] Modules linked in: rfcomm algif_hash algif_skcipher cpufreq_conservative bnep snd_soc_wcd934x snd_soc_wcd_common snd_soc_wcd_mbhc snd_soc_wcd_classh soundwire_qcom gpio_wcd934x q6asm_dai q6routing q6afe_clocks q6afe_dai q6adm q6asm q6afe wcd934x snd_q6dsp_common q6core regmap_slimbus fastrpc rpmsg_ctrl qrtr_smd s5k3m5 imx586 imx481 v4l2_cci ak7375 qcom_pd_mapper hci_uart btqca btbcm bluetooth ecdh_generic ecc leds_qcom_lpg qcom_pbs s6sy761 led_class_multicolor leds_qcom_flash snd_soc_sm8150 snd_soc_qcom_common rtc_pm8xxx snd_soc_tfa9874 soundwire_bus qcom_camss snd_soc_core videobuf2_v4l2 videobuf2_dma_sg snd_compress videobuf2_memops aw8697_haptics snd_pcm videobuf2_common snd_timer v4l2_fwnode v4l2_async snd soundcore qcom_stats mxm1120 videodev mc i2c_qcom_cci ath10k_snoc coresight_stm ath10k_core coresight_replicator coresight_tmc coresight_funnel stm_core qcom_q6v5_pas coresight ath ipa qcom_pil_info mac80211 qcom_q6v5 cfg80211 qrtr slim_qcom_ngd_ctrl qcom_sysmon rfkill qcom_common qcom_wdt
+K [  882.400844]  qcom_glink_smem joydev overlay zram zsmalloc nft_reject_inet nft_reject nf_reject_ipv6 nf_reject_ipv4 nft_ct nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 uhid uinput nf_tables nfnetlink fuse ipv6 evdev
+K [  882.400904] CPU: 1 UID: 10000 PID: 1101 Comm: kwin_wayland Tainted: G        W           7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+K [  882.400915] Tainted: [W]=WARN
+K [  882.400921] Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+K [  882.400929] pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+K [  882.400939] pc : divider_recalc_rate+0xdc/0xe4
+K [  882.400950] lr : divider_recalc_rate+0xd8/0xe4
+K [  882.400960] sp : ffff8000a3fd34c0
+K [  882.400967] x29: ffff8000a3fd34d0 x28: 0000000000000000 x27: 0000000000000001
+K [  882.400982] x26: ffff000081e531c8 x25: 0000000000000040 x24: 0000000000000000
+K [  882.400998] x23: 0000000033adfd89 x22: ffff000084dc8c10 x21: 0000000009aeba5d
+K [  882.401013] x20: ffff000081fc1800 x19: ffff000081fc1600 x18: ffffd562416b2f18
+K [  882.401027] x17: 657320746f6e204f x16: 52455a5f574f4c4c x15: 0000000000000003
+K [  882.401041] x14: ffffd562416c6710 x13: 0000000000000003 x12: 0000000000000003
+K [  882.401057] x11: 00000000ffffefff x10: 0000000000000001 x9 : 3d724840571b9f00
+K [  882.401071] x8 : 3d724840571b9f00 x7 : 205d383735303034 x6 : 342e32383820205b
+K [  882.401086] x5 : ffffd56241b18f60 x4 : ffff8000a3fd3097 x3 : 0000000000000000
+K [  882.401101] x2 : 0000000000000000 x1 : 0000000009aeba5d x0 : 0000000000000041
+K [  882.401116] Call trace:
+K [  882.401122]  divider_recalc_rate+0xdc/0xe4 (P)
+K [  882.401134]  clk_divider_recalc_rate+0x64/0x70
+K [  882.401145]  clk_change_rate+0x204/0x5b8
+K [  882.401156]  clk_change_rate+0x308/0x5b8
+K [  882.401167]  clk_change_rate+0x308/0x5b8
+K [  882.401178]  clk_core_set_rate_nolock+0x1e8/0x26c
+K [  882.401188]  clk_set_rate+0x90/0x130
+K [  882.401199]  _opp_config_clk_single+0x38/0x88
+K [  882.401210]  _set_opp+0x200/0x4a0
+K [  882.401221]  dev_pm_opp_set_rate+0x12c/0x1d4
+K [  882.401232]  dsi_link_clk_set_rate_6g+0x44/0xb8
+K [  882.401245]  msm_dsi_host_power_on+0xe0/0xa5c
+K [  882.401257]  dsi_mgr_bridge_pre_enable+0x1e0/0x42c
+K [  882.401268]  drm_atomic_bridge_chain_pre_enable+0xc4/0x148
+K [  882.401279]  drm_atomic_helper_commit_encoder_bridge_pre_enable+0x80/0xf8
+K [  882.401291]  drm_atomic_helper_commit_modeset_enables+0xf0/0x194
+K [  882.401303]  msm_atomic_commit_tail+0x1e0/0x5c0
+K [  882.401314]  commit_tail+0xa8/0x168
+K [  882.401325]  drm_atomic_helper_commit+0x244/0x25c
+K [  882.401336]  drm_atomic_commit+0xac/0xd8
+K [  882.401346]  drm_mode_atomic_ioctl+0x58c/0xb50
+K [  882.401357]  drm_ioctl_kernel+0xc4/0x10c
+K [  882.401367]  drm_ioctl+0x268/0x3d0
+K [  882.401376]  __arm64_sys_ioctl+0x88/0xd0
+K [  882.401388]  invoke_syscall+0x40/0xcc
+K [  882.401399]  el0_svc_common+0x8c/0xd4
+K [  882.401409]  do_el0_svc+0x1c/0x28
+K [  882.401419]  el0_svc+0x38/0xa4
+K [  882.401430]  el0t_64_sync_handler+0x68/0xdc
+K [  882.401441]  el0t_64_sync+0x198/0x19c
+K [  882.401452] ---[ end trace 0000000000000000 ]---
+K [  882.401512] dsi_link_clk_set_rate_6g: Failed to set rate pixel clk, -22
+K [  882.401539] msm_dsi_host_power_on: failed to enable link clocks. ret=-22
+K [  882.401582] dsi_mgr_bridge_power_on: power on host 0 failed, -22
+K [  882.401617] msm_dsi ae94000.dsi: Power on failed: -22
+K [  882.442319] panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+K [  882.442358] panel-samsung-oneplus-dsc ae94000.dsi.0: sending COMPRESSION_MODE failed: -22
+K [  882.442387] panel-samsung-oneplus-dsc ae94000.dsi.0: Failed to initialize panel: -22
+K [  882.442502] panel-samsung-oneplus-dsc ae94000.dsi.0: [drm:drm_panel_enable] failed to enable backlight: -22
+K [  882.442847] msm-mdss ae00000.display-subsystem: handle irq fail: irq=31 rc=-22
+K [  882.442893] msm-mdss ae00000.display-subsystem: handle irq fail: irq=31 rc=-22
+K [  882.442924] msm-mdss ae00000.display-subsystem: handle irq fail: irq=20 rc=-22
+K [  882.442953] msm-mdss ae00000.display-subsystem: handle irq fail: irq=20 rc=-22
+K [  882.442989] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[0, 0]
+K [  882.443026] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[1, 0]
+K [  882.443057] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[2, 8]
+K [  882.443086] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[2, 26]
+K [  882.443120] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[3, 9]
+K [  882.443185] msm-mdss ae00000.display-subsystem: handle irq fail: irq=3 rc=-22
+K [  882.443212] msm-mdss ae00000.display-subsystem: handle irq fail: irq=2 rc=-22
+K [  882.443244] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[0, 0]
+K [  882.443274] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[1, 0]
+K [  882.443300] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[2, 8]
+K [  882.443325] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[2, 26]
+K [  882.443351] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[3, 9]
+K [  882.443395] msm-mdss ae00000.display-subsystem: handle irq fail: irq=3 rc=-22
+K [  882.443417] msm-mdss ae00000.display-subsystem: handle irq fail: irq=2 rc=-22
+K [  882.443449] [drm:dpu_core_irq] *ERROR* no registered cb, IRQ=[0, 0]
+... 925 storm lines until the link died
+### ssh ended 19:43:49 rc=0
