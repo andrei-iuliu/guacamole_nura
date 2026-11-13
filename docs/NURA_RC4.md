@@ -32,6 +32,20 @@ Notes:
 * Rollback inputs: `flows/rc4/build-source/kernel-output.rc4-original/`,
   `flows/rc4-recipe-backup-20261113/`,
   `build-source/kernel-state/linux-v7.0.0-sm8150.rc4-original/`.
+* **rc4d** (`pkgrel=7`) adds `0060` (pdphy: always hand the RX buffer back,
+  warn on dropped frames) and `0061` (0021's vSafe0V VBUS fallback only while
+  presenting Rd). Hardware: with a powered dock the `PR_SWAP` now completes
+  (PS_RDY received, phone sinks from the dock) and the USB/DP session held
+  113 s until unplug. The
+  new `invalid size` warning did not fire, so which `0060` path mattered is
+  unconfirmed. Still open: that dock's EDID read fails (DP falls back to
+  640x480), kwin "external only" hits `Atomic commit failed: EBUSY`, and an
+  unpowered USB-C adapter (`CC1=Rd, CC2=Ra`) loops `SRC_ATTACH_WAIT` →
+  `Received hard reset` → `ERROR_RECOVERY`.
+* `CONFIG_DYNAMIC_DEBUG=y` made this kernel hang before the display came up
+  (rc4c, reproducible from a cold start); it stays off.
+* After a hung boot or dock session a warm reset was not always enough; a full
+  power-off restored booting.
 * rc4b DTB was regenerated in place after re-enabling DP (DT-only change);
   the kernel `Image` is unchanged, so the installed rc4b modules stay valid.
 * Also seen while docking: WCD934x headset detection WARNs
