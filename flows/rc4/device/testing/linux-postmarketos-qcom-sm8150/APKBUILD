@@ -21,7 +21,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=6
+pkgrel=7
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -105,6 +105,8 @@ source="
 	0057-arm64-dts-guacamole-displayport-video.patch
 	0058-arm64-dts-guacamole-displayport-audio-link.patch
 	0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch
+	0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch
+	0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -206,4 +208,6 @@ ebc69abafb185d07b4fb60bda11d1dc28545cfbe07612d70f6e075cb1929452a7324420ea60e8ab4
 2ab3fcc253b4558e2918bbf0a78b211cfe0a932e0613c13b40fd098b08e31e9e5811fc2d052ad5aba79e7c3a7dd64aeb2ab662bdc17d63bf8b457460feabec4d  0057-arm64-dts-guacamole-displayport-video.patch
 f3d4fcbedcd7d1d3b33df78bf60f09a370210c388fd543e5c4059354da36c579cf91c80b5c5161918fd234507411b8839c997d0d6574a13cb610e27db5194a77  0058-arm64-dts-guacamole-displayport-audio-link.patch
 12adcec10f38bd7e32aa8fe7f98b10d1d806dee9d2f18bcee7a094ffe92e47c13329d3f02666cf6c70ea4704f371e363889d7eeac44024b14273993fc3c5c0a1  0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch
+91ccf689bdc7aee298b218be08bddd09fcbc3e29bfe6f1f58059b98847d587784a01c1c5d814e231f2059017e44cfe88dcf3dda3cbf6d2c7509b786609a2af44  0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch
+a2314e0bf74477299c8d92fb585666af95de350538995ee31f60db9262122bfe1aa5356c83c912edbf27fcd37e78baf2b6213625fb713998f82a38b0c198935b  0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch
 "

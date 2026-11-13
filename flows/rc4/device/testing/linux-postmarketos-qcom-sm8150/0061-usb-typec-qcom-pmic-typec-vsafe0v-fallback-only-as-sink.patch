@@ -1,0 +1,54 @@
+Subject: [PATCH] usb: typec: qcom-pmic-typec: apply the vSafe0V VBUS fallback only as sink
+
+0021 counts VBUS as present whenever the state machine says it is not at
+vSafe0V, to ride through USB-PD voltage steps while sinking. It also applied
+while sourcing and toggling, and set_cc() state (Rd) survived into
+start_toggling(). After a sink session, a supply that was still discharging
+read as present and no interrupt fires when it reaches vSafe0V, so TCPM never
+saw vSafe0V and sat in SRC_ATTACH_WAIT (an unpowered USB-C HDMI adapter
+never attached).
+
+Track whether we present Rd and use the fallback only then; clear it when
+toggling starts.
+---
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 20:33:26.416648931 +0100
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 20:34:01.336050472 +0100
+@@ -177,6 +177,7 @@
+ 	struct mutex			vbus_lock;		/* VBUS state serialization */
+ 
+ 	int				cc;
++	bool				sinking;	/* Rd presented: VBUS may step */
+ 	bool				debouncing_cc;
+ 	struct delayed_work		cc_debounce_dwork;
+ 
+@@ -296,8 +297,13 @@
+ 	 * detach and the contract is torn down during the voltage transition,
+ 	 * forever. The state machine status also tells whether VBUS sits at
+ 	 * vSafe0V; anything above that is a present supply.
++	 *
++	 * Only while we present Rd. As a source or while toggling, a supply
++	 * that is merely still discharging must read as absent: nothing
++	 * interrupts again when it reaches vSafe0V, so TCPM would wait in
++	 * SRC_ATTACH_WAIT for vSafe0V forever.
+ 	 */
+-	if (!vbus) {
++	if (!vbus && READ_ONCE(pmic_typec_port->sinking)) {
+ 		ret = regmap_read(pmic_typec_port->regmap,
+ 				  pmic_typec_port->base + TYPEC_SM_STATUS_REG,
+ 				  &sm);
+@@ -528,6 +534,7 @@
+ 	}
+ 
+ 	pmic_typec_port->cc = cc;
++	WRITE_ONCE(pmic_typec_port->sinking, cc == TYPEC_CC_RD);
+ 	qcom_pmic_set_cc_debounce(pmic_typec_port);
+ 	ret = 0;
+ 
+@@ -624,6 +631,7 @@
+ 		misc, !!(misc & CC_ATTACHED), port_type, pmic_typec_port->cc, cc);
+ 
+ 	qcom_pmic_set_cc_debounce(pmic_typec_port);
++	WRITE_ONCE(pmic_typec_port->sinking, false);
+ 
+ 	/* force it to toggle at least once */
+ 	ret = regmap_write(pmic_typec_port->regmap,
