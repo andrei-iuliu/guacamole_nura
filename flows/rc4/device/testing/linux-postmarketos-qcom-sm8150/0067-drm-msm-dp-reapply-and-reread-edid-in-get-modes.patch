@@ -1,0 +1,44 @@
+Subject: [PATCH] drm/msm/dp: re-apply and if needed re-read the EDID in get_modes
+
+msm_dp_panel_get_modes() relies on the connector EDID set at HPD time. With
+a USB-C dock, HPD flips around the USB-PD power/data role swaps and
+userspace can probe while the connector EDID is cleared, getting no modes
+and falling back to 640x480 (seen on a OnePlus 7 Pro with a USB-C dock and
+a 3440x1440 monitor; the same dock reported full modes on other attaches).
+
+Re-apply the EDID we hold before adding modes, and read it again once over
+AUX if that still yields none.
+---
+--- a/drivers/gpu/drm/msm/dp/dp_panel.c	2026-11-13 21:43:56.471525005 +0100
++++ b/drivers/gpu/drm/msm/dp/dp_panel.c	2026-11-13 21:43:56.482415211 +0100
+@@ -324,8 +324,28 @@
+ 		return -EINVAL;
+ 	}
+ 
+-	if (msm_dp_panel->drm_edid)
+-		return drm_edid_connector_add_modes(connector);
++	if (msm_dp_panel->drm_edid) {
++		struct msm_dp_panel_private *panel =
++			container_of(msm_dp_panel, struct msm_dp_panel_private, msm_dp_panel);
++		int count;
++
++		/*
++		 * The connector's EDID is set at HPD time; HPD flips around
++		 * USB-PD role swaps can leave it cleared when userspace probes,
++		 * which reports no modes and falls back to 640x480. Re-apply the
++		 * EDID we hold, and read it again once if that gives no modes.
++		 */
++		drm_edid_connector_update(connector, msm_dp_panel->drm_edid);
++		count = drm_edid_connector_add_modes(connector);
++		if (count > 0)
++			return count;
++
++		drm_edid_free(msm_dp_panel->drm_edid);
++		msm_dp_panel->drm_edid = drm_edid_read_ddc(connector, &panel->aux->ddc);
++		drm_edid_connector_update(connector, msm_dp_panel->drm_edid);
++		if (msm_dp_panel->drm_edid)
++			return drm_edid_connector_add_modes(connector);
++	}
+ 
+ 	return 0;
+ }

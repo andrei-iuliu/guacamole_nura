@@ -1,0 +1,62 @@
+Subject: [PATCH] usb: typec: tcpm: tolerate one data role mismatch per attach
+
+A USB-C dock sometimes sets the DFP bit in its first
+Source_Capabilities after a power role swap although we remain DFP; TCPM
+then goes to ERROR_RECOVERY and the dock session (USB + DisplayPort) is
+lost. The same dock reports the correct role in other sessions.
+
+Process the first mismatching SOP message of an attach and log it; a
+second mismatch on the same attach still triggers error recovery.
+---
+--- a/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:43:56.469514311 +0100
++++ b/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:43:56.482334166 +0100
+@@ -439,6 +439,7 @@
+ 	unsigned int message_id;
+ 	unsigned int caps_count;
+ 	unsigned int hard_reset_count;
++	bool data_role_mismatch_seen;
+ 	bool pd_capable;
+ 	bool explicit_contract;
+ 	unsigned int rx_msgid;
+@@ -3779,11 +3780,24 @@
+ 		 * mismatch.
+ 		 */
+ 		if (!!(le16_to_cpu(msg->header) & PD_HEADER_DATA_ROLE) ==
+-		    (port->data_role == TYPEC_HOST) && rx_sop_type == TCPC_TX_SOP) {
++		    (port->data_role == TYPEC_HOST) && rx_sop_type == TCPC_TX_SOP &&
++		    port->data_role_mismatch_seen) {
+ 			tcpm_log(port,
+ 				 "Data role mismatch, initiating error recovery");
+ 			tcpm_set_state(port, ERROR_RECOVERY, 0);
+ 		} else {
++			/*
++			 * Some docks get the data role bit wrong in the first
++			 * message after a power role swap (seen on a USB-C
++			 * dock: Source_Capabilities claiming DFP while we are
++			 * still DFP). Tolerate one such message per attach and
++			 * process it; a persistent mismatch still recovers.
++			 */
++			if (!!(le16_to_cpu(msg->header) & PD_HEADER_DATA_ROLE) ==
++			    (port->data_role == TYPEC_HOST) && rx_sop_type == TCPC_TX_SOP) {
++				tcpm_log(port, "Data role mismatch, tolerating once");
++				port->data_role_mismatch_seen = true;
++			}
+ 			if (le16_to_cpu(msg->header) & PD_HEADER_EXT_HDR)
+ 				tcpm_pd_ext_msg_request(port, msg);
+ 			else if (cnt)
+@@ -4800,6 +4814,7 @@
+ 			tcpm_swap_complete(port, -ENOTCONN);
+ 		tcpm_src_detach(port);
+ 		port->hard_reset_count = 0;	/* see SNK_UNATTACHED */
++		port->data_role_mismatch_seen = false;
+ 		if (port->potential_contaminant) {
+ 			tcpm_set_state(port, CHECK_CONTAMINANT, 0);
+ 			break;
+@@ -5065,6 +5080,7 @@
+ 		 * gets PD (no Source_Caps wait, straight to SNK_READY).
+ 		 */
+ 		port->hard_reset_count = 0;
++		port->data_role_mismatch_seen = false;
+ 		if (port->potential_contaminant) {
+ 			tcpm_set_state(port, CHECK_CONTAMINANT, 0);
+ 			break;

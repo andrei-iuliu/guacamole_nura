@@ -1,0 +1,43 @@
+Subject: [PATCH] usb: typec: qcom-pmic-typec: re-read VBUS when leaving the sink role
+
+0061 limits the vSafe0V VBUS fallback to the sink role and clears that state
+in start_toggling(). The last VBUS reading TCPM got may still have come from
+the fallback ("VBUS on" while sinking), and no interrupt fires when the
+supply later discharges to vSafe0V, so TCPM kept vbus_present and never
+attached as source (SRC_ATTACH_WAIT) to the next, unpowered partner. Signal
+a VBUS change after clearing the sink state so TCPM re-reads it.
+---
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:07:03.507850969 +0100
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:07:36.214313188 +0100
+@@ -606,6 +606,7 @@
+ 	unsigned int misc;
+ 	u8 mode = 0;
+ 	unsigned long flags;
++	bool was_sinking = false;
+ 	int ret;
+ 
+ 	switch (port_type) {
+@@ -631,6 +632,7 @@
+ 		misc, !!(misc & CC_ATTACHED), port_type, pmic_typec_port->cc, cc);
+ 
+ 	qcom_pmic_set_cc_debounce(pmic_typec_port);
++	was_sinking = READ_ONCE(pmic_typec_port->sinking);
+ 	WRITE_ONCE(pmic_typec_port->sinking, false);
+ 
+ 	/* force it to toggle at least once */
+@@ -646,6 +648,15 @@
+ done:
+ 	spin_unlock_irqrestore(&pmic_typec_port->lock, flags);
+ 
++	/*
++	 * The last VBUS reading may have used the sink-only vSafe0V fallback.
++	 * No interrupt fires when a discharging supply finally reaches
++	 * vSafe0V, so make TCPM re-read VBUS now that the fallback is off;
++	 * otherwise it never sees vSafe0V and stays in SRC_ATTACH_WAIT.
++	 */
++	if (was_sinking)
++		tcpm_vbus_change(pmic_typec_port->tcpm_port);
++
+ 	return ret;
+ }
+ 

@@ -1,0 +1,64 @@
+Subject: [PATCH] drm/msm/dp: use the real pixel rate for the link bandwidth check
+
+msm_dp_bridge_mode_valid() halves the pixel clock when wide bus is
+available, which is right for the DP_MAX_PIXEL_CLK_KHZ limit (two pixels
+per controller clock), and then reuses the halved clock for bpp selection
+and the link bandwidth check. Wide bus does not halve the data on the link
+(only YUV 4:2:0 does), so modes needing up to twice the link budget are
+accepted.
+
+Seen on a OnePlus 7 Pro (2 DP lanes, HBR2 = 8.64 Gb/s) with a 3440x1440
+monitor: the 100 Hz mode (543.5 MHz, >= 9.8 Gb/s even at 18 bpp) passed
+mode_valid, was set, link-trained, and the monitor stayed black. The 60 Hz
+mode (319.75 MHz, 7.67 Gb/s at 24 bpp) works.
+
+Keep the halved clock for the pixel clock limit and use the link pixel rate
+(halved only for 4:2:0) for bpp selection and the bandwidth check.
+---
+--- a/drivers/gpu/drm/msm/dp/dp_display.c	2026-11-13 21:20:53.530924976 +0100
++++ b/drivers/gpu/drm/msm/dp/dp_display.c	2026-11-13 21:20:53.536246204 +0100
+@@ -938,6 +938,8 @@
+ 	u32 mode_rate_khz = 0, supported_rate_khz = 0, mode_bpp = 0;
+ 	struct msm_dp *dp;
+ 	int mode_pclk_khz = mode->clock;
++	int link_pclk_khz = mode->clock;
++	bool yuv420;
+ 
+ 	dp = to_dp_bridge(bridge)->msm_dp_display;
+ 
+@@ -949,10 +951,20 @@
+ 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
+ 	link_info = &msm_dp_display->panel->link_info;
+ 
+-	if ((drm_mode_is_420_only(&dp->connector->display_info, mode) &&
+-	     msm_dp_display->panel->vsc_sdp_supported) ||
+-	     msm_dp_wide_bus_available(dp))
++	yuv420 = drm_mode_is_420_only(&dp->connector->display_info, mode) &&
++		 msm_dp_display->panel->vsc_sdp_supported;
++
++	/*
++	 * Wide bus moves two pixels per controller clock, so it halves the
++	 * clock that must stay under DP_MAX_PIXEL_CLK_KHZ. It does not halve
++	 * the data on the link; only YUV 4:2:0 does. Using the halved clock
++	 * for the bandwidth check below accepted modes twice the link budget
++	 * (3440x1440@100, 543.5 MHz, on HBR2 x2 lanes) and lit a black sink.
++	 */
++	if (yuv420 || msm_dp_wide_bus_available(dp))
+ 		mode_pclk_khz /= 2;
++	if (yuv420)
++		link_pclk_khz /= 2;
+ 
+ 	if (mode_pclk_khz > DP_MAX_PIXEL_CLK_KHZ)
+ 		return MODE_CLOCK_HIGH;
+@@ -962,9 +974,9 @@
+ 		mode_bpp = default_bpp;
+ 
+ 	mode_bpp = msm_dp_panel_get_mode_bpp(msm_dp_display->panel,
+-			mode_bpp, mode_pclk_khz);
++			mode_bpp, link_pclk_khz);
+ 
+-	mode_rate_khz = mode_pclk_khz * mode_bpp;
++	mode_rate_khz = link_pclk_khz * mode_bpp;
+ 	supported_rate_khz = link_info->num_lanes * link_info->rate * 8;
+ 
+ 	if (mode_rate_khz > supported_rate_khz)

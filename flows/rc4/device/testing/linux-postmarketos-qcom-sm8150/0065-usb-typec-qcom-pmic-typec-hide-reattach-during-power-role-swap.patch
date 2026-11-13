@@ -1,0 +1,109 @@
+Subject: [PATCH] usb: typec: qcom-pmic-typec: hide the re-attach during a power role swap
+
+When set_cc() flips an attached port between Rp and Rd (power role swap),
+the PM8150B Type-C state machine re-runs attach detection and reports "not
+attached" for ~100-200 ms. Whether that breaks the swap depends on timing:
+if the partner's PS_RDY arrives after the glitch, TCPM is still in
+PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED and ignores it; if PS_RDY arrives
+first (seen 9 ms after ours with a powered USB-C dock on a OnePlus 7 Pro),
+TCPM is in SNK_DISCOVERY, takes the glitch as an unplug, re-attaches as a
+fresh sink and the partner never answers, losing PD and DisplayPort.
+
+Hide "not attached" readings for 500 ms after such a flip (get_cc returns
+-EBUSY, which TCPM ignores) and make TCPM re-read CC when the window ends.
+The downstream charger stack does the equivalent with pr_swap_in_progress.
+---
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:22:56.590096639 +0100
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:23:46.491826748 +0100
+@@ -181,6 +181,10 @@
+ 	bool				debouncing_cc;
+ 	struct delayed_work		cc_debounce_dwork;
+ 
++	/* Power role swap: hide the state machine's re-attach (see set_cc) */
++	unsigned long			swap_hold_until;
++	struct delayed_work		swap_hold_dwork;
++
+ 	spinlock_t			lock;	/* Register atomicity */
+ };
+ 
+@@ -407,6 +411,12 @@
+ 		goto done;
+ 	}
+ 
++	if (!attached &&
++	    time_before(jiffies, READ_ONCE(pmic_typec_port->swap_hold_until))) {
++		ret = -EBUSY;
++		goto done;
++	}
++
+ 	*cc1 = TYPEC_CC_OPEN;
+ 	*cc2 = TYPEC_CC_OPEN;
+ 
+@@ -474,6 +484,23 @@
+ 	return ret;
+ }
+ 
++#define PMIC_TYPEC_SWAP_HOLD_MS		500
++
++static bool qcom_pmic_typec_cc_is_rp(int cc)
++{
++	return cc == TYPEC_CC_RP_DEF || cc == TYPEC_CC_RP_1_5 ||
++	       cc == TYPEC_CC_RP_3_0;
++}
++
++static void qcom_pmic_typec_port_swap_hold_done(struct work_struct *work)
++{
++	struct pmic_typec_port *pmic_typec_port =
++		container_of(work, struct pmic_typec_port, swap_hold_dwork.work);
++
++	/* Readings were hidden during the swap; let TCPM resynchronise */
++	tcpm_cc_change(pmic_typec_port->tcpm_port);
++}
++
+ static void qcom_pmic_set_cc_debounce(struct pmic_typec_port *pmic_typec_port)
+ {
+ 	pmic_typec_port->debouncing_cc = true;
+@@ -533,6 +560,24 @@
+ 			goto done;
+ 	}
+ 
++	/*
++	 * Switching between Rp and Rd on an attached port is a power role
++	 * swap. The PM8150B state machine then re-runs attach detection and
++	 * reports "not attached" for ~100-200 ms. If the partner's PS_RDY has
++	 * already moved TCPM to SNK_DISCOVERY, that reads as an unplug and the
++	 * contract is lost. Hide it for a bounded window (the downstream stack
++	 * does the same with pr_swap_in_progress) and resync afterwards; a
++	 * real unplug is still reported, PMIC_TYPEC_SWAP_HOLD_MS later.
++	 */
++	if ((misc & CC_ATTACHED) &&
++	    ((qcom_pmic_typec_cc_is_rp(pmic_typec_port->cc) && cc == TYPEC_CC_RD) ||
++	     (pmic_typec_port->cc == TYPEC_CC_RD && qcom_pmic_typec_cc_is_rp(cc)))) {
++		WRITE_ONCE(pmic_typec_port->swap_hold_until,
++			   jiffies + msecs_to_jiffies(PMIC_TYPEC_SWAP_HOLD_MS));
++		mod_delayed_work(system_wq, &pmic_typec_port->swap_hold_dwork,
++				 msecs_to_jiffies(PMIC_TYPEC_SWAP_HOLD_MS + 5));
++	}
++
+ 	pmic_typec_port->cc = cc;
+ 	WRITE_ONCE(pmic_typec_port->sinking, cc == TYPEC_CC_RD);
+ 	qcom_pmic_set_cc_debounce(pmic_typec_port);
+@@ -740,6 +785,8 @@
+ 
+ 	for (i = 0; i < pmic_typec_port->nr_irqs; i++)
+ 		disable_irq(pmic_typec_port->irq_data[i].irq);
++
++	cancel_delayed_work_sync(&pmic_typec_port->swap_hold_dwork);
+ }
+ 
+ int qcom_pmic_typec_port_probe(struct platform_device *pdev,
+@@ -779,6 +826,9 @@
+ 	spin_lock_init(&pmic_typec_port->lock);
+ 	INIT_DELAYED_WORK(&pmic_typec_port->cc_debounce_dwork,
+ 			  qcom_pmic_typec_port_cc_debounce);
++	INIT_DELAYED_WORK(&pmic_typec_port->swap_hold_dwork,
++			  qcom_pmic_typec_port_swap_hold_done);
++	pmic_typec_port->swap_hold_until = jiffies;
+ 
+ 	irq = platform_get_irq(pdev, 0);
+ 	if (irq < 0)
