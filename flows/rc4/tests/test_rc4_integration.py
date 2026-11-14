@@ -205,21 +205,21 @@ class TestIsolation(unittest.TestCase):
     def test_checker_links_resolve_to_the_rc4_device_package(self):
         # prepare_state() resolves pmaports recipe links through ROOT
         # (flows/rc4/local-storage), not SOURCE_ROOT: the device package it
-        # installs must be the rc4i pkgrel 17 copy.
+        # installs must be the rc4i pkgrel 18 copy.
         checker = read(FLOW / "scripts/check_local_candidate.py")
         self.assertIn('"device/testing/device-oneplus-guacamole": '
                       '"device/testing/device-oneplus-guacamole"', checker)
         target = (FLOW / "device/testing/device-oneplus-guacamole").resolve()
         self.assertEqual(target, (RC4 / "device/testing/device-oneplus-guacamole").resolve())
-        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=17$")
+        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=18$")
         self.assertIn("guacamole-mss-release", read(target / "APKBUILD"))
 
     def test_recipe_root_selects_the_rc4_device_package(self):
-        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 17 (rc4i)
+        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 18 (charge CLI)
         # and never to the rc3-era flows/local-storage copy (pkgrel 14).
         farm = FLOW / "device/testing/device-oneplus-guacamole"
         self.assertTrue(farm.is_dir())
-        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=17$")
+        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=18$")
         original = REPO / "flows/local-storage/device/testing/device-oneplus-guacamole/APKBUILD"
         if original.is_file():
             self.assertRegex(read(original), r"(?m)^pkgrel=14$")

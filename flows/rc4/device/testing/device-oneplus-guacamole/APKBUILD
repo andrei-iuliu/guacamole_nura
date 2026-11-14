@@ -10,13 +10,14 @@
 # The unit is installed but deliberately NOT enabled in 80-guacamole.preset
 # and there is no guacamole-mpss-start hook: enabling it on the phone is the
 # opt-in.  Everything else (including the preset) is unchanged.
+# pkgrel 18 adds the guacamole-chgctrl CLI and persistent custom charge windows.
 # Reference: <https://postmarketos.org/devicepkg>
 # Co-Maintainer: Uclydde <julianbraha@gmail.com>
 maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=17
+pkgrel=18
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -136,6 +137,8 @@ package() {
 
 	# Charge policy (USB PD contract, DCP, thermal throttling, charge window)
 	install -Dm755 "$srcdir/guacamole-chgctrl.daemon" "$pkgdir/usr/libexec/guacamole-chgctrl"
+	install -d "$pkgdir/usr/bin"
+	ln -s ../libexec/guacamole-chgctrl "$pkgdir/usr/bin/guacamole-chgctrl"
 	install -Dm644 "$srcdir/guacamole-chgctrl.confd" "$pkgdir/etc/conf.d/guacamole-chgctrl"
 	install -Dm644 "$srcdir/guacamole-chgctrl.service" \
 		"$pkgdir/usr/lib/systemd/system/guacamole-chgctrl.service"
@@ -290,7 +293,7 @@ e6865de7f3d4eea9462bc59ee70a053a13d0a348fd94a21e437357d4dd171897906828ddcc102c96
 ed438f9b2351b7c166250219a06c0b5301c9cd9702e5b963c37ab6ca9aa2544616d171e0b716028496fdf225eb11255166abde60c1ccb186f1d889f5be2838a3  guacamole-mss-release
 205682af2933ff65b7e0f5dd4797377a09cefb1ebdb7baccf5d9850a50bce7a47301d459a44d76485e8dda9bbd19ca75f08afe6d09d34302bd259ce9b8ad0ecc  guacamole-mss-release.service
 9da8768a3c86029b90bd54b433b688d5c91410116cc00b6d9650ab15697e5ec0ff9e44b81d83b70cfac34187c2fac525ddea427a12d48ea0df8498597bc5d494  guacamole-chgctrl.initd
-7ce4c5e452958af3947851bf6c61eb77fda3749abf9661cab8225cf1de1526634351c4b9d215ce6f4aed2f9849734ef20f05f5df2615317272a739703cc8f8ae  guacamole-chgctrl.daemon
+d2db32991d28be768b22c82532aee3e1f0fb91d50c73c96d561ea8ca1e2aa024c31365b5c433efaa8b6c3c90e00f137a29125fcbbd34dda7ac41b1534861555c  guacamole-chgctrl.daemon
 67167a447037b041d05e12191ce3e881c6c5e76e5a5a71f5914daccf048aa732bac8b33f48f861ec6460545e36835af0e9e85e2545a2f37e16cae4c51aed17b7  guacamole-chgctrl.confd
 450c485ba61fbe40ba3117ea3843af781928c59ab7a1b6298966c98c059633521d4ed796ce5854d1225713fd042e1db6b3a7ec9200758005b632ec34e71950b3  guacamole-chgctrl.service
 77bad4237af6081f9bdf094def889ff6b7303d63770da489c30d75e7104303d341cdea375e5d4e0fc26a61830590618b7c52747ef7d8f9a95e4630d75810c1f8  80-guacamole.preset

@@ -9,6 +9,10 @@ booted rc3 (`7.0.0-sm8150-rc3`) and what still has to be verified on the phone.
 The integration lives in `flows/rc4/` (see `flows/rc4/README.md` for the exact
 build commands and `flows/rc4/REVIEW.md` for the review record).
 
+GPU follow-up for the next RC: [measured faults, symbolized Phoc crash and
+candidate fixes](NURA_GPU_FAULTS.md). The 2026-11-14 research is a proposal;
+its GPU candidates are not integrated or hardware-validated fixes.
+
 ## 0. rc4b: hardware results and corrections (2026-11-13)
 
 rc4 was built and RAM-booted (`fastboot boot`, nothing flashed) on the phone

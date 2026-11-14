@@ -345,3 +345,25 @@ kernel/device/firmware pins and `discover-backend-apk`.
   Software installs);
 * the boot-slot unit on this rootfs;
 * the `fastboot flash userdata` step.
+
+## Persistent charge limits (device package 4-r18)
+
+The rc4 device package exposes the existing charging policy as a CLI:
+
+```sh
+sudo guacamole-chgctrl limit 75 80
+guacamole-chgctrl status
+```
+
+Arguments are resume then stop percentages: `0 <= resume < stop <= 100`.
+For example, `limit 60 85` resumes at 60% and inhibits input at 85%.
+`limit 0 100` permits full charging while keeping thermal protections.
+The setter requires systemd and root, saves a dedicated service drop-in and
+restarts `guacamole-chgctrl.service`. Changes survive reboot of that rootfs.
+Inspect configured values with `systemctl show guacamole-chgctrl.service -p Environment`.
+
+Fresh builds include the CLI but default to full charging; previously chosen
+limits are not copied automatically when replacing the rootfs. The current
+hardware mechanism suspends charger input, so the phone runs from battery
+while held. Polling and system suspend can delay threshold enforcement.
+Setting limits is not evidence of a validated stop/resume cycle on hardware.
