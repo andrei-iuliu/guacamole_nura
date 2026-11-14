@@ -1201,15 +1201,26 @@ PY
 }
 
 package_version() {
-    local name="$1" value
+    local name="$1" value f v
     local -a files=() package_dirs=("$PKGDIR")
     local noarch="$WORK/packages/$CHANNEL/noarch"
     [[ ! -d "$noarch" ]] || package_dirs+=("$noarch")
     mapfile -t files < <(
         find "${package_dirs[@]}" -maxdepth 1 -type f -name "${name}-[0-9]*.apk"
     )
-    (( ${#files[@]} == 1 )) ||
-        die "expected exactly one built $name APK in $PKGDIR or $noarch, found ${#files[@]}"
+    (( ${#files[@]} >= 1 )) ||
+        die "expected a built $name APK in $PKGDIR or $noarch, found none"
+    if (( ${#files[@]} > 1 )); then
+        # Stale builds stay in the local repo; apk installs the highest
+        # version, so report that one (sort -V on the version suffix).
+        mapfile -t files < <(
+            for f in "${files[@]}"; do
+                v="${f##*/}"; v="${v#"$name"-}"; printf '%s\t%s\n' "${v%.apk}" "$f"
+            done | sort -V -k1,1 | cut -f2
+        )
+        printf 'note: %d %s APKs found, using %s\n' "${#files[@]}" "$name" "${files[-1]##*/}" >&2
+        files=("${files[-1]}")
+    fi
     value="${files[0]##*/}"
     value="${value#"$name"-}"
     printf '%s' "${value%.apk}"
