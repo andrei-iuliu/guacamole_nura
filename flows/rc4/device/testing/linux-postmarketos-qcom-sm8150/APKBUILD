@@ -22,6 +22,12 @@
 #        it even though the release string does not change;
 #   0072 guacamole PM8150 PON reboot modes (reboot --reboot-argument=bootloader
 #        reaches the ABL as fastboot instead of a warm reset).
+# rc4j (pkgrel 13) adds:
+#   0073 drm/msm: align kernel-managed GPU VAs to 64 KiB, with a PAGE_SIZE
+#        retry on -ENOSPC (freedreno list 2026-11-09 msg48724, questioned by
+#        the maintainer).  Experimental candidate for the A640 CCU translation
+#        faults: it changes the Image and its BTF, the release string does not
+#        change, so reinstall the module tree with it.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -29,7 +35,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=12
+pkgrel=13
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -126,6 +132,7 @@ source="
 	0070-drm-msm-recover-hw-before-retire-hung-submit.patch
 	0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
 	0072-arm64-dts-guacamole-pon-reboot-modes.patch
+	0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -240,4 +247,5 @@ a4b7404c9af760dd953bd62122c8f6547524380db66826306e5f15424317c5d836f75d8b7b7aa791
 6424b3e2b5abb2c8e09a266524b5d8e3a3dadd2eb8f1b892ba41a6fefac90d69d9924d05d48040da72624405188016faa58435b6bd97527399ebaa6f9ae3a0a8  0070-drm-msm-recover-hw-before-retire-hung-submit.patch
 56a7ba1f51b476ea39818362ec32fb84b74a074bfa894935acb794b1834587ea99fceb0ec0c93d39f5a3587349a19b42460fc7d1c3b1221d231e0864df03274e  0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
 92cd2c06ab6d1581f254009d1f0763e8d3d647503540ed3bbea93aa2caa279f50830866dfa2fc7dcbf652387999477665cbbb48b5e1312388cefe617c1d78cb2  0072-arm64-dts-guacamole-pon-reboot-modes.patch
+bb5f97f86bf375c1eeb206a7c7d09ddf9d3718f7a1d352db7148c53b3d30a72aecd22a7f0d6a452dd74534439129d98c9e2c54295495f23098d278f6e355ad89  0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
 "

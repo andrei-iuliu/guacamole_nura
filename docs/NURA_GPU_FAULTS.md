@@ -2,6 +2,9 @@
 
 Research updated 2026-11-14. **Proposal only: no GPU patch, refresh-rate
 change or persistent renderer override was applied by this investigation.**
+The one kernel-side candidate, the 64 KiB managed-VA alignment, is now
+recipe patch 0073 in the next RC candidate (see "rc4j candidate" below); it
+is experimental and not a validated default.
 
 Recommendation: review a small Phoc thumbnail guard as a separate recovery
 fix, and test the matching 64 KiB managed-VA alignment proposal as an
@@ -131,6 +134,40 @@ source access was unavailable through the web tool, limiting status checks.
 **Use `sysmem`, not `nogmem`.** The external report mentions nogmem, but
 that flag is absent from our 26.2.6 source. The earlier nogmem suggestion was
 not run. Phoc recovery and GPU fault prevention are separate inclusion items.
+
+### rc4j candidate: recipe patch 0073 (64 KiB kernel-managed GPU VA)
+
+The next RC's kernel recipe carries the alignment proposal as patch
+`0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch` (`Nura-Category:
+experimental`, `Nura-Origin: freedreno list 2026-11-09 msg48724`, maintainer
+reply msg48725). It is one hunk in `msm_gem_vma_new()`: a kernel-managed
+object is inserted into the VM's `drm_mm` with `SZ_64K` alignment, and the
+insert is retried with `PAGE_SIZE` when the aligned attempt returns
+`-ENOSPC`. The retry is what keeps the GMU working: `gmu->vm` is a managed VM
+and three of its allocations use exact windows (`dummy`
+`[0x60000000,0x60001000)`, `icache` `[0x4000,0x40000)`, `dcache`
+`[0x44000,0x80000)`) in which no 64 KiB-aligned start fits. User (VM_BIND)
+VMs are created with `managed=false` and never enter that branch, so no
+userspace address changes. Mesa, Phoc, Phosh and the panel mode are
+untouched.
+
+Verified for the recipe only: the patch applies to the 0001-0072 tree with
+`patch -p1 --fuzz=0` (no offsets) and `drivers/gpu/drm/msm/msm_gem_vma.o`
+compiles with no diagnostics at default and at `W=1`. Nothing was booted.
+
+How to A/B it, both arms with the same Mesa 26.2.6, Phoc 0.58.0, Phosh and
+display mode, normal GMEM rendering, and no `sysmem`/`inorder` in either arm:
+
+1. Two temporary boot images from the same recipe: `pkgrel=13` with 0073 and
+   `pkgrel=12` without it. The release string is identical, so label images
+   and module trees by hash and install the matching modules per arm.
+2. Run the fixed workload from item 2 below in each arm, at least three
+   logins per arm, and record per-login fault count, fault addresses,
+   recoveries, userspace cores and visible damage.
+3. Compare: the hypothesis predicts that the faults at
+   `round_down(target, 64K)` disappear in the 0073 arm and remain in the
+   control arm. A residual fault set, a GMU probe failure (`-ENOSPC` in
+   dmesg) or any boot/suspend regression rejects the arm.
 
 ## Proposed validation before inclusion
 
