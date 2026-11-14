@@ -51,7 +51,7 @@ KLOG_STOP_EXTRA = """\
 """
 
 VERSIONS = """\
-device-oneplus-guacamole-4-r19
+device-oneplus-guacamole-4-r20
 linux-postmarketos-qcom-sm8150-7.0.0-r0
 mesa-26.2.6-r0
 mesa-dri-gallium-26.2.6-r0
@@ -247,7 +247,7 @@ class GpuSoakTest(FakeRootMixin, unittest.TestCase):
         start = (snap / "start.txt").read_text()
         for line in ("boot_id=boot-1234", "kernel=7.0.0-r0",
                      "mesa=26.2.6-r0", "phoc=0.58.0-r0",
-                     "phosh=99990.58.0-r0", "device=4-r19",
+                     "phosh=99990.58.0-r0", "device=4-r20",
                      "gpu_mode=sysmem", "refresh_hz=90",
                      "kernel_log=dmesg", "gpu_faults=2",
                      "hangcheck_recovers=1", "devcoredump_captures=0"):
@@ -315,7 +315,7 @@ class GpuSoakTest(FakeRootMixin, unittest.TestCase):
 class PackagingTest(unittest.TestCase):
     def test_device_package_installs_the_tools(self):
         text = APKBUILD.read_text()
-        self.assertRegex(text, r"(?m)^pkgrel=19$")
+        self.assertRegex(text, r"(?m)^pkgrel=20$")
         for name in (str(MODE), str(SOAK), str(PROFILE), str(LOGCONF)):
             self.assertTrue(os.access(name, os.R_OK), name)
         self.assertTrue(os.access(MODE, os.X_OK), "nura-gpu-mode is not executable")
