@@ -1,0 +1,27 @@
+# Mark the running A/B slot successful in the GPT so ABL stops spending a
+# boot retry on it.  Linux has no boot-control HAL: without this the retry
+# counter of the slot runs down on every boot until ABL marks the slot
+# unbootable.  Same method as omarchy-mobile's guacamole-boot-slot (one
+# attribute bit in boot_<slot> in both GPT copies, CRCs updated, refuses
+# inconsistent tables, an unbootable slot or two active slots).
+#
+# Started by guacamole-boot-slot.timer two minutes after boot, and only if
+# the graphical session's display manager is running (plasma-mobile.service
+# on Plasma, greetd.service on Phosh, both aliased as display-manager), so a
+# kernel that never reaches the UI still spends its retries and ABL can fall
+# back.  `fastboot set_active` clears the bit again.
+#
+# Check by hand: sudo /usr/libexec/guacamole-boot-slot status
+[Unit]
+Description=Mark the current A/B boot slot successful (guacamole)
+After=local-fs.target graphical.target
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/bin/systemctl is-active --quiet display-manager.service
+ExecStart=/usr/libexec/guacamole-boot-slot mark-successful
+StandardOutput=journal
+TimeoutStartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes

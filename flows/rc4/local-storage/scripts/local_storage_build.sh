@@ -9,25 +9,23 @@
 # touches the canonical rc4 boot image, manifest, netboot cache or rootfs.
 #
 # Default is a dry run.  --build executes the user-run/pbootstrap flow.
+# --ui plasma|phosh (or NURA_UI) selects the UI; plasma is the default and
+# keeps the existing .work/local-userdata and build/local-userdata paths.
+# Phosh uses .work/local-userdata-phosh and build/local-userdata-phosh.
 set -Eeuo pipefail
 (( EUID != 0 )) || { echo 'Run as your normal user; pmbootstrap handles privilege.' >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 FLOW_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
-LOCAL_STATE="$FLOW_DIR/.work/local-userdata"
-LOCAL_OUT="$FLOW_DIR/build/local-userdata"
+NURA_UI="${NURA_UI:-plasma}"
 # The rc4 kernel build is produced by flows/rc4/scripts/rc4.sh kernel; this
 # entrypoint never builds the kernel itself and copies only its state.
 # KERNEL_BUILD is the built output (kernel-package/, Image, kernel-inputs.json);
 # KERNEL_SOURCE_STATE is the builder state (linux-*/, output/).  Both are
 # overridable so the rootless fake-builder fixture can drive this preflight.
-KERNEL_STATE="$LOCAL_STATE/kernel-state"
 KERNEL_BUILD="${NURA_KERNEL_BUILD:-$SOURCE_ROOT/flows/rc4/build-source/kernel-output}"
 KERNEL_SOURCE_STATE="${NURA_KERNEL_SOURCE_STATE:-$SOURCE_ROOT/flows/rc4/build-source/kernel-state}"
-ROOTFS_STATE="$LOCAL_STATE/rootfs-state"
-HOOK_STAGE="$LOCAL_STATE/hook-recipe-stage"
-HOOK_RECIPE="$HOOK_STAGE/device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot"
 FLOW_HOOK_RECIPE="$FLOW_DIR/device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot"
 HOOK_VERSION="4.2.1-r5"
 RELEASE=""
@@ -42,7 +40,7 @@ AUTHORIZED_KEY=""
 SNAP_BEFORE=""
 
 usage() {
-    sed -n '2,10p' "$0"
+    sed -n '2,13p' "$0"
 }
 
 die() {
@@ -79,11 +77,31 @@ while (( $# )); do
             shift
             ;;
         --release=*) RELEASE=${1#*=} ;;
+        --ui)
+            (( $# >= 2 )) || die "--ui needs plasma or phosh"
+            NURA_UI=$2
+            shift
+            ;;
+        --ui=*) NURA_UI=${1#*=} ;;
         -h|--help) usage; exit 0 ;;
         *) die "unknown argument: $1" ;;
     esac
     shift
 done
+
+# Separate state/output per UI: a Phosh build never touches the Plasma state.
+case "$NURA_UI" in
+    plasma) UI_SUFFIX="" ;;
+    phosh) UI_SUFFIX="-phosh" ;;
+    *) die "--ui/NURA_UI must be plasma or phosh, got: $NURA_UI" ;;
+esac
+export NURA_UI
+LOCAL_STATE="$FLOW_DIR/.work/local-userdata$UI_SUFFIX"
+LOCAL_OUT="$FLOW_DIR/build/local-userdata$UI_SUFFIX"
+KERNEL_STATE="$LOCAL_STATE/kernel-state"
+ROOTFS_STATE="$LOCAL_STATE/rootfs-state"
+HOOK_STAGE="$LOCAL_STATE/hook-recipe-stage"
+HOOK_RECIPE="$HOOK_STAGE/device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot"
 
 [[ -f "$TOOL" ]] || die "missing local tool: $TOOL"
 [[ -d "$SOURCE_ROOT" ]] || die "missing source checkout: $SOURCE_ROOT"
@@ -299,6 +317,7 @@ stage_hook_recipe() {
 run_rootfs() {
     local -a key_args=()
     [[ -z "$AUTHORIZED_KEY" ]] || key_args=(--authorized-key "$AUTHORIZED_KEY")
+    NURA_UI="$NURA_UI" \
     NURA_SOURCE_ROOT="$SOURCE_ROOT" \
     NURA_ROOTFS_STATE="$ROOTFS_STATE" \
     NURA_ROOTFS_OUT="$LOCAL_OUT" \
@@ -321,6 +340,7 @@ run_boot_image() {
     [[ -f "$initramfs" && ! -L "$initramfs" ]] || die "missing local initramfs: $initramfs"
     [[ -f "$rootfs_image" && ! -L "$rootfs_image" ]] || die "missing local rootfs image: $rootfs_image"
     [[ -d "$rootfs_tree" && ! -L "$rootfs_tree" ]] || die "missing local rootfs tree: $rootfs_tree"
+    NURA_UI="$NURA_UI" \
     NURA_SOURCE_ROOT="$SOURCE_ROOT" \
     NURA_LOCAL_OUT="$LOCAL_OUT" \
     NURA_KERNEL_DIR="$KERNEL_BUILD/kernel-package" \
@@ -339,14 +359,16 @@ run_boot_image() {
 check_ready() {
     local manifest="$LOCAL_OUT/DELIVERY.local.json"
     [[ -f "$manifest" ]] || die "local boot wrapper did not write final manifest: $manifest"
-    NURA_HELPER_SCRIPTS="$HELPER_SCRIPTS" python3 "$TOOL" check --manifest "$manifest"
+    NURA_UI="$NURA_UI" NURA_HELPER_SCRIPTS="$HELPER_SCRIPTS" python3 "$TOOL" check --manifest "$manifest"
     note "final local manifest: $manifest"
     note "final boot image: $LOCAL_OUT/boot/boot.img"
+    note "rootfs image ($NURA_UI): $ROOTFS_STATE/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img"
     note "intermediate rootfs record: $LOCAL_OUT/ROOTFS-INTERMEDIATE.txt (not a boot manifest)"
 }
 
 if (( ! BUILD )); then
     echo "=== local-userdata build plan (dry run) ==="
+    echo "ui:                 $NURA_UI"
     echo "source checkout:    $SOURCE_ROOT"
     echo "flow directory:     $FLOW_DIR"
     echo "isolated state:     $LOCAL_STATE"

@@ -247,6 +247,23 @@ bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
 bash flows/rc4/scripts/rc4.sh bootimg
 ```
 
+**UI variants.** Step 2 takes `--ui plasma|phosh` (default `plasma`). Both
+images use the same rc4h kernel and device package 4-r16, which adds:
+
+* the A/B slot marker `guacamole-boot-slot.timer`;
+* the Plasma corner preset;
+* exact kernel/device/firmware pins in `/etc/apk/world`;
+* a graphical package manager (Discover with its apk backend on Plasma,
+  GNOME Software with its apk plugin on Phosh);
+* the PulseAudio backend.
+
+Phosh state and output go to `*-phosh` directories. See `docs/NURA_PHOSH.md`
+for the build and install commands and for the fallback to Plasma:
+
+```bash
+bash flows/rc4/scripts/rc4.sh rootfs --ui phosh --authorized-key /absolute/path/to/key.pub
+```
+
 None of these commands flashes, boots, mounts, repartitions or restarts
 anything, and the userdata upgrade path is deliberately not automated: the
 user already has a local Linux on `userdata`, and the delivery method for the

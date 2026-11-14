@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Validate and record the isolated Plasma Mobile candidate.
+"""Validate and record the isolated Plasma Mobile or Phosh candidate.
+
+The UI is selected with NURA_UI=plasma|phosh (default plasma, which keeps
+every Plasma constant and check exactly as before).  Phosh uses the same rc4
+kernel, device/firmware packages, pinned libcamera, ModemManager, audio
+backend (PulseAudio) and app-store/world pins; only the UI package, its
+candidate-only policy files and the UI identity checks differ.
 
 This helper is host-only.  It never runs pmbootstrap, sudo, a phone command or
 a mount.  It is called by ``scripts/rootfs_prepare_plasma.sh`` and
@@ -55,11 +61,65 @@ RELEASE_PATTERN = re.compile(
     r"7\.0\.0-sm8150-(?:guacamole-rc[0-9]+|rc[0-9]+|rear[0-9]+)")
 # rc4 keeps the rc/rear rollback names valid; the release this flow builds is
 # 7.0.0-sm8150-guacamole-rc4.
-RELEASE_SERIES = "nura-plasma"
-RELEASE_CANDIDATE = "nura-plasma-rc4"
+# UI selector.  Everything UI-specific lives in this table; the kernel,
+# device, firmware, libcamera, ModemManager and audio pins are shared.
+UI_PROFILES = {
+    "plasma": {
+        "series": "nura-plasma",
+        "profile": "plasma-mobile",
+        "pmbootstrap_ui": "plasma-mobile",
+        "ui_package": "postmarketos-ui-plasma-mobile",
+        "shell_package": "plasma-mobile",
+        "display_manager": "plasma-mobile.service",
+        "camera_app": "plasma-camera",
+        "logind_conf": "50-nura-plasma-nbd.conf",
+        # Graphical package manager able to install system packages.
+        "app_store": ("discover", "discover-backend-apk"),
+        "forbidden": ("snapshot", "kamoso", "postmarketos-ui-phosh", "phosh", "greetd",
+                      "pipewire-pulse"),
+    },
+    "phosh": {
+        "series": "nura-phosh",
+        "profile": "phosh",
+        "pmbootstrap_ui": "phosh",
+        "ui_package": "postmarketos-ui-phosh",
+        "shell_package": "phosh",
+        "display_manager": "greetd.service",
+        "camera_app": "snapshot",
+        "logind_conf": "50-nura-phosh-nbd.conf",
+        # gnome-software-plugin-apk2 provides gnome-software-plugin-apk in
+        # Alpine edge; gnome-app-provider-gnome-software (pmaports
+        # postmarketos-base-ui-gnome) selects GNOME Software over Bazaar.
+        "app_store": ("gnome-software", "gnome-software-plugin-apk2",
+                      "gnome-app-provider-gnome-software"),
+        "forbidden": ("postmarketos-ui-plasma-mobile", "plasma-mobile", "kamoso",
+                      "pipewire-pulse"),
+    },
+}
+UI = os.environ.get("NURA_UI", "plasma")
+if UI not in UI_PROFILES:
+    print(f"ERROR: NURA_UI must be one of {', '.join(UI_PROFILES)}, got {UI!r}", file=sys.stderr)
+    raise SystemExit(2)
+UI_PROFILE = UI_PROFILES[UI]
+UI_PACKAGE = UI_PROFILE["ui_package"]
+RELEASE_SERIES = UI_PROFILE["series"]
+RELEASE_CANDIDATE = f"{RELEASE_SERIES}-rc4"
 ARTIFACT_NAME = f"{RELEASE_CANDIDATE}-oneplus-guacamole"
 NBD_PORT = 10001
-PROFILE = "plasma-mobile"
+PROFILE = UI_PROFILE["profile"]
+# Packages pinned to their exact built version in /etc/apk/world on both UIs
+# (the kernel pin already existed; device and firmware were pinned by hand on
+# the phone before).
+WORLD_PINNED = ("linux-postmarketos-qcom-sm8150", "device-oneplus-guacamole",
+                "firmware-oneplus-guacamole")
+# Phosh only: gmobile rebuilt with the guacamole display panel compiled in
+# (flows/rc4/device/testing/gmobile).  phosh and phoc link libgmobile.so.0.
+GMOBILE_VERSION = "0.7.4-r100"
+GMOBILE_PANEL_MARKERS = (
+    b"oneplus,guacamole.json",
+    b"qcom,sm8150-mtp.json",
+    b'"name":"OnePlus 7 Pro","x-res":1440,"y-res":3120,"corner-radii":[145,145,145,145]',
+)
 LOCK_ON_START = False
 KERNEL_RECIPE = "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"
 KERNEL_STATE = SOURCE_ROOT / "flows/rc4/build-source/kernel-state"
@@ -68,7 +128,7 @@ BASELINE_STATE = SOURCE_ROOT / ".work/rear-camera"
 BASELINE_BUILD = SOURCE_ROOT / "build/rear-camera"
 CLOCK_EPOCH = "usr/lib/clock-epoch"
 LIBCAMERA_ABI = "99990.8.0-r1"
-CAMERA_APP = "plasma-camera"
+CAMERA_APP = UI_PROFILE["camera_app"]
 CAMERA_APP_LIBCAMERA_ABI = "so:libcamera.so.0.8"
 LIBRARY_REAR = "0.7.2-r0"
 BASELINE_HOOK_VERSION = "4.2.1-r4"
@@ -92,6 +152,16 @@ SYSTEM_LIBCAMERA_APKS = {
 SYSTEM_LIBCAMERA_LIBS = (
     "usr/lib/libcamera.so.0.8.0",
     "usr/lib/libcamera-base.so.0.8.0",
+)
+# Phosh counterpart of the PowerDevil NoAction policy: gnome-settings-daemon
+# (used by Phosh) must not suspend on inactivity either.
+PHOSH_GSETTINGS_OVERRIDE_NAME = "90_nura-phosh-nbd.gschema.override"
+PHOSH_GSETTINGS_OVERRIDE = (
+    "# Candidate-only: no automatic suspend (counterpart of the Plasma\n"
+    "# PowerDevil AutoSuspendAction=NoAction policy).\n"
+    "[org.gnome.settings-daemon.plugins.power]\n"
+    "sleep-inactive-ac-type='nothing'\n"
+    "sleep-inactive-battery-type='nothing'\n"
 )
 POWERDEVIL_CONFIG = (
     "[AC][SuspendAndShutdown]\n"
@@ -612,88 +682,18 @@ def official_remote(pmaports: Path) -> list[str]:
     return urls
 
 
-def prepare_state(args: argparse.Namespace) -> dict:
-    raw_state = Path(args.state)
-    raw_candidate = Path(args.candidate_pmaports)
-    if raw_state.is_symlink():
-        die(f"candidate state must not be a symlink: {raw_state}")
-    if raw_candidate.is_symlink():
-        die(f"candidate pmaports must not be a symlink: {raw_candidate}")
-    state_root = raw_state.resolve()
-    candidate = raw_candidate.resolve()
-    source = Path(args.source_pmaports).resolve()
-    if not candidate.is_dir():
-        die(f"candidate pmaports is not a real directory: {candidate}")
-    if candidate == source:
-        die("candidate pmaports must not be the read-only source tree")
-    cfg = candidate / "pmaports.cfg"
-    if not cfg.is_file():
-        die(f"candidate pmaports is missing pmaports.cfg: {cfg}")
-    text = cfg.read_text(encoding="utf-8")
-    if not re.search(r"^version=7$", text, re.M):
-        die(f"{cfg}: expected pmaports version=7")
-    channel_match = re.search(r"^channel=(.+)$", text, re.M)
-    if not channel_match:
-        die(f"{cfg}: cannot read channel")
-    channel = channel_match.group(1).strip()
-    if not channel:
-        die(f"{cfg}: empty channel")
-    official_remote(candidate)
+LOGIND_NBD_TEXT = (
+    "# Candidate-only NBD trial guard; persists until the candidate state is rebuilt.\n"
+    "[Login]\n"
+    "IdleAction=ignore\n"
+    "IdleActionSec=0\n"
+    "HandleSuspendKey=ignore\n"
+    "HandleHibernateKey=ignore\n"
+)
 
-    links = {
-        "device/testing/device-oneplus-guacamole": "device/testing/device-oneplus-guacamole",
-        "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
-        "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
-        "main/hexagonrpcd": "device/testing/hexagonrpcd",
-        "main/iio-sensor-proxy": "device/testing/iio-sensor-proxy",
-        "main/postmarketos-mkinitfs-hook-netboot":
-            "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot",
-        "temp/libcamera-rear": "device/testing/rear-camera/libcamera-rear",
-        "main/modemmanager": "device/testing/rc3/modemmanager",
-    }
-    optional_links = {
-        "main/nura-clock": "device/testing/nura-clock",
-    }
-    for relative, target in optional_links.items():
-        if (ROOT / target / "APKBUILD").is_file():
-            links[relative] = target
-    resolved_links: dict[str, str] = {}
-    for relative, target in links.items():
-        link = candidate / relative
-        target_path = (ROOT / target).resolve()
-        if not target_path.is_dir() or not (target_path / "APKBUILD").is_file():
-            die(f"missing rc3 recipe target: {target_path}/APKBUILD")
-        if link.is_symlink():
-            link.unlink()
-        elif link.exists():
-            die(f"{link} is a real path, not the expected local recipe symlink")
-        relative_target = os.path.relpath(target_path, link.parent)
-        link.symlink_to(relative_target, target_is_directory=True)
-        if link.resolve() != target_path:
-            die(f"{link} does not resolve to {target_path}")
-        resolved_links[relative] = relative_target
 
-    # The system libcamera 0.8 patches live in pmaports/temp/libcamera.  They
-    # must be present in the isolated tree; the private 0.7.2 recipe is
-    # separate and must never replace this ABI.
-    libcamera = candidate / "temp/libcamera"
-    if libcamera.is_symlink() or not libcamera.is_dir():
-        die(f"candidate pmaports is missing the system libcamera 0.8 recipe: {libcamera}")
-    libcamera_apkbuild = libcamera / "APKBUILD"
-    if libcamera_apkbuild.is_symlink():
-        die(f"system libcamera APKBUILD must not be a symlink: {libcamera_apkbuild}")
-    if not libcamera_apkbuild.is_file():
-        die(f"missing system libcamera APKBUILD: {libcamera_apkbuild}")
-    libcamera_text = libcamera_apkbuild.read_text(encoding="utf-8")
-    if "_pkgver=0.8.0" not in libcamera_text or "pkgver=9999$_pkgver" not in libcamera_text:
-        die("system libcamera recipe is not the pinned 99990.8.0 source")
-    for patch in (
-        "0001-libcamera-software_isp-Allow-limiting-output-sizes.patch",
-        "0002-libcamera-Add-quad-Bayer-CFA-layout-support.patch",
-    ):
-        if not (libcamera / patch).is_file():
-            die(f"system libcamera recipe is missing {patch}")
-
+def prepare_plasma_ui(candidate: Path) -> tuple[Path, dict]:
+    """Candidate-only Plasma policy: unlocked first boot, no idle suspend."""
     ui = candidate / "main/postmarketos-ui-plasma-mobile"
     ui_apkbuild = ui / "APKBUILD"
     lockfile = ui / "kscreenlockerrc"
@@ -705,14 +705,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
     if "kscreenlockerrc" not in ui_text or 'etc/xdg' not in ui_text:
         die(f"{ui_apkbuild} does not install kscreenlockerrc to /etc/xdg")
     logind_conf = ui / "50-nura-plasma-nbd.conf"
-    logind_text = (
-        "# Candidate-only NBD trial guard; persists until the candidate state is rebuilt.\n"
-        "[Login]\n"
-        "IdleAction=ignore\n"
-        "IdleActionSec=0\n"
-        "HandleSuspendKey=ignore\n"
-        "HandleHibernateKey=ignore\n"
-    )
+    logind_text = LOGIND_NBD_TEXT
     if logind_conf.is_symlink():
         die(f"candidate logind drop-in must not be a symlink: {logind_conf}")
     write_atomic(logind_conf, logind_text)
@@ -787,6 +780,182 @@ def prepare_state(args: argparse.Namespace) -> dict:
         else:
             lines.insert(lock_lines[0] + 1, f"{checksum}  {filename}\n")
     write_atomic(ui_apkbuild, "".join(lines))
+    return ui_apkbuild, {
+        "lock_on_start": LOCK_ON_START,
+        "kscreenlockerrc_sha512": lock_sha,
+        "logind_conf_sha512": logind_sha,
+        "powerdevil_conf_sha512": powerdevil_sha,
+    }
+
+
+def _add_ui_source(ui_text: str, ui_apkbuild: Path, filename: str, install_line: str,
+                   anchor_source: str, anchor_install: str) -> str:
+    """Add one source file + install line to a UI APKBUILD (idempotent)."""
+    if not re.search(r"^[ \t]*" + re.escape(filename) + r"[ \t]*$", ui_text, re.M):
+        ui_text, replaced = re.subn(anchor_source, r"\1\n\t" + filename, ui_text, count=1, flags=re.M)
+        if replaced != 1:
+            die(f"{ui_apkbuild}: cannot add {filename} to source=")
+    if install_line not in ui_text:
+        ui_text, replaced = re.subn(anchor_install, lambda m: m.group(1) + "\n" + install_line,
+                                    ui_text, count=1, flags=re.M)
+        if replaced != 1:
+            die(f"{ui_apkbuild}: cannot add {filename} to package()")
+    return ui_text
+
+
+def _set_sha512(ui_text: str, ui_apkbuild: Path, checksums: dict[str, str]) -> str:
+    lines = ui_text.splitlines(keepends=True)
+    try:
+        start = next(i for i, line in enumerate(lines) if line.startswith('sha512sums="'))
+    except StopIteration:
+        die(f"{ui_apkbuild}: no sha512sums block")
+    for filename, checksum in checksums.items():
+        indices = [i for i, line in enumerate(lines) if line.rstrip("\n").endswith("  " + filename)]
+        if len(indices) > 1:
+            die(f"{ui_apkbuild}: duplicate {filename} sha512sum entries")
+        if indices:
+            lines[indices[0]] = f"{checksum}  {filename}\n"
+        else:
+            lines.insert(start + 1, f"{checksum}  {filename}\n")
+    return "".join(lines)
+
+
+def prepare_phosh_ui(candidate: Path) -> tuple[Path, dict]:
+    """Candidate-only Phosh policy, the counterpart of the Plasma one: the
+    same logind idle/suspend-key guard and no gnome-settings-daemon idle
+    suspend.  Phosh has no LockOnStart equivalent: the phrog greeter asks for
+    the user's password on every boot."""
+    ui = candidate / "main/postmarketos-ui-phosh"
+    ui_apkbuild = ui / "APKBUILD"
+    if not ui_apkbuild.is_file():
+        die(f"candidate pmaports is missing the Phosh UI recipe: {ui}")
+    if ui_apkbuild.is_symlink():
+        die(f"candidate Phosh UI recipe files must not be symlinks: {ui}")
+    ui_text = ui_apkbuild.read_text(encoding="utf-8")
+    if "01_postmarketos-ui-phosh.gschema.override" not in ui_text:
+        die(f"{ui_apkbuild} is not the expected postmarketos-ui-phosh recipe")
+    logind_name = UI_PROFILE["logind_conf"]
+    logind_conf = ui / logind_name
+    override = ui / PHOSH_GSETTINGS_OVERRIDE_NAME
+    for path in (logind_conf, override):
+        if path.is_symlink():
+            die(f"candidate Phosh policy file must not be a symlink: {path}")
+    write_atomic(logind_conf, LOGIND_NBD_TEXT)
+    write_atomic(override, PHOSH_GSETTINGS_OVERRIDE)
+    source_anchor = r"^([ \t]*01_postmarketos-ui-phosh\.gschema\.override[ \t]*)$"
+    install_anchor = r'^([ \t]*-t "\$pkgdir"/usr/share/glib-2\.0/schemas/[ \t]*)$'
+    ui_text = _add_ui_source(
+        ui_text, ui_apkbuild, logind_name,
+        f'\tinstall -Dm644 "$srcdir"/{logind_name} -t "$pkgdir"/etc/systemd/logind.conf.d',
+        source_anchor, install_anchor)
+    ui_text = _add_ui_source(
+        ui_text, ui_apkbuild, PHOSH_GSETTINGS_OVERRIDE_NAME,
+        f'\tinstall -Dm644 "$srcdir"/{PHOSH_GSETTINGS_OVERRIDE_NAME} '
+        '-t "$pkgdir"/usr/share/glib-2.0/schemas/',
+        source_anchor, install_anchor)
+    logind_sha = sha512(logind_conf)
+    override_sha = sha512(override)
+    ui_text = _set_sha512(ui_text, ui_apkbuild, {
+        logind_name: logind_sha,
+        PHOSH_GSETTINGS_OVERRIDE_NAME: override_sha,
+    })
+    write_atomic(ui_apkbuild, ui_text)
+    return ui_apkbuild, {
+        "lock_on_start": None,
+        "logind_conf_sha512": logind_sha,
+        "gsettings_override_sha512": override_sha,
+    }
+
+
+def prepare_state(args: argparse.Namespace) -> dict:
+    raw_state = Path(args.state)
+    raw_candidate = Path(args.candidate_pmaports)
+    if raw_state.is_symlink():
+        die(f"candidate state must not be a symlink: {raw_state}")
+    if raw_candidate.is_symlink():
+        die(f"candidate pmaports must not be a symlink: {raw_candidate}")
+    state_root = raw_state.resolve()
+    candidate = raw_candidate.resolve()
+    source = Path(args.source_pmaports).resolve()
+    if not candidate.is_dir():
+        die(f"candidate pmaports is not a real directory: {candidate}")
+    if candidate == source:
+        die("candidate pmaports must not be the read-only source tree")
+    cfg = candidate / "pmaports.cfg"
+    if not cfg.is_file():
+        die(f"candidate pmaports is missing pmaports.cfg: {cfg}")
+    text = cfg.read_text(encoding="utf-8")
+    if not re.search(r"^version=7$", text, re.M):
+        die(f"{cfg}: expected pmaports version=7")
+    channel_match = re.search(r"^channel=(.+)$", text, re.M)
+    if not channel_match:
+        die(f"{cfg}: cannot read channel")
+    channel = channel_match.group(1).strip()
+    if not channel:
+        die(f"{cfg}: empty channel")
+    official_remote(candidate)
+
+    links = {
+        "device/testing/device-oneplus-guacamole": "device/testing/device-oneplus-guacamole",
+        "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
+        "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
+        "main/hexagonrpcd": "device/testing/hexagonrpcd",
+        "main/iio-sensor-proxy": "device/testing/iio-sensor-proxy",
+        "main/postmarketos-mkinitfs-hook-netboot":
+            "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot",
+        "temp/libcamera-rear": "device/testing/rear-camera/libcamera-rear",
+        "main/modemmanager": "device/testing/rc3/modemmanager",
+    }
+    optional_links = {
+        "main/nura-clock": "device/testing/nura-clock",
+    }
+    if UI == "phosh":
+        # Patched gmobile (guacamole display panel); Phosh image only.
+        links["main/gmobile"] = "device/testing/gmobile"
+    for relative, target in optional_links.items():
+        if (ROOT / target / "APKBUILD").is_file():
+            links[relative] = target
+    resolved_links: dict[str, str] = {}
+    for relative, target in links.items():
+        link = candidate / relative
+        target_path = (ROOT / target).resolve()
+        if not target_path.is_dir() or not (target_path / "APKBUILD").is_file():
+            die(f"missing rc3 recipe target: {target_path}/APKBUILD")
+        if link.is_symlink():
+            link.unlink()
+        elif link.exists():
+            die(f"{link} is a real path, not the expected local recipe symlink")
+        relative_target = os.path.relpath(target_path, link.parent)
+        link.symlink_to(relative_target, target_is_directory=True)
+        if link.resolve() != target_path:
+            die(f"{link} does not resolve to {target_path}")
+        resolved_links[relative] = relative_target
+
+    # The system libcamera 0.8 patches live in pmaports/temp/libcamera.  They
+    # must be present in the isolated tree; the private 0.7.2 recipe is
+    # separate and must never replace this ABI.
+    libcamera = candidate / "temp/libcamera"
+    if libcamera.is_symlink() or not libcamera.is_dir():
+        die(f"candidate pmaports is missing the system libcamera 0.8 recipe: {libcamera}")
+    libcamera_apkbuild = libcamera / "APKBUILD"
+    if libcamera_apkbuild.is_symlink():
+        die(f"system libcamera APKBUILD must not be a symlink: {libcamera_apkbuild}")
+    if not libcamera_apkbuild.is_file():
+        die(f"missing system libcamera APKBUILD: {libcamera_apkbuild}")
+    libcamera_text = libcamera_apkbuild.read_text(encoding="utf-8")
+    if "_pkgver=0.8.0" not in libcamera_text or "pkgver=9999$_pkgver" not in libcamera_text:
+        die("system libcamera recipe is not the pinned 99990.8.0 source")
+    for patch in (
+        "0001-libcamera-software_isp-Allow-limiting-output-sizes.patch",
+        "0002-libcamera-Add-quad-Bayer-CFA-layout-support.patch",
+    ):
+        if not (libcamera / patch).is_file():
+            die(f"system libcamera recipe is missing {patch}")
+
+    if UI == "plasma":
+        ui_apkbuild, ui_policy = prepare_plasma_ui(candidate)
+    else:
+        ui_apkbuild, ui_policy = prepare_phosh_ui(candidate)
 
     source_cfg = Path(args.source_config)
     candidate_cfg = Path(args.candidate_config)
@@ -795,7 +964,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         if path.is_symlink():
             die(f"{label} must not be a symlink: {path}")
         if not str(path.resolve()).startswith(str(state_root) + os.sep):
-            die(f"{label} is outside the Plasma state: {path}")
+            die(f"{label} is outside the candidate state: {path}")
     source_parser = configparser.ConfigParser(interpolation=None)
     try:
         source_parser.read(source_cfg, encoding="utf-8")
@@ -816,9 +985,9 @@ def prepare_state(args: argparse.Namespace) -> dict:
         die(f"candidate work dir must not be a symlink: {raw_work}")
     work = raw_work.resolve()
     if not str(candidate).startswith(str(state_root) + os.sep):
-        die(f"candidate pmaports is outside the Plasma state: {candidate}")
+        die(f"candidate pmaports is outside the candidate state: {candidate}")
     if not str(work).startswith(str(state_root) + os.sep):
-        die(f"candidate work dir is outside the Plasma state: {work}")
+        die(f"candidate work dir is outside the candidate state: {work}")
     config = configparser.ConfigParser(interpolation=None)
     config["pmbootstrap"] = {
         "aports": str(candidate),
@@ -831,7 +1000,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "service_manager": "systemd",
         "ssh_keys": "false",
         "timezone": "UTC",
-        "ui": "plasma-mobile",
+        "ui": UI_PROFILE["pmbootstrap_ui"],
         "user": "user",
         "work": str(work),
     }
@@ -892,10 +1061,9 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "candidate_config": str(candidate_cfg.resolve()),
         "work": str(work),
         "channel": channel,
-        "lock_on_start": LOCK_ON_START,
-        "kscreenlockerrc_sha512": lock_sha,
-        "logind_conf_sha512": logind_sha,
-        "powerdevil_conf_sha512": powerdevil_sha,
+        "ui": UI,
+        "ui_package": UI_PACKAGE,
+        **ui_policy,
         "ui_apkbuild_sha256": digest(ui_apkbuild),
         "libcamera_apkbuild_sha256": digest(libcamera_apkbuild),
         "local_links": resolved_links,
@@ -920,6 +1088,121 @@ def installed_packages(rootfs: Path) -> dict[str, dict]:
         if "P" in fields:
             packages[fields["P"]] = fields
     return packages
+
+
+def verify_plasma_policy(rootfs: Path) -> None:
+    lockfile = rootfs / "etc/xdg/kscreenlockerrc"
+    if not lockfile.is_file():
+        die(f"installed rootfs has no {lockfile}")
+    lock_text = lockfile.read_text(encoding="utf-8")
+    if not re.search(r"^LockOnStart=false$", lock_text, re.M) or re.search(
+        r"^LockOnStart=true$", lock_text, re.M
+    ):
+        die("installed kscreenlockerrc does not have the candidate-only LockOnStart=false")
+    logind_conf = rootfs / "etc/systemd/logind.conf.d/50-nura-plasma-nbd.conf"
+    if not logind_conf.is_file():
+        die(f"installed rootfs is missing the candidate NBD logind guard: {logind_conf}")
+    if "IdleAction=ignore" not in logind_conf.read_text(encoding="utf-8"):
+        die("installed NBD logind guard does not disable the idle action")
+    powerdevil_conf = rootfs / "etc/xdg/powerdevilrc"
+    if not powerdevil_conf.is_file():
+        die(f"installed rootfs is missing the candidate PowerDevil policy: {powerdevil_conf}")
+    powerdevil_text = powerdevil_conf.read_text(encoding="utf-8")
+    for profile in ("AC", "Battery", "LowBattery"):
+        group = f"[{profile}][SuspendAndShutdown]"
+        if group not in powerdevil_text or "AutoSuspendAction=0" not in powerdevil_text.split(group, 1)[1].split("[", 1)[0]:
+            die(f"PowerDevil policy does not disable AutoSuspendAction for {profile}")
+
+
+def verify_phosh_policy(rootfs: Path) -> None:
+    logind_conf = rootfs / "etc/systemd/logind.conf.d" / UI_PROFILE["logind_conf"]
+    if not logind_conf.is_file():
+        die(f"installed rootfs is missing the candidate logind guard: {logind_conf}")
+    if "IdleAction=ignore" not in logind_conf.read_text(encoding="utf-8"):
+        die("installed logind guard does not disable the idle action")
+    override = rootfs / "usr/share/glib-2.0/schemas" / PHOSH_GSETTINGS_OVERRIDE_NAME
+    if not override.is_file():
+        die(f"installed rootfs is missing the candidate no-suspend gsettings override: {override}")
+    text = override.read_text(encoding="utf-8")
+    for key in ("sleep-inactive-ac-type='nothing'", "sleep-inactive-battery-type='nothing'"):
+        if key not in text:
+            die(f"{override} does not set {key}")
+
+
+def verify_world_pins(rootfs: Path, packages: dict[str, dict],
+                      expected: dict[str, str | None]) -> dict[str, str]:
+    """/etc/apk/world must pin the kernel, device and firmware packages to the
+    exact installed version (name=version), as was done by hand on the phone,
+    so a plain `apk upgrade` cannot replace them with repository builds."""
+    world_path = rootfs / "etc/apk/world"
+    try:
+        entries = world_path.read_text(encoding="utf-8").split()
+    except OSError as error:
+        die(f"cannot read {world_path}: {error}")
+    pins: dict[str, str] = {}
+    for name in WORLD_PINNED:
+        installed = packages.get(name, {}).get("V")
+        if not installed:
+            die(f"installed rootfs is missing {name}")
+        want = expected.get(name)
+        if want is not None and installed != want:
+            die(f"installed {name} is {installed!r}, expected {want}")
+        matching = [entry for entry in entries
+                    if re.match(re.escape(name) + r"(?:$|[=<>~])", entry)]
+        if matching != [f"{name}={installed}"]:
+            die(f"{world_path} must pin exactly {name}={installed}, found {matching or 'nothing'}; "
+                f"fix on the phone with: sudo apk add {name}={installed}")
+        pins[name] = installed
+    return pins
+
+
+def verify_plasma_camera(rootfs: Path, packages: dict[str, dict]) -> None:
+    # Plasma Camera captures through libcamera directly, so its recorded
+    # dependency must be the same pinned 0.8 ABI as the PipeWire SPA plugin.
+    camera_depends = packages[CAMERA_APP].get("D", "").split()
+    if CAMERA_APP_LIBCAMERA_ABI not in camera_depends:
+        die(
+            f"installed {CAMERA_APP} does not depend on the pinned system "
+            f"libcamera ABI {CAMERA_APP_LIBCAMERA_ABI}"
+        )
+    camera_binary = rootfs / "usr/bin/plasma-camera"
+    if not camera_binary.is_file():
+        die(f"installed {CAMERA_APP} has no executable: {camera_binary}")
+    camera_desktop = rootfs / "usr/share/applications/org.kde.plasma.camera.desktop"
+    if not camera_desktop.is_file():
+        die(f"installed {CAMERA_APP} has no KDE desktop file: {camera_desktop}")
+    # Video recording hands libcamera frames to QMediaRecorder, which needs a
+    # Qt Multimedia backend plugin.  Either the default FFmpeg one or the
+    # GStreamer one is sufficient; both are installed by the candidate today.
+    qt_backends = (
+        rootfs / "usr/lib/qt6/plugins/multimedia/libffmpegmediaplugin.so",
+        rootfs / "usr/lib/qt6/plugins/multimedia/libgstreamermediaplugin.so",
+    )
+    if not any(path.is_file() for path in qt_backends):
+        die(
+            "installed rootfs has no Qt Multimedia backend plugin for "
+            f"{CAMERA_APP} video recording"
+        )
+
+
+def verify_phosh_camera_and_panel(rootfs: Path) -> None:
+    # GNOME Snapshot reaches the cameras through PipeWire's libcamera SPA
+    # plugin, which is pinned to the same libcamera 0.8 ABI above.
+    camera_binary = rootfs / "usr/bin/snapshot"
+    if not camera_binary.is_file():
+        die(f"installed {CAMERA_APP} has no executable: {camera_binary}")
+    # The rounded-corner padding: gmobile only reads panels from its built-in
+    # GResource, so the installed library itself must carry the guacamole
+    # entries (both DT compatibles).
+    libraries = sorted(path for path in (rootfs / "usr/lib").glob("libgmobile.so.0*")
+                       if path.is_file() and not path.is_symlink())
+    if not libraries:
+        die("installed rootfs has no libgmobile.so.0")
+    data = b"".join(path.read_bytes() for path in libraries)
+    for marker in GMOBILE_PANEL_MARKERS:
+        if marker not in data:
+            die(f"installed libgmobile lacks the guacamole display panel ({marker.decode()!r}); "
+                "is the patched gmobile installed?")
 
 
 def verify_installed(args: argparse.Namespace) -> dict:
@@ -970,32 +1253,16 @@ def verify_installed(args: argparse.Namespace) -> dict:
         hook_text = hook.read_text(encoding="utf-8")
         if "pmos\\.root=/dev/nbd" not in hook_text or "exit 0" not in hook_text:
             die(f"installed local rootfs hook lacks the local-root guard: {hook}")
-    lockfile = rootfs / "etc/xdg/kscreenlockerrc"
-    if not lockfile.is_file():
-        die(f"installed rootfs has no {lockfile}")
-    lock_text = lockfile.read_text(encoding="utf-8")
-    if not re.search(r"^LockOnStart=false$", lock_text, re.M) or re.search(
-        r"^LockOnStart=true$", lock_text, re.M
-    ):
-        die("installed kscreenlockerrc does not have the candidate-only LockOnStart=false")
-    logind_conf = rootfs / "etc/systemd/logind.conf.d/50-nura-plasma-nbd.conf"
-    if not logind_conf.is_file():
-        die(f"installed rootfs is missing the candidate NBD logind guard: {logind_conf}")
-    if "IdleAction=ignore" not in logind_conf.read_text(encoding="utf-8"):
-        die("installed NBD logind guard does not disable the idle action")
-    powerdevil_conf = rootfs / "etc/xdg/powerdevilrc"
-    if not powerdevil_conf.is_file():
-        die(f"installed rootfs is missing the candidate PowerDevil policy: {powerdevil_conf}")
-    powerdevil_text = powerdevil_conf.read_text(encoding="utf-8")
-    for profile in ("AC", "Battery", "LowBattery"):
-        group = f"[{profile}][SuspendAndShutdown]"
-        if group not in powerdevil_text or "AutoSuspendAction=0" not in powerdevil_text.split(group, 1)[1].split("[", 1)[0]:
-            die(f"PowerDevil policy does not disable AutoSuspendAction for {profile}")
+    if UI == "plasma":
+        verify_plasma_policy(rootfs)
+    else:
+        verify_phosh_policy(rootfs)
     packages = installed_packages(rootfs)
+    # Shared by both UIs: kernel/system libcamera/ModemManager/audio pins,
+    # and the graphical package manager that can install system packages.
     required = {
-        "postmarketos-ui-plasma-mobile": None,
-        "plasma-mobile": None,
-        CAMERA_APP: None,
+        UI_PACKAGE: args.ui_version,
+        UI_PROFILE["shell_package"]: None,
         "libcamera": LIBCAMERA_ABI,
         "libcamera-ipa": LIBCAMERA_ABI,
         "libcamera-rear": LIBRARY_REAR,
@@ -1004,8 +1271,16 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "xwayland": None,
         "postmarketos-base-ui-audio-backend-pulseaudio": None,
         "systemd": None,
-        "powerdevil": POWERDEVIL_VERSION,
     }
+    for name in UI_PROFILE["app_store"]:
+        required[name] = None
+    if UI == "plasma":
+        required[CAMERA_APP] = None
+        required["powerdevil"] = POWERDEVIL_VERSION
+    else:
+        required[CAMERA_APP] = None
+        required["greetd-phrog"] = None
+        required["gmobile"] = args.gmobile_version or GMOBILE_VERSION
     if args.modemmanager_version:
         required["modemmanager"] = args.modemmanager_version
         # The recipe builds aarch64 modemmanager/libmm-glib plus noarch
@@ -1022,56 +1297,39 @@ def verify_installed(args: argparse.Namespace) -> dict:
             die(f"installed rootfs is missing {name}")
         if version is not None and packages[name].get("V") != version:
             die(f"installed {name} is {packages[name].get('V')!r}, expected {version}")
-    for forbidden in (
-        "snapshot", "kamoso", "postmarketos-ui-phosh", "phosh", "greetd",
-        "pipewire-pulse",
-    ):
+    for forbidden in UI_PROFILE["forbidden"]:
         if forbidden in packages:
             die(f"installed rootfs unexpectedly contains {forbidden}")
-    # KWin starts Xwayland on demand; without it PulseAudio's X11 integration
-    # can stall the server and Qt camera startup on KWin's listening sockets.
+    world_pins = verify_world_pins(rootfs, packages, {
+        "linux-postmarketos-qcom-sm8150": args.kernel_version,
+        "device-oneplus-guacamole": args.device_version,
+        "firmware-oneplus-guacamole": args.firmware_version,
+    })
+    # KWin/phoc start Xwayland on demand; without it PulseAudio's X11
+    # integration can stall the server and Qt camera startup.
     xwayland = rootfs / "usr/bin/Xwayland"
     if not xwayland.is_file() or not xwayland.stat().st_mode & 0o111:
         die("installed rootfs has no executable /usr/bin/Xwayland")
-    # Plasma Camera captures through libcamera directly, so its recorded
-    # dependency must be the same pinned 0.8 ABI as the PipeWire SPA plugin.
-    camera_depends = packages[CAMERA_APP].get("D", "").split()
-    if CAMERA_APP_LIBCAMERA_ABI not in camera_depends:
-        die(
-            f"installed {CAMERA_APP} does not depend on the pinned system "
-            f"libcamera ABI {CAMERA_APP_LIBCAMERA_ABI}"
-        )
-    camera_binary = rootfs / "usr/bin/plasma-camera"
-    if not camera_binary.is_file():
-        die(f"installed {CAMERA_APP} has no executable: {camera_binary}")
-    camera_desktop = rootfs / "usr/share/applications/org.kde.plasma.camera.desktop"
-    if not camera_desktop.is_file():
-        die(f"installed {CAMERA_APP} has no KDE desktop file: {camera_desktop}")
-    # Video recording hands libcamera frames to QMediaRecorder, which needs a
-    # Qt Multimedia backend plugin.  Either the default FFmpeg one or the
-    # GStreamer one is sufficient; both are installed by the candidate today.
-    qt_backends = (
-        rootfs / "usr/lib/qt6/plugins/multimedia/libffmpegmediaplugin.so",
-        rootfs / "usr/lib/qt6/plugins/multimedia/libgstreamermediaplugin.so",
-    )
-    if not any(path.is_file() for path in qt_backends):
-        die(
-            "installed rootfs has no Qt Multimedia backend plugin for "
-            f"{CAMERA_APP} video recording"
-        )
-    if packages["postmarketos-ui-plasma-mobile"].get("V") != args.ui_version:
-        die(
-            "installed postmarketos-ui-plasma-mobile is "
-            f"{packages['postmarketos-ui-plasma-mobile'].get('V')!r}, expected {args.ui_version}"
-        )
+    if UI == "plasma":
+        verify_plasma_camera(rootfs, packages)
+    else:
+        verify_phosh_camera_and_panel(rootfs)
     display_alias = rootfs / "etc/systemd/system/display-manager.service"
     graphical_alias = rootfs / "etc/systemd/system/graphical.target.wants/display-manager.service"
-    if display_alias.is_symlink() and os.readlink(display_alias).endswith("plasma-mobile.service"):
+    dm_unit = UI_PROFILE["display_manager"]
+    if display_alias.is_symlink() and os.readlink(display_alias).endswith(dm_unit):
         pass
-    elif graphical_alias.is_symlink() and os.readlink(graphical_alias).endswith("plasma-mobile.service"):
+    elif graphical_alias.is_symlink() and os.readlink(graphical_alias).endswith(dm_unit):
         pass
     else:
-        die("display-manager.service is not a plasma-mobile.service alias (or graphical.target alias)")
+        die(f"display-manager.service is not a {dm_unit} alias (or graphical.target alias)")
+    slot_timer = rootfs / "etc/systemd/system/timers.target.wants/guacamole-boot-slot.timer"
+    if not (rootfs / "usr/lib/systemd/system/guacamole-boot-slot.service").is_file():
+        die("installed device package has no guacamole-boot-slot.service (device pkgrel >= 16)")
+    if not slot_timer.is_symlink():
+        print(f"WARNING: {slot_timer} is not enabled in the image; enable it on the phone with "
+              "'sudo systemctl preset guacamole-boot-slot.timer' (82-guacamole-boot-slot.preset)",
+              file=sys.stderr)
     # The clock-epoch floor must be a real installed file with a reproducible
     # date derived from source mtime/SOURCE_DATE_EPOCH, never an RTC write.
     clock_epoch = rootfs / CLOCK_EPOCH
@@ -1102,16 +1360,21 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "rootfs_initramfs_sha256": digest(initramfs),
         "module_payload_sha256": payload["sha256"],
         "module_count": payload["count"],
-        "ui_version": packages["postmarketos-ui-plasma-mobile"].get("V"),
+        "ui": UI,
+        "ui_package": UI_PACKAGE,
+        "ui_version": packages[UI_PACKAGE].get("V"),
+        "app_store": list(UI_PROFILE["app_store"]),
+        "world_pins": world_pins,
         "camera_app": CAMERA_APP,
         "camera_app_version": packages[CAMERA_APP].get("V"),
         "libcamera_version": packages["libcamera"].get("V"),
-        "powerdevil_version": packages["powerdevil"].get("V"),
+        "powerdevil_version": packages.get("powerdevil", {}).get("V"),
+        "gmobile_version": packages.get("gmobile", {}).get("V") if UI == "phosh" else None,
         "modemmanager_version": packages.get("modemmanager", {}).get("V"),
         "libmm_glib_version": packages.get("libmm-glib", {}).get("V"),
         "nura_clock_version": packages.get("nura-clock", {}).get("V"),
         "clock_epoch": clock_text,
-        "lock_on_start": False,
+        "lock_on_start": False if UI == "plasma" else None,
     }
 
 
@@ -1210,7 +1473,7 @@ def manifest(args: argparse.Namespace) -> dict:
         "linux-postmarketos-qcom-sm8150",
         "postmarketos-mkinitfs-hook-netboot",
         "libcamera-rear",
-        "postmarketos-ui-plasma-mobile",
+        UI_PACKAGE,
         "libcamera",
         "libcamera-ipa",
         "modemmanager",
@@ -1273,7 +1536,8 @@ def manifest(args: argparse.Namespace) -> dict:
         "nbd_port": NBD_PORT,
         "lock_on_start": LOCK_ON_START,
         "logind_idle_action": "ignore",
-        "powerdevil_auto_suspend": "NoAction",
+        "powerdevil_auto_suspend": "NoAction" if UI == "plasma" else None,
+        "gsd_sleep_inactive": "nothing" if UI == "phosh" else None,
         "audio_backend": "pulseaudio",
         "created_at": created,
         "kernel_build": str(Path(args.source_build).resolve()),
@@ -1616,7 +1880,7 @@ def kernel_manifest(args: argparse.Namespace) -> dict:
 
 
 def check_candidate(args: argparse.Namespace) -> dict:
-    """Read-only consistency check for a completed Plasma candidate."""
+    """Read-only consistency check for a completed (netboot) candidate."""
     build = Path(args.build).resolve()
     state = Path(args.state).resolve()
     manifest_path = build / "DELIVERY.json"
@@ -1673,7 +1937,7 @@ def check_candidate(args: argparse.Namespace) -> dict:
         die(f"candidate initramfs is not a usable {RELEASE} port-{NBD_PORT} archive: {error}")
     apks = inputs.get("apks", {})
     for name in ("linux-postmarketos-qcom-sm8150", "postmarketos-mkinitfs-hook-netboot",
-                 "libcamera-rear", "postmarketos-ui-plasma-mobile", "libcamera",
+                 "libcamera-rear", UI_PACKAGE, "libcamera",
                  "libcamera-ipa", "modemmanager", "libmm-glib"):
         entry = apks.get(name)
         if not isinstance(entry, dict):
@@ -1697,7 +1961,11 @@ def check_candidate(args: argparse.Namespace) -> dict:
             expected_dtb_sha=source["dtb_sha256"],
             expected_module_payload_sha=source["module_payload_sha256"],
             expected_module_count=source["module_count"],
-            ui_version=apks["postmarketos-ui-plasma-mobile"]["version"],
+            ui_version=apks[UI_PACKAGE]["version"],
+            kernel_version=None,
+            device_version=None,
+            firmware_version=None,
+            gmobile_version=None,
             modemmanager_version=apks["modemmanager"]["version"],
             libmm_glib_version=apks["libmm-glib"]["version"],
             nura_clock_version=apks.get("nura-clock", {}).get("version"),
@@ -1920,8 +2188,8 @@ def main(argv: list[str] | None = None) -> int:
     kernel_manifest_parser.add_argument("--apk-dir", type=Path, required=True)
 
     check = sub.add_parser("check", help="read-only candidate artifact consistency check")
-    check.add_argument("--build", type=Path, default=ROOT / "build/plasma-mobile")
-    check.add_argument("--state", type=Path, default=ROOT / ".work/plasma-mobile")
+    check.add_argument("--build", type=Path, default=ROOT / ("build/plasma-mobile" if UI == "plasma" else "build/phosh"))
+    check.add_argument("--state", type=Path, default=ROOT / (".work/plasma-mobile" if UI == "plasma" else ".work/phosh"))
     check.add_argument("--kernel-state", type=Path, default=KERNEL_STATE)
 
     resign = sub.add_parser("apk-resign", help="preserve pinned APK control/data across local signing")
@@ -1955,6 +2223,10 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--expected-module-payload-sha", required=True)
     verify.add_argument("--expected-module-count", type=int, required=True)
     verify.add_argument("--ui-version", required=True)
+    verify.add_argument("--kernel-version")
+    verify.add_argument("--device-version")
+    verify.add_argument("--firmware-version")
+    verify.add_argument("--gmobile-version")
     verify.add_argument("--modemmanager-version")
     verify.add_argument("--libmm-glib-version")
     verify.add_argument("--nura-clock-version")
@@ -1970,7 +2242,7 @@ def main(argv: list[str] | None = None) -> int:
     key_config.add_argument("--authorized-keys", type=Path, required=True)
     key_config.add_argument("--output-config", type=Path, required=True)
 
-    manifest_parser = sub.add_parser("manifest", help="write the Plasma DELIVERY manifest")
+    manifest_parser = sub.add_parser("manifest", help="write the candidate DELIVERY manifest")
     manifest_parser.add_argument("--source-build", type=Path, required=True)
     manifest_parser.add_argument("--source-state", type=Path, required=True)
     manifest_parser.add_argument("--baseline-build", type=Path, default=BASELINE_BUILD)

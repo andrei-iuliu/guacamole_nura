@@ -56,6 +56,12 @@ bash flows/rc4/local-storage/scripts/local_bootimg_wrapper.sh --build \
 bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
 ```
 
+`--ui plasma|phosh` (or `NURA_UI`) selects the UI; `plasma` is the default
+and keeps every path above. `phosh` writes `.work/local-userdata-phosh/`
+and `build/local-userdata-phosh/`, labels the candidate `nura-phosh-rc4`, and
+also builds the patched `gmobile` (`device/testing/gmobile`, guacamole
+display panel). See `docs/NURA_PHOSH.md`.
+
 `--authorized-key` is optional but must be an absolute path to a **public** key;
 private key material is refused by `check_local_candidate.py`. Without it the
 build adds no key.
@@ -87,8 +93,9 @@ flows/rc4/local-storage/
   tests/                        copied public-key + storage-rehearsal tests
   ORIGIN-SHA256.json            hashes of the inputs the copies came from
   device/testing/               links only:
-      device-oneplus-guacamole            -> flows/rc4/device/testing/... (rc4, pkgrel 15)
+      device-oneplus-guacamole            -> flows/rc4/device/testing/... (rc4, pkgrel 16)
       linux-postmarketos-qcom-sm8150      -> flows/rc4/device/testing/... (rc4 recipe)
+      gmobile                             -> flows/rc4/device/testing/... (Phosh only)
       firmware-oneplus-guacamole, hexagonrpcd, iio-sensor-proxy, nura-clock,
       rc3, rear-camera                    -> flows/local-storage/device/testing/... (read-only)
 ```

@@ -6,7 +6,7 @@
 #   flows/rc4/scripts/rc4.sh check            read-only verification, no writes
 #   flows/rc4/scripts/rc4.sh contract         fake-builder kernel->rootfs contract test
 #   flows/rc4/scripts/rc4.sh kernel           user-run rootless kernel package
-#   flows/rc4/scripts/rc4.sh rootfs [--authorized-key FILE.pub]
+#   flows/rc4/scripts/rc4.sh rootfs [--ui plasma|phosh] [--authorized-key FILE.pub]
 #                                             user-run rootfs/initramfs (local root)
 #   flows/rc4/scripts/rc4.sh bootimg          user-run boot image repack
 #
@@ -102,6 +102,7 @@ check() {
     echo "== rootless integration tests (read-only) =="
     python3 -m unittest discover -s "$RC4_DIR/tests" -p 'test_rc4_integration.py' -v
     python3 -m unittest discover -s "$RC4_DIR/tests" -p 'test_rc4_flow_guards.py' -v
+    python3 -m unittest discover -s "$RC4_DIR/tests" -p 'test_rc4_ui_variants.py' -v
     echo "== copied local-storage unit tests (public key + storage rehearsal) =="
     python3 -m unittest discover -s "$RC4_DIR/local-storage/tests" -p 'test_*.py'
     echo "== rc4 check: PASS (contract fixture: bash flows/rc4/scripts/rc4.sh contract) =="

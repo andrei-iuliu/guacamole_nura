@@ -17,8 +17,14 @@ SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
 TOOL="$FLOW_DIR/scripts/local_storage_tool.py"
 RELEASE="${NURA_KERNEL_RELEASE:-7.0.0-sm8150-guacamole-rc4}"
 KERNEL_DIR="${NURA_KERNEL_DIR:-$SOURCE_ROOT/flows/rc4/build-source/kernel-output/kernel-package}"
-KERNEL_STATE="${NURA_KERNEL_STATE:-$FLOW_DIR/.work/local-userdata/kernel-state}"
-OUTPUT_DIR="${NURA_LOCAL_OUT:-$FLOW_DIR/build/local-userdata}"
+# NURA_UI=plasma|phosh only changes the defaults below (Phosh: *-phosh dirs).
+case "${NURA_UI:-plasma}" in
+    plasma) UI_SUFFIX="" ;;
+    phosh) UI_SUFFIX="-phosh" ;;
+    *) echo "ERROR: NURA_UI must be plasma or phosh" >&2; exit 2 ;;
+esac
+KERNEL_STATE="${NURA_KERNEL_STATE:-$FLOW_DIR/.work/local-userdata$UI_SUFFIX/kernel-state}"
+OUTPUT_DIR="${NURA_LOCAL_OUT:-$FLOW_DIR/build/local-userdata$UI_SUFFIX}"
 BOOT_OUT="$OUTPUT_DIR/boot"
 TEMP_DTB_DIR="$OUTPUT_DIR/temporary-dtbo"
 SERVED_RECORD="${NURA_SERVED_RECORD:-$SOURCE_ROOT/.work/delivery-plasma-mobile/served-image.json}"

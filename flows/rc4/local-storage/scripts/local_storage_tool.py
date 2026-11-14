@@ -482,8 +482,10 @@ def record_manifest(args: argparse.Namespace) -> dict:
         "status": status,
         "hardware": "UNTESTED",
         "profile": "local-userdata",
+        "ui": getattr(cpc, "UI", "plasma"),
         "identity": {
             "kernel_release": args.release,
+            "ui_release_candidate": getattr(cpc, "RELEASE_CANDIDATE", None),
             "release_candidate": "nura-local-storage-rc4" if args.release == "7.0.0-sm8150-guacamole-rc4" else args.release,
             "future_release_rule": "a rebuilt release is 7.0.0-sm8150-guacamole-rc4; never relabel rc3",
         },

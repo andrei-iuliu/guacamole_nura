@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+"""Rootless tests for the Plasma/Phosh UI selector and the shared device fixes.
+
+Nothing here runs pmbootstrap, sudo, a mount or a phone command.  Fixtures
+live in temporary directories; the repository is only read.
+
+  * NURA_UI selects the release label (nura-plasma-rc4 / nura-phosh-rc4) and
+    the per-UI state/output directories; plasma stays the default;
+  * the Phosh UI recipe gets the same candidate-only no-suspend policy as
+    Plasma, idempotently and with correct sha512sums;
+  * /etc/apk/world must pin kernel, device and firmware to exact versions;
+  * the Phosh rootfs check requires the guacamole panel inside libgmobile;
+  * the device package wires the A/B slot marker and the Plasma preset, and
+    the patched gmobile recipe carries both DT compatibles;
+  * guacamole-boot-slot (ported from omarchy-mobile) changes exactly one
+    attribute bit in both GPT copies.
+"""
+
+import binascii
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+import pathlib
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+import uuid
+
+TESTS = pathlib.Path(__file__).resolve().parent
+RC4 = TESTS.parent
+FLOW = RC4 / "local-storage"
+SCRIPTS = FLOW / "scripts"
+ENTRY = SCRIPTS / "local_storage_build.sh"
+PREPARE = SCRIPTS / "rootfs_prepare_local.sh"
+CHECKER = SCRIPTS / "check_local_candidate.py"
+DEVICE = RC4 / "device/testing/device-oneplus-guacamole"
+GMOBILE = RC4 / "device/testing/gmobile"
+RELEASE = "7.0.0-sm8150-guacamole-rc4"
+
+os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+sys.dont_write_bytecode = True
+
+
+def run(cmd, env=None, **kw):
+    full = {"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}
+    full.update(env or {})
+    return subprocess.run(cmd, capture_output=True, text=True, env=full, **kw)
+
+
+def load_checker(ui):
+    """Import check_local_candidate.py with NURA_UI=ui (module constants)."""
+    old = os.environ.get("NURA_UI")
+    os.environ["NURA_UI"] = ui
+    sys.path.insert(0, str(SCRIPTS))
+    try:
+        spec = importlib.util.spec_from_file_location(f"clc_{ui}", CHECKER)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(str(SCRIPTS))
+        if old is None:
+            os.environ.pop("NURA_UI", None)
+        else:
+            os.environ["NURA_UI"] = old
+
+
+def apkbuild_sums(path):
+    text = path.read_text()
+    block = re.search(r'sha512sums="(.*?)"', text, re.S).group(1)
+    return dict(reversed(line.split("  ", 1)) for line in block.strip().splitlines())
+
+
+class TestSelector(unittest.TestCase):
+    def test_release_candidate_per_ui(self):
+        for ui, label in (("plasma", "nura-plasma-rc4"), ("phosh", "nura-phosh-rc4")):
+            result = run([sys.executable, str(CHECKER), "release-candidate"], {"NURA_UI": ui})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), label)
+        default = run([sys.executable, str(CHECKER), "release-candidate"])
+        self.assertEqual(default.stdout.strip(), "nura-plasma-rc4")
+
+    def test_unknown_ui_is_refused(self):
+        result = run([sys.executable, str(CHECKER), "release-candidate"], {"NURA_UI": "gnome"})
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("NURA_UI", result.stderr)
+        result = run(["bash", str(ENTRY), "--ui", "gnome"],
+                     {"NURA_SOURCE_ROOT": str(RC4.parents[1])})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be plasma or phosh", result.stderr)
+        result = run(["bash", str(PREPARE), "--check-only"], {"NURA_UI": "gnome"})
+        self.assertEqual(result.returncode, 2)
+
+    def test_phosh_is_local_userdata_only(self):
+        text = PREPARE.read_text()
+        self.assertIn('supported in the local-userdata profile only', text)
+
+    def test_dry_run_uses_separate_phosh_paths(self):
+        # Run a copy of the real entrypoint in a throw-away flow directory with
+        # a fake kernel build and hook recipe; the dry run writes nothing.
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            flow = tmp / "flow"
+            shutil.copytree(SCRIPTS, flow / "scripts")
+            shutil.copy(FLOW / "ORIGIN-SHA256.json", flow / "ORIGIN-SHA256.json")
+            hook = flow / "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot"
+            hook.mkdir(parents=True)
+            (hook / "APKBUILD").write_text("pkgrel=5\n")
+            (hook / "netboot.sh").write_text("#!/bin/sh\n")
+            source = tmp / "source"
+            source.mkdir()
+            build = tmp / "kernel-output"
+            release_file = build / "kernel-package/usr/share/kernel/postmarketos-qcom-sm8150/kernel.release"
+            release_file.parent.mkdir(parents=True)
+            release_file.write_text(RELEASE + "\n")
+            (build / "kernel-inputs.json").write_text("{}\n")
+            state = tmp / "kernel-state"
+            (state / "output/include/config").mkdir(parents=True)
+            (state / "output/include/config/kernel.release").write_text(RELEASE + "\n")
+            env = {"NURA_SOURCE_ROOT": str(source), "NURA_KERNEL_BUILD": str(build),
+                   "NURA_KERNEL_SOURCE_STATE": str(state)}
+            plans = {}
+            for args in (["--ui", "phosh"], ["--ui=plasma"], []):
+                result = run(["bash", str(flow / "scripts/local_storage_build.sh"), *args], env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("DRY RUN: no files written", result.stdout)
+                plans[" ".join(args) or "default"] = result.stdout
+            phosh = plans["--ui phosh"]
+            self.assertIn("ui:                 phosh", phosh)
+            self.assertIn(str(flow / ".work/local-userdata-phosh") + "\n", phosh)
+            self.assertIn(str(flow / "build/local-userdata-phosh") + "\n", phosh)
+            for key in ("--ui=plasma", "default"):
+                self.assertIn("ui:                 plasma", plans[key])
+                self.assertIn(str(flow / ".work/local-userdata") + "\n", plans[key])
+                self.assertNotIn("local-userdata-phosh", plans[key])
+            self.assertFalse((flow / ".work").exists())
+            self.assertFalse((flow / "build").exists())
+
+
+MINI_PHOSH_APKBUILD = '''pkgname=postmarketos-ui-phosh
+pkgver=34
+pkgrel=0
+source="
+\t01_postmarketos-ui-phosh.gschema.override
+\tmimeapps.list
+\t"
+package() {
+\tinstall -Dm644 "$srcdir"/01_postmarketos-ui-phosh.gschema.override \\
+\t\t-t "$pkgdir"/usr/share/glib-2.0/schemas/
+\tinstall -Dm644 "$srcdir"/mimeapps.list \\
+\t\t"$pkgdir"/usr/share/applications/mimeapps.list
+}
+sha512sums="
+%s  01_postmarketos-ui-phosh.gschema.override
+%s  mimeapps.list
+"
+'''
+
+
+class TestPhoshPolicy(unittest.TestCase):
+    def test_phosh_ui_recipe_policy_is_idempotent(self):
+        clc = load_checker("phosh")
+        with tempfile.TemporaryDirectory() as tmp:
+            ui = pathlib.Path(tmp) / "main/postmarketos-ui-phosh"
+            ui.mkdir(parents=True)
+            (ui / "01_postmarketos-ui-phosh.gschema.override").write_text("[x]\n")
+            (ui / "mimeapps.list").write_text("[y]\n")
+            sums = [hashlib.sha512(b"[x]\n").hexdigest(), hashlib.sha512(b"[y]\n").hexdigest()]
+            (ui / "APKBUILD").write_text(MINI_PHOSH_APKBUILD % tuple(sums))
+            _, first = clc.prepare_phosh_ui(pathlib.Path(tmp))
+            text_once = (ui / "APKBUILD").read_text()
+            _, second = clc.prepare_phosh_ui(pathlib.Path(tmp))
+            self.assertEqual(first, second)
+            self.assertEqual(text_once, (ui / "APKBUILD").read_text())
+            for name, digest in apkbuild_sums(ui / "APKBUILD").items():
+                self.assertEqual(hashlib.sha512((ui / name).read_bytes()).hexdigest(), digest, name)
+            self.assertIn("IdleAction=ignore", (ui / "50-nura-phosh-nbd.conf").read_text())
+            self.assertIn("sleep-inactive-battery-type='nothing'",
+                          (ui / clc.PHOSH_GSETTINGS_OVERRIDE_NAME).read_text())
+            self.assertEqual(text_once.count("50-nura-phosh-nbd.conf"), 3)
+
+    def test_plasma_constants_unchanged(self):
+        clc = load_checker("plasma")
+        self.assertEqual(clc.RELEASE_CANDIDATE, "nura-plasma-rc4")
+        self.assertEqual(clc.PROFILE, "plasma-mobile")
+        self.assertEqual(clc.UI_PACKAGE, "postmarketos-ui-plasma-mobile")
+        self.assertEqual(clc.CAMERA_APP, "plasma-camera")
+        self.assertIn("discover-backend-apk", clc.UI_PROFILE["app_store"])
+        phosh = load_checker("phosh")
+        self.assertEqual(phosh.UI_PACKAGE, "postmarketos-ui-phosh")
+        self.assertIn("gnome-software-plugin-apk2", phosh.UI_PROFILE["app_store"])
+
+
+def rootfs_with(tmp, world, versions):
+    root = pathlib.Path(tmp)
+    (root / "etc/apk").mkdir(parents=True)
+    (root / "etc/apk/world").write_text("\n".join(world) + "\n")
+    (root / "lib/apk/db").mkdir(parents=True)
+    (root / "lib/apk/db/installed").write_text(
+        "".join(f"P:{name}\nV:{version}\n\n" for name, version in versions.items()))
+    return root
+
+
+class TestWorldPins(unittest.TestCase):
+    VERSIONS = {"linux-postmarketos-qcom-sm8150": "7.0.0_p1-r0",
+                "device-oneplus-guacamole": "4-r16",
+                "firmware-oneplus-guacamole": "1-r7"}
+
+    def test_exact_pins_pass(self):
+        clc = load_checker("plasma")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rootfs_with(tmp, [f"{n}={v}" for n, v in self.VERSIONS.items()] + ["discover"],
+                               self.VERSIONS)
+            pins = clc.verify_world_pins(root, clc.installed_packages(root),
+                                         {"device-oneplus-guacamole": "4-r16"})
+            self.assertEqual(pins, self.VERSIONS)
+
+    def test_unpinned_device_fails(self):
+        clc = load_checker("phosh")
+        with tempfile.TemporaryDirectory() as tmp:
+            world = ["linux-postmarketos-qcom-sm8150=7.0.0_p1-r0", "device-oneplus-guacamole",
+                     "firmware-oneplus-guacamole=1-r7"]
+            root = rootfs_with(tmp, world, self.VERSIONS)
+            with self.assertRaises(SystemExit):
+                clc.verify_world_pins(root, clc.installed_packages(root), {})
+
+
+class TestPhoshPanelCheck(unittest.TestCase):
+    def test_libgmobile_must_carry_the_guacamole_panel(self):
+        clc = load_checker("phosh")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "usr/bin").mkdir(parents=True)
+            (root / "usr/bin/snapshot").write_text("")
+            lib = root / "usr/lib/libgmobile.so.0.0.0"
+            lib.parent.mkdir(parents=True)
+            lib.write_bytes(b"\0stock gmobile\0")
+            with self.assertRaises(SystemExit):
+                clc.verify_phosh_camera_and_panel(root)
+            lib.write_bytes(b"\0".join(clc.GMOBILE_PANEL_MARKERS))
+            clc.verify_phosh_camera_and_panel(root)
+
+
+class TestDevicePackage(unittest.TestCase):
+    def test_sources_and_checksums(self):
+        apkbuild = DEVICE / "APKBUILD"
+        text = apkbuild.read_text()
+        self.assertRegex(text, r"(?m)^pkgrel=16$")
+        sums = apkbuild_sums(apkbuild)
+        for name in ("plasma-mobile-preset-oneplus-guacamole.conf", "guacamole-boot-slot",
+                     "guacamole-boot-slot.service", "guacamole-boot-slot.timer",
+                     "82-guacamole-boot-slot.preset"):
+            self.assertIn(name, sums)
+            self.assertEqual(hashlib.sha512((DEVICE / name).read_bytes()).hexdigest(), sums[name], name)
+        for path in ("/usr/libexec/guacamole-boot-slot",
+                     "/usr/lib/systemd/system/guacamole-boot-slot.timer",
+                     "/usr/lib/systemd/system-preset/82-guacamole-boot-slot.preset",
+                     "/usr/share/plasma-mobile-device-presets/$preset.conf"):
+            self.assertIn(path, text)
+        self.assertIn("for preset in oneplus,guacamole qcom,sm8150-mtp", text)
+
+    def test_unit_wiring(self):
+        service = (DEVICE / "guacamole-boot-slot.service").read_text()
+        timer = (DEVICE / "guacamole-boot-slot.timer").read_text()
+        preset = (DEVICE / "82-guacamole-boot-slot.preset").read_text()
+        self.assertIn("ExecStart=/usr/libexec/guacamole-boot-slot mark-successful", service)
+        self.assertIn("ExecCondition=/usr/bin/systemctl is-active --quiet display-manager.service",
+                      service)
+        self.assertIn("Unit=guacamole-boot-slot.service", timer)
+        self.assertIn("WantedBy=timers.target", timer)
+        self.assertIn("enable guacamole-boot-slot.timer", preset)
+        self.assertTrue(os.access(DEVICE / "guacamole-boot-slot", os.X_OK))
+
+    def test_plasma_preset_matches_plasma_corners_branch(self):
+        top = RC4.parents[1] / "device/testing/device-oneplus-guacamole/plasma-mobile-preset-oneplus-guacamole.conf"
+        self.assertEqual((DEVICE / top.name).read_bytes(), top.read_bytes())
+
+
+class TestGmobileRecipe(unittest.TestCase):
+    PATCH = "0001-data-add-OnePlus-7-Pro-guacamole-display-panel.patch"
+
+    def test_recipe_and_patch(self):
+        apkbuild = GMOBILE / "APKBUILD"
+        text = apkbuild.read_text()
+        version = "%s-r%s" % (re.search(r"(?m)^pkgver=(.+)$", text).group(1),
+                              re.search(r"(?m)^pkgrel=(.+)$", text).group(1))
+        self.assertEqual(version, load_checker("phosh").GMOBILE_VERSION)
+        sums = apkbuild_sums(apkbuild)
+        self.assertEqual(hashlib.sha512((GMOBILE / self.PATCH).read_bytes()).hexdigest(),
+                         sums[self.PATCH])
+        self.assertTrue((FLOW / "device/testing/gmobile/APKBUILD").is_file(),
+                        "the flow link farm must expose the gmobile recipe")
+        self.assertIn('links["main/gmobile"] = "device/testing/gmobile"', CHECKER.read_text())
+
+    def test_patch_adds_both_compatibles(self):
+        patch = (GMOBILE / self.PATCH).read_text()
+        for compatible in ("oneplus,guacamole", "qcom,sm8150-mtp"):
+            self.assertIn(f"+++ b/data/devices/display-panels/{compatible}.json", patch)
+            self.assertIn(f'devices/display-panels/{compatible}.json</file>', patch)
+        bodies = re.findall(r"@@ -0,0 \+1,8 @@\n((?:\+.*\n){8})", patch)
+        self.assertEqual(len(bodies), 2)
+        for body in bodies:
+            panel = json.loads("".join(line[1:] + "\n" for line in body.splitlines()))
+            self.assertEqual(panel, {"name": "OnePlus 7 Pro", "x-res": 1440, "y-res": 3120,
+                                     "corner-radii": [145, 145, 145, 145],
+                                     "width": 71, "height": 154})
+
+
+# --- guacamole-boot-slot: GPT fixture tests ported from omarchy-mobile
+# devices/oneplus7pro/tests/test_boot_slot.py ---
+loader = importlib.machinery.SourceFileLoader("guacamole_boot_slot", str(DEVICE / "guacamole-boot-slot"))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+boot_slot = importlib.util.module_from_spec(spec)
+loader.exec_module(boot_slot)
+
+BLOCK = 4096
+BLOCKS = 64
+COUNT = 128
+LABELS = ["xbl_a", "abl_a", "boot_a", "dtbo_a", "abl_b", "boot_b", "dtbo_b"]
+
+
+def crc(data):
+    return binascii.crc32(data) & 0xffffffff
+
+
+def flags(retry, active=False, successful=False, unbootable=False, priority=3):
+    return priority | (0x04 if active else 0) | (retry << 3) | (0x40 if successful else 0) | \
+        (0x80 if unbootable else 0)
+
+
+def build_image(path, slot_flags):
+    entries = bytearray(COUNT * 128)
+    for i, label in enumerate(LABELS):
+        entry = bytearray(128)
+        entry[:16] = uuid.uuid4().bytes
+        entry[16:32] = uuid.uuid4().bytes
+        struct.pack_into("<QQ", entry, 32, 10 + i, 10 + i)
+        struct.pack_into("<Q", entry, 48, 0x1000000000000001)
+        entry[56:56 + 2 * len(label)] = label.encode("utf-16-le")
+        if label.startswith("boot_"):
+            entry[54] = slot_flags[label[-1]]
+        entries[i * 128:(i + 1) * 128] = entry
+    guid = uuid.uuid4().bytes
+    image = bytearray(BLOCK * BLOCKS)
+
+    def header(my_lba, alternate, entries_lba):
+        raw = bytearray(boot_slot.HEADER.pack(
+            b"EFI PART", 0x00010000, 92, 0, 0, my_lba, alternate, 6, BLOCKS - 6,
+            guid, entries_lba, COUNT, 128, crc(entries)))
+        struct.pack_into("<I", raw, 16, crc(raw))
+        return raw
+
+    image[BLOCK:BLOCK + 92] = header(1, BLOCKS - 1, 2)
+    image[2 * BLOCK:2 * BLOCK + len(entries)] = entries
+    image[(BLOCKS - 1) * BLOCK:(BLOCKS - 1) * BLOCK + 92] = header(BLOCKS - 1, 1, BLOCKS - 5)
+    image[(BLOCKS - 5) * BLOCK:(BLOCKS - 5) * BLOCK + len(entries)] = entries
+    path.write_bytes(image)
+
+
+class TestBootSlot(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = pathlib.Path(self.tmp.name)
+        self.dev = root / "dev"
+        self.dev.mkdir()
+        queue = root / "sys/block/sde/queue"
+        queue.mkdir(parents=True)
+        (queue / "logical_block_size").write_text(f"{BLOCK}\n")
+        (root / "sys/block/sde/size").write_text(f"{BLOCKS * BLOCK // 512}\n")
+        self.image = self.dev / "sde"
+        boot_slot.SYS_BLOCK = root / "sys/block"
+        boot_slot.DEV = self.dev
+        os.environ["BOOT_SLOT_LOCK"] = str(root / "lock")
+
+    def tearDown(self):
+        os.environ.pop("BOOT_SLOT_LOCK", None)
+        self.tmp.cleanup()
+
+    def test_marks_only_the_active_boot_entry_in_both_copies(self):
+        build_image(self.image, {"a": flags(7), "b": flags(6, active=True)})
+        before = self.image.read_bytes()
+        boot_slot.mark_successful(boot_slot.find_disk(), dry_run=False)
+        after = self.image.read_bytes()
+        changed = {i for i in range(len(before)) if before[i] != after[i]}
+        boot_b = 2 * BLOCK + LABELS.index("boot_b") * 128 + 54
+        backup_b = (BLOCKS - 5) * BLOCK + LABELS.index("boot_b") * 128 + 54
+        self.assertEqual(after[boot_b], flags(6, active=True, successful=True))
+        self.assertEqual(after[backup_b], after[boot_b])
+        allowed = {boot_b, backup_b}
+        for lba in (1, BLOCKS - 1):
+            allowed |= set(range(lba * BLOCK + 16, lba * BLOCK + 20))
+            allowed |= set(range(lba * BLOCK + 88, lba * BLOCK + 92))
+        self.assertTrue(changed <= allowed)
+        self.assertEqual(boot_slot.find_disk().flags("a"), flags(7))
+
+    def test_repeat_and_dry_run_write_nothing(self):
+        build_image(self.image, {"a": flags(7), "b": flags(6, active=True, successful=True)})
+        before = self.image.read_bytes()
+        boot_slot.mark_successful(boot_slot.find_disk(), dry_run=False)
+        self.assertEqual(self.image.read_bytes(), before)
+        build_image(self.image, {"a": flags(7), "b": flags(6, active=True)})
+        before = self.image.read_bytes()
+        boot_slot.mark_successful(boot_slot.find_disk(), dry_run=True)
+        self.assertEqual(self.image.read_bytes(), before)
+
+    def test_refusals(self):
+        build_image(self.image, {"a": flags(7), "b": flags(0, active=True, unbootable=True)})
+        with self.assertRaises(boot_slot.GptError):
+            boot_slot.mark_successful(boot_slot.find_disk(), dry_run=False)
+        build_image(self.image, {"a": flags(7, active=True), "b": flags(6, active=True)})
+        with self.assertRaises(boot_slot.GptError):
+            boot_slot.mark_successful(boot_slot.find_disk(), dry_run=False)
+        build_image(self.image, {"a": flags(7), "b": flags(6, active=True)})
+        image = bytearray(self.image.read_bytes())
+        image[(BLOCKS - 5) * BLOCK + 1] ^= 0xff
+        self.image.write_bytes(image)
+        with self.assertRaises(boot_slot.GptError):
+            boot_slot.find_disk()
+
+
+if __name__ == "__main__":
+    unittest.main()
