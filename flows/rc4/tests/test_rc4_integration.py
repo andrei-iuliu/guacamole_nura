@@ -67,6 +67,20 @@ NEW_PATCHES = [
     "0056-arm64-dts-guacamole-popup-camera.patch",
     "0057-arm64-dts-guacamole-displayport-video.patch",
     "0058-arm64-dts-guacamole-displayport-audio-link.patch",
+    "0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch",
+    "0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch",
+    "0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch",
+    "0062-usb-typec-tcpm-reset-hard-reset-budget-on-unattach.patch",
+    "0063-usb-typec-qcom-pmic-typec-reread-vbus-leaving-sink.patch",
+    "0064-drm-msm-dp-use-the-real-pixel-rate-for-link-bandwidth.patch",
+    "0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch",
+    "0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch",
+    "0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch",
+    "0068-drm-msm-forbid-mem-reclaim-from-reset.patch",
+    "0069-drm-msm-always-recover-the-gpu.patch",
+    "0070-drm-msm-recover-hw-before-retire-hung-submit.patch",
+    "0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch",
+    "0072-arm64-dts-guacamole-pon-reboot-modes.patch",
 ]
 
 
@@ -191,21 +205,21 @@ class TestIsolation(unittest.TestCase):
     def test_checker_links_resolve_to_the_rc4_device_package(self):
         # prepare_state() resolves pmaports recipe links through ROOT
         # (flows/rc4/local-storage), not SOURCE_ROOT: the device package it
-        # installs must be the rc4 pkgrel 16 copy.
+        # installs must be the rc4i pkgrel 17 copy.
         checker = read(FLOW / "scripts/check_local_candidate.py")
         self.assertIn('"device/testing/device-oneplus-guacamole": '
                       '"device/testing/device-oneplus-guacamole"', checker)
         target = (FLOW / "device/testing/device-oneplus-guacamole").resolve()
         self.assertEqual(target, (RC4 / "device/testing/device-oneplus-guacamole").resolve())
-        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=16$")
+        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=17$")
         self.assertIn("guacamole-mss-release", read(target / "APKBUILD"))
 
     def test_recipe_root_selects_the_rc4_device_package(self):
-        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 16 (rc4)
+        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 17 (rc4i)
         # and never to the rc3-era flows/local-storage copy (pkgrel 14).
         farm = FLOW / "device/testing/device-oneplus-guacamole"
         self.assertTrue(farm.is_dir())
-        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=16$")
+        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=17$")
         original = REPO / "flows/local-storage/device/testing/device-oneplus-guacamole/APKBUILD"
         if original.is_file():
             self.assertRegex(read(original), r"(?m)^pkgrel=14$")

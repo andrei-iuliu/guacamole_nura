@@ -1,0 +1,21 @@
+# Backstop for the udev trigger in 90-nura-gpu-crash.rules.  A devcoredump
+# device appears with a KOBJ_ADD uevent and is deleted after 5 minutes
+# (DEVCD_TIMEOUT) unless it is read, so a one minute sweep is always well
+# inside that window even if the uevent was missed (udev still starting, or a
+# queue overflow after a long hang).  With nothing to collect the sweep is a
+# glob and one exec.
+#
+# Installed and enabled by device-oneplus-guacamole.
+[Unit]
+Description=Nura GPU crash dump capture sweep
+
+[Timer]
+OnActiveSec=2min
+OnUnitActiveSec=1min
+AccuracySec=30s
+# The device clock is not trustworthy early in boot; monotonic only.
+Persistent=false
+Unit=nura-gpu-crash-capture.service
+
+[Install]
+WantedBy=timers.target

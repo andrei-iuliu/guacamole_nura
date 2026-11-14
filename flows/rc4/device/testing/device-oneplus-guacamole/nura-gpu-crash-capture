@@ -1,0 +1,173 @@
+#!/bin/sh
+# nura-gpu-crash-capture - copy a GPU devcoredump out of sysfs, then release it.
+#
+# A GPU hang makes drm/msm call dev_coredumpm(), which creates
+# /sys/class/devcoredump/devcd<N>/ with the register/ring/BO state of the hung
+# submit plus a "failing_device" symlink back to the GPU.  That dump is the
+# only artifact Mesa's crashdec can decode, but the devcoredump framework
+# keeps it for just DEVCD_TIMEOUT (5 minutes) and, by design, *discards* a new
+# hang while an unread dump for the same device is still there.  Copying it
+# out and then releasing it (a write to the data file) is therefore what makes
+# the next crash capturable as well.
+#
+# Inputs are sysfs only, never debugfs:
+#   /sys/class/devcoredump/devcd*/data            the dump (0600, lazy read)
+#   /sys/class/devcoredump/devcd*/failing_device  symlink to the failing device
+#
+# One directory per capture under $STATE, 0700:
+#   devcoredump   raw copy, at most MAX_DUMP_BYTES
+#   dmesg.txt     dmesg tail, at most DMESG_LINES
+#   INFO          key=value description, including whether it was released
+#
+# Retention: the newest KEEP captures and at most MAX_TOTAL_KIB in total; the
+# capture that was just written is never removed.
+#
+# Decode a capture with Mesa's crashdec: `crashdec -f <dir>/devcoredump`.
+#
+# The NURA_GPU_CRASH_* environment variables exist for the fake-sysfs unit
+# test in flows/rc4/tests; the shipped unit does not set them.
+
+set -u
+
+ROOT=${NURA_GPU_CRASH_ROOT:-}          # test-only prefix; empty on the phone
+STATE=${NURA_GPU_CRASH_STATE:-/var/lib/nura/gpu-crash}
+KEEP=${NURA_GPU_CRASH_KEEP:-10}
+MAX_TOTAL_KIB=${NURA_GPU_CRASH_MAX_TOTAL_KIB:-51200}   # ~50 MB
+MAX_DUMP_BYTES=${NURA_GPU_CRASH_MAX_DUMP_BYTES:-8388608}
+DMESG_LINES=200
+DMESG_TIMEOUT=10
+
+CLASS="$ROOT/sys/class/devcoredump"
+
+log() { printf 'nura-gpu-crash-capture: %s\n' "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+for _tool in head tail cut wc tr du sort rm mkdir date grep; do
+    if ! have "$_tool"; then
+        log "missing tool: $_tool"
+        exit 0
+    fi
+done
+
+if [ -n "$ROOT" ]; then
+    case "$ROOT" in
+        /*) ;;
+        *) log "invalid test root"; exit 1 ;;
+    esac
+    [ -d "$ROOT" ] || { log "test root $ROOT does not exist"; exit 1; }
+fi
+
+mkdir -p "$STATE" 2>/dev/null || { log "cannot create $STATE"; exit 1; }
+
+now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+copy_dmesg() {
+    _out=$1
+    if have dmesg; then
+        if have timeout; then
+            timeout "$DMESG_TIMEOUT" dmesg 2>/dev/null | tail -n "$DMESG_LINES" > "$_out"
+        else
+            dmesg 2>/dev/null | tail -n "$DMESG_LINES" > "$_out"
+        fi
+    else
+        : > "$_out"
+    fi
+    # An empty dmesg is itself information (dmesg_restrict, or the ring
+    # buffer rotated past the crash); never leave a zero-byte file behind.
+    if [ ! -s "$_out" ]; then
+        printf '[UNAVAILABLE] dmesg is empty or restricted\n' > "$_out"
+    fi
+}
+
+# release <data-file>: hand the dump back to the devcoredump framework, which
+# deletes /sys/class/devcoredump/devcd<N>/ and makes room for the next crash.
+release() {
+    printf '1' > "$1" 2>/dev/null
+}
+
+capture() {
+    _data=$1
+    _devcd=$(basename "$(dirname "$_data")")
+    _ts=$(date -u +%Y%m%dT%H%M%SZ)
+    _dir="$STATE/$_ts-$_devcd"
+
+    if ! mkdir -p "$_dir" 2>/dev/null; then
+        log "$_devcd: cannot create $_dir"
+        return 1
+    fi
+    chmod 700 "$_dir" 2>/dev/null || true
+
+    # One bounded read: this is what actually generates the dump text for
+    # drm/msm (dev_coredumpm() with datalen 0).
+    head -c "$MAX_DUMP_BYTES" "$_data" > "$_dir/devcoredump" 2>/dev/null
+    _bytes=$(wc -c < "$_dir/devcoredump" 2>/dev/null | tr -d ' ')
+    [ -n "$_bytes" ] || _bytes=0
+    if [ "$_bytes" -eq 0 ]; then
+        log "$_devcd: read returned no data, leaving the dump armed"
+        rm -rf "$_dir"
+        return 1
+    fi
+
+    case $_bytes in
+        "$MAX_DUMP_BYTES") _truncated="yes (capped at $MAX_DUMP_BYTES bytes)" ;;
+        *) _truncated=no ;;
+    esac
+
+    _dev=unknown
+    if [ -L "$CLASS/$_devcd/failing_device" ] && have readlink; then
+        _dev=$(readlink "$CLASS/$_devcd/failing_device" 2>/dev/null)
+        [ -n "$_dev" ] || _dev=unknown
+    fi
+
+    {
+        printf 'devcd=%s\n' "$_devcd"
+        printf 'failing_device=%s\n' "$_dev"
+        printf 'captured=%s\n' "$(now)"
+        printf 'devcoredump_bytes=%s\n' "$_bytes"
+        printf 'truncated=%s\n' "$_truncated"
+    } > "$_dir/INFO"
+
+    copy_dmesg "$_dir/dmesg.txt"
+
+    if release "$_data"; then
+        printf 'released=yes\n' >> "$_dir/INFO"
+    else
+        printf 'released=no\n' >> "$_dir/INFO"
+        log "$_devcd: could not release the dump (it expires in 5 min)"
+    fi
+
+    log "$_devcd: captured $_bytes bytes into $_dir"
+    return 0
+}
+
+retain() {
+    _list=$(ls -1d "$STATE"/*/ 2>/dev/null | sort)
+    [ -n "$_list" ] || return 0
+    _count=$(printf '%s\n' "$_list" | grep -c . 2>/dev/null)
+    [ -n "$_count" ] || _count=0
+    while [ "$_count" -gt 0 ]; do
+        _total=$(du -sk "$STATE" 2>/dev/null | cut -f1)
+        [ -n "$_total" ] || _total=0
+        if [ "$_count" -le "$KEEP" ] && [ "$_total" -le "$MAX_TOTAL_KIB" ]; then
+            break
+        fi
+        # Never delete the newest capture: it is the one just written.
+        [ "$_count" -gt 1 ] || break
+        _oldest=$(printf '%s\n' "$_list" | head -n 1)
+        log "retention: removing $_oldest"
+        rm -rf "$_oldest"
+        _list=$(printf '%s\n' "$_list" | tail -n +2)
+        _count=$((_count - 1))
+    done
+}
+
+_found=0
+for _data in "$CLASS"/devcd*/data; do
+    [ -f "$_data" ] || continue
+    _found=$((_found + 1))
+    capture "$_data" || true
+done
+[ "$_found" -gt 0 ] || log "no devcoredump present"
+
+retain
+exit 0

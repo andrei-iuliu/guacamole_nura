@@ -1,0 +1,26 @@
+# Collect the GPU devcoredump that drm/msm publishes on a hang, copy it under
+# /var/lib/nura/gpu-crash and release it, so that the next hang is not
+# discarded by the devcoredump framework (one dump per device at a time,
+# 5 minute expiry).  Started by 90-nura-gpu-crash.rules on the devcoredump
+# uevent and backstopped by nura-gpu-crash-capture.timer.
+#
+# ProtectKernelTunables and ProtectSystem=strict must stay OFF: releasing the
+# dump is a write to /sys/class/devcoredump/devcd<N>/data.  ProtectSystem=full
+# keeps /usr and /etc read-only while leaving /var writable for StateDirectory.
+[Unit]
+Description=Nura GPU crash dump capture
+ConditionPathExistsGlob=/sys/class/devcoredump/devcd*/data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/nura-gpu-crash-capture
+StateDirectory=nura/gpu-crash
+StateDirectoryMode=0700
+TimeoutStartSec=120
+Nice=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ProtectControlGroups=yes
+ProtectKernelModules=yes

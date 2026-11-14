@@ -1,0 +1,51 @@
+From b303e1d52811de7d1bcf793560754d4df68d4a1c Mon Sep 17 00:00:00 2001
+From: Jie Zhang <jie.zhang@oss.qualcomm.com>
+Date: Fri, 5 Jun 2026 01:38:18 +0530
+Subject: [PATCH] drm/msm: Recover HW before retire hung submit
+
+During recovery, it is not safe to retire the hung submit before we
+recover the GPU. Retiring the submit triggers BO free and that can
+result in GPU pagefaults since the GPU may be actively accessing those
+BOs.
+
+To fix this, retire the submits after gpu recovery is complete in
+recover_worker().
+
+Fixes: 1a370be9ac51 ("drm/msm: restart queued submits after hang")
+Signed-off-by: Jie Zhang <jie.zhang@oss.qualcomm.com>
+Signed-off-by: Akhil P Oommen <akhilpo@oss.qualcomm.com>
+Acked-by: Konrad Dybcio <konrad.dybcio@oss.qualcomm.com>
+Patchwork: https://patchwork.freedesktop.org/patch/730655/
+Message-ID: <20260605-assorted-fixes-june-v1-2-2caa04f7287c@oss.qualcomm.com>
+Signed-off-by: Rob Clark <robin.clark@oss.qualcomm.com>
+Nura-Category: backport
+Nura-Origin: linux v7.3 b303e1d52811
+Upstream-Status: merged v7.3 (post-v7.2, tip 0a0d1d55dad5)
+---
+commit b303e1d52811 upstream.
+
+Rebased onto v7.0.0-sm8150: needs 0069 first (it swaps the order of the
+retire and the gpu->funcs->recover() call that 0069 moved out of the
+msm_gpu_active() block). Applies at the exact line numbers here.
+
+ drivers/gpu/drm/msm/msm_gpu.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/msm/msm_gpu.c b/drivers/gpu/drm/msm/msm_gpu.c
+index 930e54d..03732f0 100644
+--- a/drivers/gpu/drm/msm/msm_gpu.c
++++ b/drivers/gpu/drm/msm/msm_gpu.c
+@@ -552,11 +552,11 @@ static void recover_worker(struct kthread_work *work)
+ 		msm_update_fence(ring->fctx, fence);
+ 	}
+ 
++	gpu->funcs->recover(gpu);
++
+ 	/* retire completed submits, plus the one that hung: */
+ 	retire_submits(gpu);
+ 
+-	gpu->funcs->recover(gpu);
+-
+ 	/*
+ 	 * Replay all remaining submits starting with highest priority
+ 	 * ring

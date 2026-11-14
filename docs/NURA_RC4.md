@@ -65,6 +65,45 @@ Notes:
   PM8150B never re-attaches as sink within 500 ms), so it only worked on the
   rare runs where the swap completed (rc4b/rc4d/rc4e). The keyboard-adapter-
   on-phone case for `0063` is still untested.
+* **rc4i** (`pkgrel=12`) adds four drm/msm recovery backports for the recurring
+  `gpu fault: ... type=TRANSLATION source=CCU` + `hangcheck recover!` on both
+  Plasma and Phosh, in upstream order, each rebased onto this tree and applied
+  with `patch -p1 --fuzz=0` (no offsets):
+  * `0068` `4625fe5bbdac` (v7.1) forbids memory reclaim from the reset path —
+    the recover worker holds `gpu->lock` while `msm_gpu_crashstate_capture()`
+    allocates, and reclaim there waits on the DMA fences of the GPU that is
+    holding the lock, so one hang can wedge the GPU permanently;
+  * `0069` `01a0d6cd7032` (v7.1) always recovers — the old `msm_gpu_active()`
+    early-out skipped the reset whenever the hung ring had no further
+    submits, which is the single-submit case a compositor hits at startup;
+  * `0070` `b303e1d52811` (v7.3) recovers the HW before retiring the hung
+    submit — retiring first frees its BOs while the GPU may still be reading
+    them, which is itself a source of `TRANSLATION` faults;
+  * `0071` `40b793714ad8` (v7.3) adds the missing `put_task_struct()` in the
+    `recover_worker()` else branch (one leaked task reference per recovery).
+  `0072` (device-dt) gives the PM8150 PON node `mode-recovery`/`mode-bootloader`,
+  so `systemctl reboot --reboot-argument=bootloader` reaches the ABL instead
+  of doing a warm reset; both properties are present under `pon@800` in the
+  compiled `sm8150-oneplus-guacamole.dtb`. `CONFIG_DRM_MSM=y`, so the Image
+  and its BTF change while `uname -r` stays `7.0.0-sm8150-guacamole-rc4`:
+  reinstall the module tree with the new Image. **Not tested on hardware**
+  yet: these are the explanation for the fault pattern, not a proven fix.
+* **rc4i GPU crash capture** (device package, `pkgrel=17`, enabled by default).
+  On a hang drm/msm publishes `/sys/class/devcoredump/devcd<N>/`, and that
+  dump is the only input Mesa's `crashdec` can decode. `nura-gpu-crash-capture`
+  copies `data` plus a 200-line `dmesg` tail into
+  `/var/lib/nura/gpu-crash/<utc-stamp>-<devcd>/` (`devcoredump`, `dmesg.txt`,
+  `INFO`) and then writes `1` to `data` to release it. Releasing is what keeps
+  the feature useful: the framework holds one unread dump per device, deletes
+  it after 5 minutes, and **discards** a new hang while an unread one exists.
+  `90-nura-gpu-crash.rules` starts the oneshot on the devcoredump uevent and
+  `nura-gpu-crash-capture.timer` (enabled by `83-nura-gpu-crash.preset`) is a
+  one-minute backstop. Retention: newest 10 captures, at most ~50 MB in total,
+  8 MiB per dump. No debugfs, no extra package. Decode a capture on a dev box
+  with Mesa's crashdec: `crashdec -f /var/lib/nura/gpu-crash/<dir>/devcoredump`
+  (it prints the GPU, ring and IB state, then replays the command stream up to
+  the fault); the same directory's `dmesg.txt` holds the kernel's
+  `hangcheck`/`gpu fault` lines for the timestamp.
 * `fastboot boot` after `systemctl reboot --reboot-argument=bootloader` gave a
   black, USB-less boot on rc4c/rc4g/rc4h and worked on rc4d/rc4e; the same
   images always booted after a full power-off. Independent of the patches.
@@ -248,9 +287,12 @@ bash flows/rc4/scripts/rc4.sh bootimg
 ```
 
 **UI variants.** Step 2 takes `--ui plasma|phosh` (default `plasma`). Both
-images use the same rc4h kernel and device package 4-r16, which adds:
+images use the same rc4i kernel (pkgrel 12) and device package 4-r17, which
+adds:
 
 * the A/B slot marker `guacamole-boot-slot.timer`;
+* the GPU crash collector `nura-gpu-crash-capture.timer` + udev rule
+  (`/var/lib/nura/gpu-crash`, see section 0);
 * the Plasma corner preset;
 * exact kernel/device/firmware pins in `/etc/apk/world`;
 * a graphical package manager (Discover with its apk backend on Plasma,

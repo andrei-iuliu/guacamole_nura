@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# GPU crash dumps on the OnePlus 7 Pro (guacamole).
+#
+# On a hang drm/msm calls dev_coredumpm(), which creates
+# /sys/class/devcoredump/devcd<N>/ (data + failing_device) and emits this
+# KOBJ_ADD uevent.  The dump is the only input Mesa's crashdec can decode, so
+# start the oneshot collector that copies it to /var/lib/nura/gpu-crash and
+# releases it (one unread dump per device at a time, deleted after 5 min).
+#
+# The collector is a oneshot unit rather than a RUN+= here: a RUN program
+# blocks the serial udev event queue while several MB of dump text are
+# generated and read.
+SUBSYSTEM=="devcoredump", TAG+="systemd", ENV{SYSTEMD_WANTS}+="nura-gpu-crash-capture.service"
