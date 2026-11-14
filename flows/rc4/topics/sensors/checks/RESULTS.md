@@ -66,10 +66,14 @@ $ sha512sum /tmp/libssc-0.4.4-1.tar.gz
 ## Local patch hashes (what the APKBUILDs list, source= order)
 
 ```
-$ sha512sum flows/rc4/topics/sensors/recipe/*/*.patch
-7fa5df4c2322b1273a5d968615905f445727414a8693f501978725b45969eeb1f875655bf8060b8239c00198b9dd12db5c4e931992b7e28db5d8999c7049ab66  flows/rc4/topics/sensors/recipe/iio-sensor-proxy/0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch
-ff6745564714413d72de76418060db2a9aad86aece8bbd6d03b68770afb093b2012acb3766d077685716a66d3a0ce263017599102e1ec66b48b9a10665646777  flows/rc4/topics/sensors/recipe/libssc/0001-libssc-common-block-in-the-sync-wait.patch
+$ sha512sum flows/rc4/device/testing/*/*.patch
+7fa5df4c2322b1273a5d968615905f445727414a8693f501978725b45969eeb1f875655bf8060b8239c00198b9dd12db5c4e931992b7e28db5d8999c7049ab66  flows/rc4/device/testing/iio-sensor-proxy/0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch
+ff6745564714413d72de76418060db2a9aad86aece8bbd6d03b68770afb093b2012acb3766d077685716a66d3a0ce263017599102e1ec66b48b9a10665646777  flows/rc4/device/testing/libssc/0001-libssc-common-block-in-the-sync-wait.patch
 ```
+
+The recipes were moved to `flows/rc4/device/testing/` when they were wired
+into the image (a topic-local recipe is not built by the flow); the paths in
+the transcript above are from the review run, the hashes are unchanged.
 
 ## Upstream 30 s-timeout commit does not apply to 0.4.4
 
@@ -121,6 +125,49 @@ $ llvm-objdump -d --no-show-raw-insn --start-address=0x47c8 --stop-address=0x481
 See `../evidence/libssc-0.4.4-r0-wait-loop.txt` for the full listing, the
 source excerpt and the load-base arithmetic that puts the phone backtrace at
 file offset 0x4808.
+
+## The rootfs marker, checked against the real packages
+
+`check_local_candidate.py`'s `verify_sensor_drivers()` uses the daemon's
+dynamic symbol names as the marker: the Alpine build imports `*_open_sync`
+for every SSC sensor and none of the `*_finish` helpers; the patched build is
+the reverse.  Checked against the shipped APK and the patched source:
+
+```
+$ curl -fsSL https://dl-cdn.alpinelinux.org/alpine/edge/community/aarch64/iio-sensor-proxy-3.9-r2.apk -o isp.apk
+$ tar -xzf isp.apk
+$ readelf -sW usr/libexec/iio-sensor-proxy | grep -oE 'ssc_sensor_[a-z_]+' | sort -u
+ssc_sensor_accelerometer_close_sync
+ssc_sensor_accelerometer_new_sync
+ssc_sensor_accelerometer_open_sync
+ssc_sensor_compass_close_sync
+ssc_sensor_compass_new_sync
+ssc_sensor_compass_open_sync
+ssc_sensor_light_close_sync
+ssc_sensor_light_new_sync
+ssc_sensor_light_open_sync
+ssc_sensor_proximity_close_sync
+ssc_sensor_proximity_new_sync
+ssc_sensor_proximity_open_sync
+
+$ grep -hoE 'ssc_sensor_[a-z]+_(open|close)_finish' src/drv-ssc-*.c | sort -u   # patched tree
+ssc_sensor_accelerometer_close_finish
+ssc_sensor_accelerometer_open_finish
+ssc_sensor_compass_close_finish
+ssc_sensor_compass_open_finish
+ssc_sensor_light_close_finish
+ssc_sensor_light_open_finish
+ssc_sensor_proximity_close_finish
+ssc_sensor_proximity_open_finish
+
+$ grep -hoE 'ssc_sensor_[a-z]+_open_sync' src/drv-ssc-*.c | sort -u           # patched tree
+(no output)
+```
+
+`*_close_sync` and `*_new_sync` stay imported in both builds because
+`discover()` keeps its synchronous open/close pair; that is why only
+`*_open_sync` is a negative marker and both `*_finish` pairs are positive
+ones.
 
 ## Not run
 

@@ -256,6 +256,14 @@ def main():
     check(re.search(r"^pkgrel=100$", phoc_apk, re.M) is not None and
           "0001-render-skip-surfaces-that-have-no-texture.patch" in phoc_apk,
           "flow: link farm carries the patched phoc (thumbnail null-texture guard)")
+    libssc_apk = read(farm / "libssc/APKBUILD")
+    check(re.search(r"^pkgrel=100$", libssc_apk, re.M) is not None and
+          "0001-libssc-common-block-in-the-sync-wait.patch" in libssc_apk,
+          "flow: link farm carries the patched libssc (blocking sync wait)")
+    iio_apk = read(farm / "iio-sensor-proxy/APKBUILD")
+    check(re.search(r"^pkgrel=100$", iio_apk, re.M) is not None and
+          "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch" in iio_apk,
+          "flow: link farm carries the patched iio-sensor-proxy (async SSC claims)")
     krn_apk = read(farm / "linux-postmarketos-qcom-sm8150/APKBUILD")
     check(re.search(r"^pkgrel=5$", krn_apk, re.M) is not None,
           "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 pkgrel 5")

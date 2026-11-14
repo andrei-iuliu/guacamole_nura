@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Checks for the rc4j SSC sensor-fix topic (flows/rc4/topics/sensors).
+"""Checks for the rc4j SSC sensor fix (device/testing recipes + flow wiring).
 
-The topic is a *proposal*: two local recipes (iio-sensor-proxy 3.9-r100,
-libssc 0.4.4-r100) for the 100 %-CPU / stalled-claim bug in
-iio-sensor-proxy's SSC drivers when a client claims several sensors at once
-(Phosh Mobile Settings -> Sensors).  Nothing is wired into the image, so
-there is no runtime script to exercise; what can be checked offline is the
-packaging contract and the content of the two patches, because those are what
-a merge would build.
+Two local recipes, iio-sensor-proxy 3.9-r100 and libssc 0.4.4-r100, fix the
+100 %-CPU / stalled-claim bug in iio-sensor-proxy's SSC drivers when a client
+claims several sensors at once (Phosh Mobile Settings -> Sensors).  They are
+wired into the image the way the patched `phoc` is: recipes in
+`flows/rc4/device/testing/`, links from the flow's recipe farm, pins in
+`/etc/apk/world`, a build-order rule (libssc before the daemon that
+makedepends on it) and an installed-rootfs marker check.
 
 What is checked:
   * source= and sha512sums= are paired positionally (abuild's rule) and every
     local file in source= hashes to the sum listed for it;
   * the patches only touch the files they claim, the iio-sensor-proxy one
-    removes every *_open_sync/_close_sync call from the four SSC drivers and
-    adds the async call plus a completion callback that cannot dereference a
-    NULL GError, and the libssc one changes exactly one call (may_block);
+    removes every *_open_sync call from the four SSC drivers and adds the
+    async call plus a completion callback that cannot dereference a NULL
+    GError, and the libssc one changes exactly one call (may_block);
+  * the flow wiring: recipe links (before the daemon, which makedepends on
+    libssc), the version constants, the shared install list for both UIs (the
+    daemon and its -systemd/-udev subpackages at the same r100), the world
+    pins and the `verify_sensor_drivers` binary check;
   * the verification script, the backtrace and the README the analysis rests
     on are still there.
 
@@ -25,21 +29,28 @@ Run: PYTHONPATH=flows/rc4/local-storage/scripts \\
 """
 
 import hashlib
+import importlib.util
+import os
 import pathlib
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 
 TESTS = pathlib.Path(__file__).resolve().parent
 RC4 = TESTS.parent
 TOPIC = RC4 / "topics/sensors"
-IIO = TOPIC / "recipe/iio-sensor-proxy"
-LIBSSC = TOPIC / "recipe/libssc"
+DEVICE = RC4 / "device/testing"
+IIO = DEVICE / "iio-sensor-proxy"
+LIBSSC = DEVICE / "libssc"
 IIO_PATCH = IIO / "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch"
 LIBSSC_PATCH = LIBSSC / "0001-libssc-common-block-in-the-sync-wait.patch"
 VERIFY = TOPIC / "checks/verify.sh"
 EVIDENCE = TOPIC / "evidence"
+FLOW = RC4 / "local-storage"
+CHECKER = FLOW / "scripts/check_local_candidate.py"
+PREPARE = FLOW / "scripts/rootfs_prepare_local.sh"
 
 SSC_DRIVERS = (
     "src/drv-ssc-accel.c",
@@ -58,6 +69,29 @@ SSC_TYPES = {
 
 def sha512(path):
     return hashlib.sha512(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def load_checker(ui="plasma"):
+    """Import check_local_candidate.py with NURA_UI=ui (its module constants)."""
+    old = os.environ.get("NURA_UI")
+    os.environ["NURA_UI"] = ui
+    try:
+        spec = importlib.util.spec_from_file_location(f"clc_{ui}_{id(ui)}", CHECKER)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        if old is None:
+            os.environ.pop("NURA_UI", None)
+        else:
+            os.environ["NURA_UI"] = old
+
+
+def shell_function(text, name):
+    """Return the body of a top-level bash function from a script's text."""
+    start = text.index(f"{name}() {{")
+    end = text.index("\n}\n", start)
+    return text[start:end]
 
 
 def apkbuild_block(path, name):
@@ -214,6 +248,111 @@ class LibsscPatchTest(unittest.TestCase):
         self.assertIn("busy wait", added)
 
 
+class WiringTest(unittest.TestCase):
+    """rc4j: both recipes are wired into the image like the patched phoc."""
+
+    def test_recipes_and_link_farm(self):
+        for name, recipe in (("iio-sensor-proxy", IIO), ("libssc", LIBSSC)):
+            with self.subTest(recipe=name):
+                self.assertTrue((recipe / "APKBUILD").is_file(), recipe)
+                self.assertTrue((FLOW / "device/testing" / name / "APKBUILD").is_file(),
+                                "the flow link farm must expose the %s recipe" % name)
+                link = RC4 / "local-storage/device/testing" / name
+                self.assertTrue(link.is_symlink(), link)
+                self.assertEqual(link.resolve(), recipe.resolve(),
+                                 "the link must resolve to the rc4j recipe, "
+                                 "not the rc3-era tree")
+
+    def test_checker_links_and_pins(self):
+        checker = CHECKER.read_text()
+        links = checker.split("def prepare_state(", 1)[1].split(
+            "for relative, target in", 1)[0]
+        self.assertIn('"main/libssc": "device/testing/libssc"', links)
+        self.assertIn('"main/iio-sensor-proxy": "device/testing/iio-sensor-proxy"', links)
+        # libssc is the daemon's makedepend, so its recipe is linked first.
+        self.assertLess(links.index('"main/libssc"'),
+                        links.index('"main/iio-sensor-proxy"'))
+        clc = load_checker()
+        self.assertEqual(clc.IIO_SENSOR_PROXY_VERSION, "3.9-r100")
+        self.assertEqual(clc.LIBSSC_VERSION, "0.4.4-r100")
+        self.assertIn("iio-sensor-proxy", clc.WORLD_PINNED)
+        self.assertIn("libssc", clc.WORLD_PINNED)
+        # The SSC symbol sets are the marker pair the rootfs check uses: the
+        # claim-path marker is *_open_sync only, because discover() keeps its
+        # own *_close_sync() call in the patched build.
+        self.assertIn("ssc_sensor_light_open_sync", clc.IIO_SENSOR_PROXY_SYNC_SYMBOLS)
+        self.assertNotIn("ssc_sensor_light_close_sync", clc.IIO_SENSOR_PROXY_SYNC_SYMBOLS)
+        self.assertIn("ssc_sensor_compass_close_finish", clc.IIO_SENSOR_PROXY_ASYNC_SYMBOLS)
+
+    def test_required_for_both_uis_including_subpackages(self):
+        checker = CHECKER.read_text()
+        required_block = checker.split("    required = {", 1)[1].split(
+            'if UI == "plasma":', 1)[0]
+        self.assertIn("required[name] = iio_version", required_block)
+        self.assertIn('required["libssc"]', required_block)
+        self.assertIn('"iio-sensor-proxy-systemd"', checker)
+        self.assertIn('"iio-sensor-proxy-udev"', checker)
+        self.assertIn("verify_sensor_drivers(rootfs)", checker)
+        # mixed r2/r100 sets are rejected even when both mains check out
+        self.assertIn("the rootfs mixes repository and local sensor packages", checker)
+        self.assertIn('verify.add_argument("--iio-sensor-proxy-version")', checker)
+        self.assertIn('verify.add_argument("--libssc-version")', checker)
+
+    def test_verify_rejects_a_missing_or_unpatched_daemon(self):
+        clc = load_checker()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            with self.assertRaises(SystemExit):
+                clc.verify_sensor_drivers(root)            # no daemon at all
+            binary = root / "usr/libexec/iio-sensor-proxy"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"\0ssc_sensor_light_open_sync\0")
+            binary.chmod(0o644)
+            with self.assertRaises(SystemExit):
+                clc.verify_sensor_drivers(root)            # not executable
+            binary.chmod(0o755)
+            with self.assertRaises(SystemExit):
+                clc.verify_sensor_drivers(root)            # r2 claim path
+            patched = b"\0".join(symbol.encode()
+                                 for symbol in clc.IIO_SENSOR_PROXY_ASYNC_SYMBOLS)
+            binary.write_bytes(b"\0" + patched + b"\0")
+            clc.verify_sensor_drivers(root)                # local r100 build
+            binary.write_bytes(b"\0" + patched.replace(b"compass_open_finish",
+                                                       b"nope") + b"\0")
+            with self.assertRaises(SystemExit):
+                clc.verify_sensor_drivers(root)            # async symbol missing
+
+    def test_flow_builds_libssc_first_and_pins_both_uis(self):
+        prepare = PREPARE.read_text()
+        loop = prepare.split("for package in ", 1)[1].split("; do", 1)[0]
+        self.assertIn("libssc", loop)
+        self.assertIn("iio-sensor-proxy", loop)
+        self.assertLess(loop.index("libssc"), loop.index("iio-sensor-proxy"),
+                        "libssc is the daemon's makedepend and must build first")
+        self.assertIn('"$iio_sensor_proxy_version" = 3.9-r100', prepare)
+        self.assertIn('"$libssc_version" = 0.4.4-r100', prepare)
+        adds = shell_function(prepare, "install_add_string")
+        shared = adds.split('case "$NURA_UI" in', 1)[0]
+        for entry in ('"libssc=$libssc_version"',
+                      '"iio-sensor-proxy=$iio_sensor_proxy_version"',
+                      '"iio-sensor-proxy-systemd=$iio_sensor_proxy_version"',
+                      '"iio-sensor-proxy-udev=$iio_sensor_proxy_version"'):
+            self.assertIn(entry, shared, "both UIs need " + entry)
+        plasma = adds.split("plasma)", 1)[1].split(";;", 1)[0]
+        phosh = adds.split("phosh)", 1)[1].split(";;", 1)[0]
+        self.assertNotIn("iio-sensor-proxy", plasma, "already in the shared list")
+        self.assertNotIn("libssc", phosh, "already in the shared list")
+        self.assertIn('sensor_args=(--iio-sensor-proxy-version '
+                      '"$(package_version iio-sensor-proxy)"', prepare)
+        self.assertIn('--libssc-version "$(package_version libssc)")', prepare)
+        self.assertIn('"${sensor_args[@]}"', prepare)
+
+    def test_flow_checker_knows_the_recipes(self):
+        text = (RC4 / "scripts/check_recipe.py").read_text()
+        self.assertIn('farm / "libssc/APKBUILD"', text)
+        self.assertIn('farm / "iio-sensor-proxy/APKBUILD"', text)
+
+
 class TopicFilesTest(unittest.TestCase):
     def test_verify_script_is_shell_clean(self):
         self.assertTrue(VERIFY.is_file(), "checks/verify.sh is missing")
@@ -244,7 +383,7 @@ class TopicFilesTest(unittest.TestCase):
     def test_readme_documents_root_cause_and_wiring(self):
         text = (TOPIC / "README.md").read_text()
         for heading in ("## Root cause", "### What is *not* proven", "## Fix",
-                        "## How to wire it (not done here)"):
+                        "## How it is wired"):
             self.assertIn(heading, text)
         self.assertIn("systemctl restart iio-sensor-proxy", text)
 
