@@ -1,10 +1,13 @@
 # Kernel patch taxonomy for the next SM8150 bump
 
-Scope: the 60 patches of the rc4h recipe
+Scope: the 66 patches of the rc4 recipe
 `flows/rc4/device/testing/linux-postmarketos-qcom-sm8150/` (kernel
-`v7.0.0-sm8150`, `pkgrel=11`), classified so that the next bump to a
-7.3/7.4 sm8150 tag can be a mechanical rebase. Nothing here is applied,
-rebuilt or tested on hardware; no hunk was changed.
+`v7.0.0-sm8150`, `pkgrel=13`), classified so that the next bump to a
+7.3/7.4 sm8150 tag can be a mechanical rebase. The 60 patches of the rc4h
+pass were classified first; 0068-0072 were added by rc4i (pkgrel 12) and
+0073 by rc4j (pkgrel 13) and are listed here from their own trailers and
+patch stats. Nothing here is applied, rebuilt or tested on hardware; no hunk
+was changed.
 
 Patch numbers follow the recipe (`source=` order). Numbers `0013`, `0014`,
 `0016`, `0023`, `0036`, `0042` and `0043` do not exist in this recipe:
@@ -39,12 +42,13 @@ and `0042`/`0043` are the old names of `0034`/`0035`.
 | --- | --- | ---: |
 | `upstream-fix` | generic bug fix, suitable for upstream as-is or with a `Fixes:` tag | 19 |
 | `upstream-feature` | new driver or SoC support that could go upstream | 11 |
-| `device-dt` | board/SoC devicetree for this device or its fork | 12 |
+| `device-dt` | board/SoC devicetree for this device or its fork | 13 |
 | `local-workaround` | hack, quirk or policy that should not go upstream | 12 |
-| `backport` | already taken from a newer upstream kernel | 1 |
+| `backport` | already taken from a newer upstream kernel | 5 |
 | `reference-port` | ported from omarchy-mobile/hotdog, device-specific or not upstreamable as-is | 5 |
+| `experimental` | unproven candidate or mailing-list patch kept only for an A/B trial | 1 |
 
-Risk: **low 38**, **medium 18**, **high 4** (`0004`, `0028`, `0064`, `0067`).
+Risk: **low 44**, **medium 18**, **high 4** (`0004`, `0028`, `0064`, `0067`).
 
 ## Table
 
@@ -114,6 +118,12 @@ configuration the patch assumes). `Action` is the recommendation for the
 | 0065 | qcom-pmic-typec: hide re-attach in a role swap | usb-typec | local-workaround | nura rc4h dock debugging | not in v7.2 | 0024 | medium — port driver reworked | keep |
 | 0066 | tcpm: tolerate one data-role mismatch | usb-typec | local-workaround | nura rc4h dock debugging | not in v7.2 | — | medium — `tcpm.c` churn | keep |
 | 0067 | drm/msm/dp: re-apply/re-read EDID in get_modes | drm-msm | upstream-fix | nura rc4h dock debugging | not in v7.2 | — | **high** — EDID/HPD rework upstream | upstream |
+| 0068 | forbids memory reclaim from reset | drm-msm | backport | Sergey Senozhatsky, `4625fe5bbdac` | **merged in v7.1** | — | low — 11 lines in `recover_worker()`; dropped, not rebased | **drop-when-bumping** |
+| 0069 | always recover the gpu | drm-msm | backport | Anna Maniscalco, `01a0d6cd7032` | **merged in v7.1** | 0068 | low — 22-line deletion in `recover_worker()`; dropped, not rebased | **drop-when-bumping** |
+| 0070 | recover the HW before retiring the hung submit | drm-msm | backport | Jie Zhang, `b303e1d52811` | **merged in v7.3** (post-v7.2, tip `0a0d1d55dad5`) | 0069 | low — 2-line order swap | **drop-when-bumping** |
+| 0071 | fix the `recover_worker()` task_struct leak | drm-msm | backport | Jie Zhang, `40b793714ad8` | **merged in v7.3** (post-v7.2, tip `0a0d1d55dad5`) | 0070 | low — 2 lines | **drop-when-bumping** |
+| 0072 | guacamole: PM8150 PON reboot modes | dts | device-dt | nura rc4i | n/a: guacamole DTS not upstream | — | low — fork-only DTS | keep |
+| 0073 | 64 KiB kernel-managed GPU VA alignment | drm-msm | experimental | Gaurav Suman, freedreno msg48724 (2026-11-09) | not in v7.2; proposed, questioned by the maintainer | — | low — 13-line hunk in `msm_gem_vma.c` | keep only while the A/B trial runs; do not send upstream before Mesa is ruled out |
 
 ## Upstream first
 
@@ -146,7 +156,8 @@ for these files).
 Not for upstream: 0004 (board panel driver belongs in the sm8150 fork until
 the panel is described generically), 0006/0010 (device quirks), 0020/0021/
 0061/0063/0065/0066 (board/PMIC policy), 0044 (policy module), 0048/0050
-(DP audio experiments), 0051/0054 (downstream interfaces), and every
+(DP audio experiments), 0051/0054 (downstream interfaces), 0073 (experimental
+VA alignment, the maintainer asked for a Mesa report first), and every
 `device-dt` patch.
 
 ## Bump plan (7.3/7.4)
