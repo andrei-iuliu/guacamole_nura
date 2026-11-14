@@ -817,6 +817,24 @@ def _set_sha512(ui_text: str, ui_apkbuild: Path, checksums: dict[str, str]) -> s
             lines[indices[0]] = f"{checksum}  {filename}\n"
         else:
             lines.insert(start + 1, f"{checksum}  {filename}\n")
+    # abuild >= 3.18 pairs sha512sums with source= by position, so the block
+    # must follow the source= order exactly (a new entry inserted at the top
+    # made it check 01_postmarketos-ui-phosh.gschema.override against the
+    # wrong hash).
+    text = "".join(lines)
+    source_match = re.search(r'^source="(.*?)"', text, flags=re.M | re.S)
+    if not source_match:
+        die(f"{ui_apkbuild}: no source= block")
+    order = [Path(entry.split("::")[-1]).name for entry in source_match.group(1).split()]
+    lines = text.splitlines(keepends=True)
+    start = next(i for i, line in enumerate(lines) if line.startswith('sha512sums="'))
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == '"')
+    entries = {line.split()[1]: line for line in lines[start + 1:end] if line.strip()}
+    missing = [name for name in order if name not in entries]
+    extra = [name for name in entries if name not in order]
+    if missing or extra:
+        die(f"{ui_apkbuild}: sha512sums do not match source= (missing {missing}, extra {extra})")
+    lines[start + 1:end] = [entries[name] for name in order]
     return "".join(lines)
 
 
