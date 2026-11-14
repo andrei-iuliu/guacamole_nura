@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -246,6 +247,193 @@ class TestPhoshPanelCheck(unittest.TestCase):
                 clc.verify_phosh_camera_and_panel(root)
             lib.write_bytes(b"\0".join(clc.GMOBILE_PANEL_MARKERS))
             clc.verify_phosh_camera_and_panel(root)
+
+
+class TestUiExclusions(unittest.TestCase):
+    """Per-UI default apps the build must not install.
+
+    pmbootstrap 3.12.1 refuses a "!pkgname" entry in the install package list
+    (pmbootstrap pmb/chroot/apk.py:220-222), so the exclusion is applied to the
+    rootfs chroot and then re-checked against the installed APK database.
+    """
+
+    PHOSH = ("phosh-tour", "lpa-gtk", "vvmplayer", "decibels")
+
+    def test_profile_lists(self):
+        plasma = load_checker("plasma")
+        phosh = load_checker("phosh")
+        self.assertEqual(plasma.EXCLUDED_PACKAGES, ())
+        self.assertEqual(plasma.UI_PROFILE["excluded_packages"], ())
+        self.assertEqual(phosh.EXCLUDED_PACKAGES, self.PHOSH)
+        self.assertEqual(phosh.UI_PROFILE["excluded_packages"], self.PHOSH)
+        # Gapless (g4music) is the wanted audio player and must not be listed.
+        self.assertNotIn("g4music", phosh.EXCLUDED_PACKAGES)
+
+    def test_cli_lists_one_line_per_ui(self):
+        cases = (("plasma", ""), ("phosh", ",".join(self.PHOSH)))
+        for ui, expected in cases:
+            result = run([sys.executable, str(CHECKER), "exclude-list"], {"NURA_UI": ui})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), expected)
+        # Plasma stays the default and excludes nothing.
+        default = run([sys.executable, str(CHECKER), "exclude-list"])
+        self.assertEqual(default.stdout.strip(), "")
+
+    def test_post_install_check_fails_on_an_excluded_package(self):
+        clc = load_checker("phosh")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rootfs_with(tmp, ["postmarketos-ui-phosh"],
+                               {"phosh": "34-r0", "g4music": "47.0-r0"})
+            clc.verify_excluded_packages(clc.installed_packages(root))
+            database = root / "lib/apk/db/installed"
+            for name in self.PHOSH:
+                with self.subTest(package=name):
+                    database.write_text(
+                        "P:phosh\nV:34-r0\n\n" + f"P:{name}\nV:1-r0\n\n")
+                    with self.assertRaises(SystemExit):
+                        clc.verify_excluded_packages(clc.installed_packages(root))
+
+    def test_plasma_never_excludes_anything(self):
+        clc = load_checker("plasma")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rootfs_with(tmp, ["postmarketos-ui-plasma-mobile"],
+                               {name: "1-r0" for name in self.PHOSH})
+            clc.verify_excluded_packages(clc.installed_packages(root))
+
+    def test_build_applies_the_list_before_writing_the_image(self):
+        prepare = PREPARE.read_text()
+        self.assertIn('check_local_candidate.py" exclude-list', prepare)
+        # Phase 1 populates the chroot without an image, then the excluded
+        # apps are deleted from that chroot, then the image is written with
+        # --no-recommends so the deletion survives.
+        self.assertIn("install --no-image", prepare)
+        self.assertIn("apk del $to_del", prepare)
+        populate = prepare.index("install --no-image")
+        remove = prepare.index('remove_excluded_packages "${PMB[@]}"')
+        write_image = prepare.index("--no-split --filesystem ext4 --no-recommends --add")
+        self.assertLess(populate, remove)
+        self.assertLess(remove, write_image)
+        self.assertIn("verify_excluded_packages", CHECKER.read_text())
+
+
+class TestShutdownCommand(unittest.TestCase):
+    """rc4.sh shutdown: per-UI, refuses an incomplete state, never force-unmounts.
+
+    ``findmnt`` and ``python3`` are fake scripts on PATH; no real pmbootstrap,
+    mount or sudo runs here.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = pathlib.Path(self.tmp.name) / "flow with spaces"
+        (self.root / "scripts").mkdir(parents=True)
+        shutil.copy2(ENTRY, self.root / "scripts")
+        self.bin = pathlib.Path(self.tmp.name) / "bin"
+        self.bin.mkdir()
+        self.calls = pathlib.Path(self.tmp.name) / "calls"
+        self.marker = pathlib.Path(self.tmp.name) / "mounted"
+        self.phosh_state = self.root / ".work/local-userdata-phosh/rootfs-state"
+        # findmnt raw output escapes spaces as \x20; the script unescapes it.
+        self.mount_target = str(self.phosh_state / "pmbootstrap-work/chroot_native/proc")
+        self.tool("findmnt", '[[ ! -f "$TEST_MOUNT_MARKER" ]] || printf "%s\\n" "$TEST_MOUNT_TARGET"\n')
+        self.tool("python3", '''printf "%s\\n" "$@" > "$TEST_CALLS"
+[[ ${TEST_REMAIN:-0} == 0 ]] && rm -f "$TEST_MOUNT_MARKER"
+exit 0
+''')
+
+    def tool(self, name, body):
+        path = self.bin / name
+        path.write_text("#!/usr/bin/env bash\nset -e\n" + body)
+        path.chmod(0o755)
+
+    def install_state(self):
+        for directory in ("pmbootstrap", "rootfs", "pmaports", "pmbootstrap-work"):
+            (self.phosh_state / directory).mkdir(parents=True, exist_ok=True)
+        (self.phosh_state / "pmbootstrap/pmbootstrap.py").touch()
+        (self.phosh_state / "rootfs/pmbootstrap.cfg").touch()
+
+    def shutdown(self, *args, **extra):
+        env = {"PATH": f"{self.bin}:/usr/bin:/bin",
+               "TEST_MOUNT_MARKER": str(self.marker),
+               "TEST_MOUNT_TARGET": self.mount_target.replace(" ", r"\x20"),
+               "TEST_CALLS": str(self.calls)}
+        env.update(extra)
+        return run(["bash", str(self.root / "scripts/local_storage_build.sh"),
+                    "--shutdown", *args], env, timeout=30)
+
+    def test_no_mounts_is_safe(self):
+        result = self.shutdown("--ui", "phosh")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no active mounts under", result.stdout)
+        self.assertIn(".work/local-userdata-phosh", result.stdout)
+        self.assertFalse(self.calls.exists(), "pmbootstrap must not be called")
+
+    def test_state_directory_follows_the_ui(self):
+        phosh = self.shutdown("--ui", "phosh")
+        self.assertIn(".work/local-userdata-phosh", phosh.stdout)
+        plasma = self.shutdown("--ui", "plasma")
+        self.assertEqual(plasma.returncode, 0, plasma.stderr)
+        self.assertIn(".work/local-userdata\n", plasma.stdout)
+        self.assertNotIn("local-userdata-phosh", plasma.stdout)
+
+    def test_dry_run_prints_the_command_and_never_calls_pmbootstrap(self):
+        self.install_state()
+        self.marker.touch()
+        result = self.shutdown("--ui", "phosh", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        state = str(self.phosh_state)
+        self.assertIn(f"shutdown command: python3 {state}/pmbootstrap/pmbootstrap.py "
+                      f"-c {state}/rootfs/pmbootstrap.cfg -p {state}/pmaports "
+                      f"-w {state}/pmbootstrap-work shutdown", result.stdout)
+        self.assertIn("pmbootstrap-work/chroot_native/proc", result.stdout)
+        self.assertIn("pmbootstrap was not called", result.stdout)
+        self.assertFalse(self.calls.exists(), "the dry run must not call pmbootstrap")
+
+    def test_incomplete_state_is_refused(self):
+        self.marker.touch()
+        result = self.shutdown("--ui", "phosh")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("incomplete", result.stderr)
+        self.assertFalse(self.calls.exists(), "pmbootstrap must not be called")
+
+    def test_runs_pmbootstrap_shutdown_then_reports_cleared_mounts(self):
+        self.install_state()
+        self.marker.touch()
+        result = self.shutdown("--ui", "phosh")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        state = str(self.phosh_state)
+        self.assertEqual(self.calls.read_text().splitlines(), [
+            f"{state}/pmbootstrap/pmbootstrap.py",
+            "-c", f"{state}/rootfs/pmbootstrap.cfg",
+            "-p", f"{state}/pmaports",
+            "-w", f"{state}/pmbootstrap-work",
+            "shutdown",
+        ])
+        self.assertIn("mounts cleared", result.stdout)
+
+    def test_remaining_mounts_fail_with_the_list(self):
+        self.install_state()
+        self.marker.touch()
+        result = self.shutdown("--ui", "phosh", TEST_REMAIN="1")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("mounts remain after the phosh shutdown", result.stderr)
+        self.assertIn("pmbootstrap-work/chroot_native/proc", result.stderr)
+
+    def test_rc4_wrapper_offers_the_action(self):
+        wrapper = (RC4 / "scripts/rc4.sh").read_text()
+        self.assertIn("shutdown)", wrapper)
+        self.assertIn('bash "$LOCAL_FLOW" --shutdown "$@"', wrapper)
+        self.assertIn("shutdown [--ui plasma|phosh] [--dry-run]", wrapper)
+
+    def test_active_mount_error_prints_the_shutdown_command(self):
+        text = ENTRY.read_text()
+        self.assertIn('"- clear the leftover $NURA_UI chroots with: '
+                      'bash $RC4_WRAPPER shutdown --ui $NURA_UI"', text)
+        # fish is the login shell: the hint must not assign a variable first.
+        hint = [line for line in text.splitlines() if "clear the leftover" in line][0]
+        self.assertNotIn("=$STATE", hint)
+        self.assertNotIn("$STATE/", hint)
 
 
 class TestDevicePackage(unittest.TestCase):

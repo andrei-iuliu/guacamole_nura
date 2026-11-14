@@ -19,6 +19,7 @@ either UI from the same rc4h kernel and the same device fixes:
 | graphical package manager | `discover` + `discover-backend-apk` | `gnome-software` + `gnome-software-plugin-apk2` + `gnome-app-provider-gnome-software` |
 | rounded corners | `plasma-mobile-device-presets/{oneplus,guacamole,qcom,sm8150-mtp}.conf` (device package) | patched `gmobile` 0.7.4-r100 with a guacamole display panel |
 | no idle suspend (candidate policy) | logind drop-in + PowerDevil `AutoSuspendAction=0`; first boot unlocked | the same logind drop-in + gsettings `sleep-inactive-*-type='nothing'`; phrog asks for the password at every boot |
+| default apps removed by the build | none (the image keeps every `_pmb_recommends` entry) | `phosh-tour`, `lpa-gtk`, `vvmplayer`, `decibels` (§4.1) |
 
 The two UIs share:
 
@@ -165,6 +166,77 @@ The Phosh state takes its own copy of the kernel state and its own
 pmbootstrap work directory, so expect it to download the package cache again
 and to need a similar amount of disk space as the Plasma state.
 
+### 4.1 Excluded default apps (Phosh only)
+
+`postmarketos-ui-phosh` and the `postmarketos-base-ui-gnome*` packages it
+depends on list their default apps in `_pmb_recommends`, so a plain build
+installs all of them:
+
+| package | recommended by |
+| --- | --- |
+| `phosh-tour` | `postmarketos-ui-phosh` (`main/postmarketos-ui-phosh/APKBUILD`) |
+| `lpa-gtk` (eSIM Manager) | `postmarketos-base-ui-gnome-mobile` |
+| `vvmplayer` (Visual Voicemail; its `vvmd` daemon is only used by it) | `postmarketos-base-ui-gnome-mobile` |
+| `decibels` (Audio Player) | `postmarketos-base-ui-gnome` |
+
+Nothing depends on them, so they are dropped from the image. Gapless
+(`g4music`) stays.
+
+**Why not `--add '!pkgname'`?** pmbootstrap has no "install every recommends
+entry except X" switch. `create_device_rootfs()` appends the whole
+`get_recommends()` result to the install list (`pmb/install/_install.py:1311-1312`
+in the pinned pmbootstrap 3.12.1), and that version *rejects* a `!pkgname`
+entry in any install package list (`pmb/chroot/apk.py:220-222`; the
+`packages_split_to_add_del()` helper above it is unreachable). The
+`depends="!pkgname"` skip is a pmaports-side mechanism
+(`pmb/install/_install.py:1219-1242`) and would mean patching a recipe.
+
+**What the flow does instead** (supported CLI only, data next to the UI
+profile table):
+
+* the list lives in `check_local_candidate.py` as
+  `UI_PROFILES[...]["excluded_packages"]` (empty for Plasma) and is printed
+  by `check_local_candidate.py exclude-list`;
+* `rootfs_prepare_local.sh` installs in two passes when the list is not empty:
+  1. `pmbootstrap install --no-image --add …` populates the device rootfs
+     chroot — recommends included, no image written;
+  2. `pmbootstrap chroot --rootfs -- sh -ec '… apk del …'` deletes the four
+     apps from that chroot (only the ones that are really installed, so a
+     rebuild of a cleaned chroot is a no-op) — the same mechanism the Plasma
+     path already uses to drop GNOME Snapshot;
+  3. `pmbootstrap install --no-split --filesystem ext4 --no-recommends
+     --add …` writes the image from the cleaned chroot. `--no-recommends`
+     keeps the deleted apps out of the second package resolution; the other
+     recommends are already installed and explicitly recorded in
+     `/etc/apk/world`, so they stay. Plasma keeps the single-install path
+     because its list is empty;
+* `check_local_candidate.py verify` fails the build if any name of the list is
+  still in `/lib/apk/db/installed` (`verify_excluded_packages()`).
+
+### 4.2 Shutdown after a failed build
+
+A failed `pmbootstrap` run leaves its chroots mounted under
+`…/rootfs-state/pmbootstrap-work`, and the next build stops with
+`ERROR: local path has an active mount` (emitted by
+`local_storage_build.sh`; the message now prints the command to run). Clear
+only the selected UI's chroots with:
+
+```sh
+bash flows/rc4/scripts/rc4.sh shutdown --ui phosh      # or --ui plasma
+bash flows/rc4/scripts/rc4.sh shutdown --ui phosh --dry-run   # print only
+```
+
+That runs exactly `python3 <state>/pmbootstrap/pmbootstrap.py -c
+<state>/rootfs/pmbootstrap.cfg -p <state>/pmaports -w
+<state>/pmbootstrap-work shutdown`, where `<state>` is
+`flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state` for Phosh
+and `.work/local-userdata/rootfs-state` for Plasma. It never force-unmounts,
+prints the mounts it found, refuses to act if that pmbootstrap installation is
+incomplete, does nothing (exit 0) when no mount is active, and reports the
+remaining mounts and exits non-zero if one survives the shutdown. The printed
+command is a single line with absolute paths and no shell variable
+assignments, so it is also copy-pasteable in fish.
+
 ## 5. Putting Phosh on the phone
 
 The repository does not record how the current Plasma image was written to
@@ -233,7 +305,8 @@ kernel/device/firmware pins and `discover-backend-apk`.
 ## 6. Verification done (rootless)
 
 * `bash -n` on every changed shell script.
-* `flows/rc4/tests/test_rc4_ui_variants.py` (new, 17 tests, all pass) covers:
+* `flows/rc4/tests/test_rc4_ui_variants.py` (new, 30 tests, 29 pass and one
+  pre-existing skip) covers:
   * the release label for each UI, and refusal of an unknown UI;
   * a dry run of a copy of the entrypoint, showing that Phosh uses
     `-phosh` state/output and Plasma keeps its original paths;
@@ -241,6 +314,14 @@ kernel/device/firmware pins and `discover-backend-apk`.
   * the world-pin check (passes when pinned; fails on today's unpinned device
     entry);
   * the libgmobile panel check;
+  * the per-UI exclusion list (Phosh has the four, Plasma none), its CLI
+    output, and the post-install check that fails on each excluded package;
+    plus the install order in `rootfs_prepare_local.sh` (populate the chroot,
+    `apk del`, then write the image with `--no-recommends`);
+  * `rc4.sh shutdown` with fake `findmnt`/`python3`: a state without mounts is
+    a no-op, the dry run prints the exact command and never calls pmbootstrap,
+    an incomplete state is refused, the pmbootstrap argv (config, pmaports,
+    work dir) is exact, and a mount that survives the shutdown fails;
   * the device-package wiring and sha512sums;
   * the gmobile patch content and checksum;
   * the GPT fixture tests ported from omarchy.
@@ -252,7 +333,12 @@ kernel/device/firmware pins and `discover-backend-apk`.
 
 **Not verified:**
 
-* the pmbootstrap build of either image;
+* the pmbootstrap build of either image, and the two-pass Phosh install in
+  particular (`install --no-image`, then `apk del` in the real chroot, then
+  `install --no-recommends`);
+* `apk del` on the real Phosh chroot (whether it removes only the four apps
+  and their exclusive dependencies);
+* the `rc4.sh shutdown` command against real pmbootstrap mounts;
 * the `gmobile` abuild `check()`;
 * apk resolution of the Phosh package set;
 * Phosh on the hardware (display, corner padding, audio, cameras, GNOME

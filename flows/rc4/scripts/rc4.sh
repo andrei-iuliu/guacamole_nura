@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# rc4 wrapper: a strictly read-only check and the three user-run build steps.
+# rc4 wrapper: a strictly read-only check, the user-run build steps and the
+# UI-aware shutdown of a failed build.
 #
 #   flows/rc4/scripts/rc4.sh check            read-only verification, no writes
 #   flows/rc4/scripts/rc4.sh contract         fake-builder kernel->rootfs contract test
@@ -9,6 +10,8 @@
 #   flows/rc4/scripts/rc4.sh rootfs [--ui plasma|phosh] [--authorized-key FILE.pub]
 #                                             user-run rootfs/initramfs (local root)
 #   flows/rc4/scripts/rc4.sh bootimg          user-run boot image repack
+#   flows/rc4/scripts/rc4.sh shutdown [--ui plasma|phosh] [--dry-run]
+#                                             user-run: clear leftover chroots
 #
 # ONE kernel build contract (mirrors the reviewed rc3 layout):
 #
@@ -72,7 +75,7 @@ CHECKER="$RC4_DIR/local-storage/scripts/check_local_candidate.py"
 die() { echo "ERROR: $*" >&2; exit 1; }
 note() { printf '  %s\n' "$*"; }
 
-usage() { sed -n '2,13p' "$0"; }
+usage() { sed -n '2,14p' "$0"; }
 
 dtb_candidates() {
     printf '%s\n' \
@@ -194,6 +197,11 @@ case "$action" in
     kernel) build_kernel "$@" ;;
     rootfs) build_rootfs "$@" ;;
     bootimg) build_bootimg "$@" ;;
+    shutdown)
+        [[ -f "$LOCAL_FLOW" ]] || die "missing local-storage entrypoint: $LOCAL_FLOW"
+        echo "== rc4 chroot shutdown (user-run, never force-unmounted) =="
+        bash "$LOCAL_FLOW" --shutdown "$@"
+        ;;
     -h|--help|help) usage ;;
-    *) die "unknown action: $action (expected check|contract|kernel|rootfs|bootimg)" ;;
+    *) die "unknown action: $action (expected check|contract|kernel|rootfs|bootimg|shutdown)" ;;
 esac

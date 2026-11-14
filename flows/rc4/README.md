@@ -159,6 +159,10 @@ bash flows/rc4/scripts/rc4.sh contract
 bash flows/rc4/scripts/rc4.sh kernel
 bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /path/to/key.pub
 bash flows/rc4/scripts/rc4.sh bootimg
+
+# after a failed rootfs build: clear the selected UI's leftover chroots
+# (pmbootstrap shutdown, never a force-unmount; --dry-run only prints)
+bash flows/rc4/scripts/rc4.sh shutdown --ui phosh
 ```
 
 `check` writes nothing at all (no logs, no `__pycache__`, no files);

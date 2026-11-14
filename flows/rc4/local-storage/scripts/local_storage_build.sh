@@ -12,11 +12,19 @@
 # --ui plasma|phosh (or NURA_UI) selects the UI; plasma is the default and
 # keeps the existing .work/local-userdata and build/local-userdata paths.
 # Phosh uses .work/local-userdata-phosh and build/local-userdata-phosh.
+#
+# --shutdown clears leftover chroots of the selected UI after a failed build
+# (pmbootstrap's own shutdown; nothing is ever force-unmounted) and is safe to
+# run when nothing is mounted.  --shutdown --dry-run only prints the exact
+# pmbootstrap command and the mounts it would clear.
 set -Eeuo pipefail
 (( EUID != 0 )) || { echo 'Run as your normal user; pmbootstrap handles privilege.' >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 FLOW_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+# The wrapper that owns the user-facing action names (rc4.sh shutdown ...);
+# the active-mount error prints it so the command can be copied verbatim.
+RC4_WRAPPER="$(cd "$FLOW_DIR/.." && pwd -P)/scripts/rc4.sh"
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
 NURA_UI="${NURA_UI:-plasma}"
 # The rc4 kernel build is produced by flows/rc4/scripts/rc4.sh kernel; this
@@ -36,11 +44,13 @@ SERVED_RECORD="${NURA_SERVED_RECORD:-$SOURCE_ROOT/.work/delivery-plasma-mobile/s
 HELPER_SCRIPTS="$FLOW_DIR/scripts"
 BUILD=0
 REFRESH_KERNEL=0
+SHUTDOWN=0
+DRY_RUN=0
 AUTHORIZED_KEY=""
 SNAP_BEFORE=""
 
 usage() {
-    sed -n '2,13p' "$0"
+    sed -n '2,19p' "$0"
 }
 
 die() {
@@ -60,10 +70,74 @@ overlap() {
     return 1
 }
 
+# --shutdown: clear the leftover chroots of this UI's state with pmbootstrap's
+# own shutdown.  Nothing here force-unmounts, a state without mounts is left
+# completely alone, and the pmbootstrap installation must be complete before
+# anything is attempted.
+state_mounts() {
+    local mounts target root
+    root="$(realpath -m -- "$LOCAL_STATE")"
+    command -v findmnt >/dev/null 2>&1 || die "findmnt is required to inspect mounts"
+    mounts="$(findmnt -rn -o TARGET)" || die "findmnt failed; cannot inspect mounts"
+    while IFS= read -r target; do
+        [[ -n "$target" ]] || continue
+        # findmnt escapes whitespace/backslashes in raw output.
+        printf -v target '%b' "$target"
+        case "${target%/}/" in
+            "$root/"*) printf '%s\n' "$target" ;;
+        esac
+    done <<< "$mounts"
+}
+
+shutdown_chroots() {
+    local mounts target
+    local -a shutdown
+    mounts="$(state_mounts)"
+    if [[ -z "$mounts" ]]; then
+        note "$NURA_UI: no active mounts under $LOCAL_STATE"
+        note "nothing to shut down"
+        return 0
+    fi
+    note "$NURA_UI: active mounts under $LOCAL_STATE:"
+    while IFS= read -r target; do note "  $target"; done <<< "$mounts"
+    if [[ ! -f "$ROOTFS_STATE/pmbootstrap/pmbootstrap.py" ||
+          ! -f "$ROOTFS_STATE/rootfs/pmbootstrap.cfg" ||
+          ! -d "$ROOTFS_STATE/pmaports" ]]; then
+        die "refusing to shut down: the $NURA_UI pmbootstrap installation under $ROOTFS_STATE is incomplete"
+    fi
+    shutdown=(
+        python3 "$ROOTFS_STATE/pmbootstrap/pmbootstrap.py"
+        -c "$ROOTFS_STATE/rootfs/pmbootstrap.cfg"
+        -p "$ROOTFS_STATE/pmaports"
+        -w "$ROOTFS_STATE/pmbootstrap-work"
+    )
+    # One line with absolute paths and no variable assignments: the user's
+    # login shell is fish, so this can be copied verbatim.
+    note "shutdown command: ${shutdown[*]} shutdown"
+    if (( DRY_RUN )); then
+        note "dry run: pmbootstrap was not called"
+        return 0
+    fi
+    note "clearing the $NURA_UI chroots with pmbootstrap shutdown (pmbootstrap may ask for sudo)"
+    "${shutdown[@]}" shutdown ||
+        die "pmbootstrap shutdown failed; nothing was force-unmounted"
+    mounts="$(state_mounts)"
+    if [[ -n "$mounts" ]]; then
+        {
+            printf 'ERROR: mounts remain after the %s shutdown:\n' "$NURA_UI"
+            while IFS= read -r target; do printf '  %s\n' "$target"; done <<< "$mounts"
+        } >&2
+        exit 1
+    fi
+    note "$NURA_UI: mounts cleared"
+}
+
 while (( $# )); do
     case "$1" in
         --build) BUILD=1 ;;
         --refresh-kernel) REFRESH_KERNEL=1 ;;
+        --shutdown) SHUTDOWN=1 ;;
+        --dry-run) DRY_RUN=1 ;;
         --authorized-key)
             (( $# >= 2 )) || die "--authorized-key needs a public-key path"
             AUTHORIZED_KEY="$(realpath -e -- "$2")" || die "public-key file not found: $2"
@@ -102,6 +176,15 @@ KERNEL_STATE="$LOCAL_STATE/kernel-state"
 ROOTFS_STATE="$LOCAL_STATE/rootfs-state"
 HOOK_STAGE="$LOCAL_STATE/hook-recipe-stage"
 HOOK_RECIPE="$HOOK_STAGE/device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot"
+
+# --shutdown stops here: it needs the per-UI state paths above but none of the
+# kernel/recipe inputs a build requires, and it must work after a failed build.
+if (( SHUTDOWN )); then
+    (( ! BUILD )) || die "--shutdown does not build; drop --build"
+    shutdown_chroots
+    exit 0
+fi
+(( ! DRY_RUN )) || die "--dry-run is only valid with --shutdown"
 
 [[ -f "$TOOL" ]] || die "missing local tool: $TOOL"
 [[ -d "$SOURCE_ROOT" ]] || die "missing source checkout: $SOURCE_ROOT"
@@ -189,7 +272,10 @@ ensure_local_writable() {
         while IFS= read -r mounted; do
             [[ -n "$mounted" ]] || continue
             case "${mounted%/}/" in
-                "$local_real/"*|"$local_real") die "local path has an active mount: $target" ;;
+                "$local_real/"*|"$local_real")
+                    die "local path has an active mount: $target" \
+                        "- clear the leftover $NURA_UI chroots with: bash $RC4_WRAPPER shutdown --ui $NURA_UI"
+                    ;;
             esac
         done <<< "$mounts"
     done
