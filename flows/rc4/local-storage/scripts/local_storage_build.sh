@@ -26,7 +26,7 @@ FLOW_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 # the active-mount error prints it so the command can be copied verbatim.
 RC4_WRAPPER="$(cd "$FLOW_DIR/.." && pwd -P)/scripts/rc4.sh"
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
-NURA_UI="${NURA_UI:-plasma}"
+NURA_UI="${NURA_UI:-phosh}"
 # The rc4 kernel build is produced by flows/rc4/scripts/rc4.sh kernel; this
 # entrypoint never builds the kernel itself and copies only its state.
 # KERNEL_BUILD is the built output (kernel-package/, Image, kernel-inputs.json);

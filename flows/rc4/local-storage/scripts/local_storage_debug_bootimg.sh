@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # USER RUN: pack a separate debug image; never boots/flashes or changes userdata.
-# NURA_UI=plasma|phosh picks the matching local-userdata state (default plasma).
+# NURA_UI=plasma|phosh picks the matching local-userdata state (default phosh since 2026-11-14).
 set -Eeuo pipefail
 FLOW=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-case "${NURA_UI:-plasma}" in
+case "${NURA_UI:-phosh}" in
     plasma) SUFFIX="" ;;
     phosh) SUFFIX="-phosh" ;;
     *) echo "NURA_UI must be plasma or phosh" >&2; exit 2 ;;

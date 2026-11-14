@@ -7,7 +7,7 @@ in §6.
 The local-userdata rootfs build (`flows/rc4/local-storage`) can now produce
 either UI from the same rc4h kernel and the same device fixes:
 
-| | Plasma Mobile (default) | Phosh |
+| | Plasma Mobile | Phosh (default since 2026-11-14) |
 | --- | --- | --- |
 | selector | `--ui plasma` / `NURA_UI=plasma` / nothing | `--ui phosh` / `NURA_UI=phosh` |
 | release label | `nura-plasma-rc4` | `nura-phosh-rc4` |

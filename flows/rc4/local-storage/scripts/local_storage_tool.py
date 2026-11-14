@@ -482,7 +482,7 @@ def record_manifest(args: argparse.Namespace) -> dict:
         "status": status,
         "hardware": "UNTESTED",
         "profile": "local-userdata",
-        "ui": getattr(cpc, "UI", "plasma"),
+        "ui": getattr(cpc, "UI", "phosh"),
         "identity": {
             "kernel_release": args.release,
             "ui_release_candidate": getattr(cpc, "RELEASE_CANDIDATE", None),

@@ -18,7 +18,7 @@ TOOL="$FLOW_DIR/scripts/local_storage_tool.py"
 RELEASE="${NURA_KERNEL_RELEASE:-7.0.0-sm8150-guacamole-rc4}"
 KERNEL_DIR="${NURA_KERNEL_DIR:-$SOURCE_ROOT/flows/rc4/build-source/kernel-output/kernel-package}"
 # NURA_UI=plasma|phosh only changes the defaults below (Phosh: *-phosh dirs).
-case "${NURA_UI:-plasma}" in
+case "${NURA_UI:-phosh}" in
     plasma) UI_SUFFIX="" ;;
     phosh) UI_SUFFIX="-phosh" ;;
     *) echo "ERROR: NURA_UI must be plasma or phosh" >&2; exit 2 ;;
