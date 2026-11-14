@@ -1,5 +1,9 @@
 # rc4 candidate: copy of the reviewed rc3 package, pkgrel+1 with only the
 # opt-in modem-rail release helper/unit added (kernel patch 0044).
+# pkgrel 16 (shared by the Plasma and Phosh images): the Plasma Mobile
+# corner-inset preset from device/testing (plasma-corners 945baff/a3141aa)
+# and guacamole-boot-slot (timer + service, enabled by its own preset) that
+# marks the booted A/B slot successful.
 # The unit is installed but deliberately NOT enabled in 80-guacamole.preset
 # and there is no guacamole-mpss-start hook: enabling it on the phone is the
 # opt-in.  Everything else (including the preset) is unchanged.
@@ -9,7 +13,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=15
+pkgrel=16
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -76,6 +80,11 @@ source="
 	guacamole-sensors-registry.service
 	hexagonrpcd-sdsp-registry.conf
 	iio-sensor-proxy-guacamole.conf
+	plasma-mobile-preset-oneplus-guacamole.conf
+	guacamole-boot-slot
+	guacamole-boot-slot.service
+	guacamole-boot-slot.timer
+	82-guacamole-boot-slot.preset
 	$_sensors.tar.gz
 "
 
@@ -200,6 +209,33 @@ package() {
 
 	install -Dm644 "$srcdir/iio-sensor-proxy-guacamole.conf" \
 		"$pkgdir/usr/lib/systemd/system/iio-sensor-proxy.service.d/guacamole.conf"
+
+	# Plasma Mobile: keep the status bar and navigation panel out of the
+	# rounded display corners. plasma-mobile-envmanager looks the preset up
+	# by the DT root compatible strings. The mainline DTB says
+	# "oneplus,guacamole"; the ABL wrapper DTB currently booted says
+	# "qcom,sm8150-mtp". That generic name is acceptable here because this
+	# package only installs on guacamole. abuild rejects commas in source=
+	# names, so the file is renamed on install.  (Phosh reads the same
+	# geometry from gmobile's built-in display-panel data instead; see
+	# flows/rc4/device/testing/gmobile.)
+	local preset
+	for preset in oneplus,guacamole qcom,sm8150-mtp; do
+		install -Dm644 "$srcdir/plasma-mobile-preset-oneplus-guacamole.conf" \
+			"$pkgdir/usr/share/plasma-mobile-device-presets/$preset.conf"
+	done
+
+	# A/B slot: mark the booted slot successful once the UI has been up for
+	# two minutes, so ABL's retry counter cannot run down (Linux has no
+	# boot-control HAL).  Shared by the Plasma and Phosh images.
+	install -Dm755 "$srcdir/guacamole-boot-slot" \
+		"$pkgdir/usr/libexec/guacamole-boot-slot"
+	install -Dm644 "$srcdir/guacamole-boot-slot.service" \
+		"$pkgdir/usr/lib/systemd/system/guacamole-boot-slot.service"
+	install -Dm644 "$srcdir/guacamole-boot-slot.timer" \
+		"$pkgdir/usr/lib/systemd/system/guacamole-boot-slot.timer"
+	install -Dm644 "$srcdir/82-guacamole-boot-slot.preset" \
+		"$pkgdir/usr/lib/systemd/system-preset/82-guacamole-boot-slot.preset"
 }
 
 openrc() {
@@ -254,5 +290,10 @@ d69716f38debbb153ff91dea6764a67f2fbf3af12ad9bc77ded73e5e837e788afa2f785d0c208938
 81cf37c601c90e6b208bfcb1dac19d11ec553681958fc2a8ef7f75343a784a7f323e7fefd95780c6e14b0ec0076ac2e2d4a7f43c301d5ddbec8451e070d7504c  guacamole-sensors-registry.service
 558563eacbcf020a977f3a0993d2567b1fdb15a0e31747c2f0e59d2e196db840d6e2936ac5458feb7d0751fcf1da582479c47da0986c83947eb9043071074677  hexagonrpcd-sdsp-registry.conf
 6aaa3a7da243fe9ab85065f7894e6bde4004a0ed88714ac06d137804e49426820cb78c4d27137cf6c9e885b6511082a572e76096c6624d541ef6a667b4eadea1  iio-sensor-proxy-guacamole.conf
+79da838eae7b278b772795dea22ee330c4f4300dd146dd567dae2da5550d2be650dded0e15d5282a51ff29163102d788d6e138ce56994a7747da56640b490bd4  plasma-mobile-preset-oneplus-guacamole.conf
+f8f8ffca1b63ea50a608b5ff89897781c514e8ed9e072a743c62334787f619c244e70ffe4c50e318c5e750bfac7dcfd9dc4455f76c598c6c8a1a4eadfa24dacb  guacamole-boot-slot
+80039741fb7e6805342ceb7c0260ed1b6a1c70381c5213b624f6372e86cd236c8bbe1e5dd9f8e3a5b50eae43b0fd60d8f488aea5ed63b9e96ca55ec0392bcfc2  guacamole-boot-slot.service
+324b823749af21f49d3bd14a0bd24c1c8b7bcdcf37f326aa179ba6e0a5f3d102bc00c1dcd364170b991007a6001cfbfb55c8301e058d4ae12ff8849d8dc4d9bd  guacamole-boot-slot.timer
+3472d9980cca5abead9e30764195292a302f9f1d1ebfc35c3d60fce964d7660a0041a21d78c7578dc1e0ef953a794b7788e32d937c76d0bacae5a3fda709f3a1  82-guacamole-boot-slot.preset
 9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "

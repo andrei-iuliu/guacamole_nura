@@ -1,0 +1,59 @@
+From: Nura guacamole bring-up
+Subject: [PATCH] data: add OnePlus 7 Pro (guacamole) display panel
+
+gmobile only reads display-panel data from its built-in GResource
+(gm-device-info.c: GM_DISPLAY_PANEL_RESOURCE_PREFIX), so the panel
+geometry has to be compiled in.  Phosh (top-bar corner padding) and phoc
+both link libgmobile.so.0 and pick the entry by DT root compatible.
+
+1440x3120, 71x154 mm, no cutout (pop-up front camera).  Corner radius 145
+px: the circle through the point the LineageOS rounded-corner mask
+(223x223 px squircle, OPlusSystemUIResTarget rounded.xml) reaches, x < 70 px
+at 21 px from the edge: r - sqrt(r^2 - (r - 21)^2) = 70  =>  r = 145.
+
+The same file is added as qcom,sm8150-mtp.json because the ABL wrapper DTB
+booted today reports "qcom,sm8150-mtp" as its first root compatible.  That
+generic name is only acceptable in this device-local package.
+---
+diff --git a/data/devices/display-panels/oneplus,guacamole.json b/data/devices/display-panels/oneplus,guacamole.json
+new file mode 100644
+index 0000000..35c0222
+--- /dev/null
++++ b/data/devices/display-panels/oneplus,guacamole.json
+@@ -0,0 +1,8 @@
++{
++  "name": "OnePlus 7 Pro",
++  "x-res": 1440,
++  "y-res": 3120,
++  "corner-radii": [145, 145, 145, 145],
++  "width": 71,
++  "height": 154
++}
+diff --git a/data/devices/display-panels/qcom,sm8150-mtp.json b/data/devices/display-panels/qcom,sm8150-mtp.json
+new file mode 100644
+index 0000000..35c0222
+--- /dev/null
++++ b/data/devices/display-panels/qcom,sm8150-mtp.json
+@@ -0,0 +1,8 @@
++{
++  "name": "OnePlus 7 Pro",
++  "x-res": 1440,
++  "y-res": 3120,
++  "corner-radii": [145, 145, 145, 145],
++  "width": 71,
++  "height": 154
++}
+diff --git a/data/gmobile.gresources.xml b/data/gmobile.gresources.xml
+index 8ff7b93..16471d8 100644
+--- a/data/gmobile.gresources.xml
++++ b/data/gmobile.gresources.xml
+@@ -22,7 +22,9 @@
+     <file preprocess="json-stripblanks">devices/display-panels/google,zumapro-tegu.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/oneplus,enchilada.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/oneplus,fajita.json</file>
++    <file preprocess="json-stripblanks">devices/display-panels/oneplus,guacamole.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/purism,librem5.json</file>
++    <file preprocess="json-stripblanks">devices/display-panels/qcom,sm8150-mtp.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/shift,axolotl.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/volla,mimameid.json</file>
+     <file preprocess="json-stripblanks">devices/display-panels/volla,vidofnir.json</file>

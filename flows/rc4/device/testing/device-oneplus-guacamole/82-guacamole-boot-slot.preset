@@ -1,0 +1,3 @@
+# Mark the booted A/B slot successful once the UI has been up for two
+# minutes (device-oneplus-guacamole, shared by the Plasma and Phosh images).
+enable guacamole-boot-slot.timer

@@ -241,12 +241,17 @@ def main():
                              if not l.lstrip().startswith("#"))
     check("flows/local-storage/device/testing" not in prepare_code,
           "flow: no direct default into the rc3-era recipe tree")
-    # The link farm must select the rc4 device package (pkgrel 15), not the
+    # The link farm must select the rc4 device package (pkgrel 16), not the
     # rc3-era one (pkgrel 14), and the rc4 kernel recipe (pkgrel 5).
     farm = pathlib.Path(args.local_flow) / "device/testing"
     dev_apk = read(farm / "device-oneplus-guacamole/APKBUILD")
-    check(re.search(r"^pkgrel=15$", dev_apk, re.M) is not None,
-          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4 pkgrel 15")
+    check(re.search(r"^pkgrel=16$", dev_apk, re.M) is not None,
+          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4 pkgrel 16")
+    check("guacamole-boot-slot.timer" in dev_apk and
+          "plasma-mobile-device-presets" in dev_apk,
+          "flow: device package ships the A/B slot marker and the Plasma corner preset")
+    check((farm / "gmobile/APKBUILD").is_file(),
+          "flow: link farm carries the patched gmobile (Phosh corner geometry)")
     krn_apk = read(farm / "linux-postmarketos-qcom-sm8150/APKBUILD")
     check(re.search(r"^pkgrel=5$", krn_apk, re.M) is not None,
           "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 pkgrel 5")
@@ -259,14 +264,17 @@ def main():
     check("flock" in entry_txt, "flow: concurrent-build flock still present")
     check("AUTHORIZED_KEY" in prepare_txt and "--authorized-key" in entry_txt,
           "flow: explicit public-key argument preserved")
-    check("LOCAL_STATE=\"$FLOW_DIR/.work/local-userdata\"" in entry_txt or
-          'LOCAL_STATE="$FLOW_DIR/.work/local-userdata"' in entry_txt,
-          "flow: state stays under flows/rc4/local-storage")
+    check('LOCAL_STATE="$FLOW_DIR/.work/local-userdata$UI_SUFFIX"' in entry_txt and
+          'phosh) UI_SUFFIX="-phosh"' in entry_txt and 'plasma) UI_SUFFIX=""' in entry_txt,
+          "flow: state stays under flows/rc4/local-storage (Phosh in its own -phosh dirs)")
     check('3.0-sm8150-(guacamole-rc|rc|rear)' in entry_txt.replace("\\", "") or
           "guacamole-rc|rc|rear" in entry_txt,
           "flow: release pattern accepts rc4 and keeps rc/rear rollback names")
-    check("nura-plasma-rc4" in read(flow / "scripts/check_local_candidate.py"),
-          "flow: candidate label is nura-plasma-rc4")
+    checker_txt = read(flow / "scripts/check_local_candidate.py")
+    check('"series": "nura-plasma"' in checker_txt and '"series": "nura-phosh"' in checker_txt
+          and 'RELEASE_CANDIDATE = f"{RELEASE_SERIES}-rc4"' in checker_txt
+          and 'UI = os.environ.get("NURA_UI", "plasma")' in checker_txt,
+          "flow: candidate label is nura-plasma-rc4 (nura-phosh-rc4 with NURA_UI=phosh)")
 
     # wrapper
     wrapper = REPO / "flows/rc4/scripts/rc4.sh"

@@ -1,0 +1,58 @@
+# Nura guacamole: Alpine community/gmobile 0.7.4-r0 (the version in the
+# pinned edge index) plus one data patch that compiles the OnePlus 7 Pro
+# display panel (rounded corners, 1440x3120, 71x154 mm) into gmobile's
+# GResource.  gmobile ignores panel files on the filesystem, and phosh/phoc
+# link libgmobile.so.0, so this rebuilt library is how Phosh learns the
+# corner radius.  pkgrel 100 keeps this local build above the repository's
+# r0; installed only by the Phosh image (NURA_UI=phosh).
+# Upstream recipe: https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/gmobile/APKBUILD
+maintainer="team/phosh <achill@achill.org>"
+pkgname=gmobile
+pkgver=0.7.4
+pkgrel=100
+pkgdesc="Functions useful in mobile related, glib based projects"
+url="https://gitlab.gnome.org/World/Phosh/gmobile"
+arch="all"
+license="GPL-3.0-only"
+makedepends="
+	meson
+	glib-dev
+	json-glib-dev
+	gobject-introspection-dev
+	vala
+	"
+subpackages="
+	$pkgname-dbg
+	$pkgname-dev
+	$pkgname-examples
+	$pkgname-udev
+	"
+replaces="phoc"
+source="https://sources.phosh.mobi/releases/gmobile/gmobile-$pkgver.tar.xz
+	0001-data-add-OnePlus-7-Pro-guacamole-display-panel.patch
+	"
+
+build() {
+	abuild-meson build
+	meson compile -C build
+}
+
+check() {
+	meson test -C build
+}
+
+package() {
+	DESTDIR="$pkgdir" meson install --no-rebuild -C build
+}
+
+examples() {
+	pkgdesc="$pkgdesc (examples)"
+	depends="phoc phosh"
+
+	amove usr/bin
+}
+
+sha512sums="
+27a48bbb04d443f1d134f659a50804e35fa0eee2017dab49763aa4a80f89d38bb4b1b76f3d5b5df211a9e0fa00a982b5c7a4e024d354c79ee7513aa1edd02062  gmobile-0.7.4.tar.xz
+1abee1dd7237747bfa548e72f50a17db7b4ed12f29ddb62fe08f24a28290127f3cd3233e69f2e9d4c85dafd8d0974de71e3546f03138e548dcd756a4eed1af3d  0001-data-add-OnePlus-7-Pro-guacamole-display-panel.patch
+"

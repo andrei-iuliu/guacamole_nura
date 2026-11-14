@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # USER RUN: pack a separate debug image; never boots/flashes or changes userdata.
+# NURA_UI=plasma|phosh picks the matching local-userdata state (default plasma).
 set -Eeuo pipefail
 FLOW=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-STATE="$FLOW/.work/local-userdata/rootfs-state"
+case "${NURA_UI:-plasma}" in
+    plasma) SUFFIX="" ;;
+    phosh) SUFFIX="-phosh" ;;
+    *) echo "NURA_UI must be plasma or phosh" >&2; exit 2 ;;
+esac
+STATE="$FLOW/.work/local-userdata$SUFFIX/rootfs-state"
 [[ $# == 0 ]] || { echo 'Usage: local_storage_debug_bootimg.sh' >&2; exit 2; }
 NURA_LOCAL_DEBUG_SHELL=1 bash "$FLOW/scripts/local_bootimg_wrapper.sh" \
     --initramfs "$STATE/rootfs/export/initramfs" \
     --rootfs-image "$STATE/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img" \
     --rootfs-tree "$STATE/pmbootstrap-work/chroot_rootfs_oneplus-guacamole" \
-    --output "$FLOW/build/local-debug" --build
+    --output "$FLOW/build/local-debug$SUFFIX" --build

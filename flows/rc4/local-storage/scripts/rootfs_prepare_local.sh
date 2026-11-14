@@ -10,6 +10,13 @@
 #   bash scripts/rootfs_prepare_local.sh --build [--authorized-key PATH]
 #   bash scripts/rootfs_prepare_local.sh --restore <rollback-dir>
 #
+# NURA_UI=plasma|phosh selects the UI (default plasma).  Both UIs share the
+# rc4 kernel, device/firmware packages, pinned libcamera/ModemManager, the
+# PulseAudio backend, the /etc/apk/world pins and a graphical package
+# manager; Phosh state/output defaults live in *-phosh directories so the
+# Plasma state is never touched.  Phosh is supported in the local-userdata
+# profile only (local_storage_build.sh --ui phosh).
+#
 # --authorized-key is an explicit, build-only opt-in: PATH must contain one or
 # more plain OpenSSH PUBLIC keys (an existing authorized_keys file is fine).
 # They are installed in the future rootfs for the configured build user by
@@ -33,16 +40,35 @@ FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
 ROOT="$FLOW_DIR"
 cd "$ROOT"
+NURA_UI="${NURA_UI:-plasma}"
+case "$NURA_UI" in
+    plasma)
+        UI_PKG=postmarketos-ui-plasma-mobile
+        UI_LABEL="Plasma Mobile"
+        UI_SUFFIX=""
+        ;;
+    phosh)
+        UI_PKG=postmarketos-ui-phosh
+        UI_LABEL="Phosh"
+        UI_SUFFIX="-phosh"
+        ;;
+    *)
+        echo "ERROR: NURA_UI must be plasma or phosh, got '$NURA_UI'" >&2
+        exit 2
+        ;;
+esac
+# check_local_candidate.py reads the same selector.
+export NURA_UI
 [[ -d "$SOURCE_ROOT" ]] || { echo "ERROR: missing source checkout: $SOURCE_ROOT" >&2; exit 1; }
 
-STATE="${NURA_ROOTFS_STATE:-$ROOT/.work/local-userdata/rootfs-state}"
+STATE="${NURA_ROOTFS_STATE:-$ROOT/.work/local-userdata$UI_SUFFIX/rootfs-state}"
 WORK="$STATE/pmbootstrap-work"
 # Read-only rc2 baseline: pinned hook/libcamera-rear/system libcamera inputs and
 # the known-good rootfs used for the libcamera ABI comparison.
 SRC_STATE="$SOURCE_ROOT/.work/rear-camera"
 SRC_OUT="$SOURCE_ROOT/build/rear-camera"
 # One recipe root for this flow.  device/testing is a link farm: the rc4 kernel
-# and device recipes resolve to flows/rc4/device/testing (device pkgrel 15), the
+# and device recipes resolve to flows/rc4/device/testing (device pkgrel 16), the
 # unchanged firmware/modemmanager/hexagonrpcd/iio-sensor-proxy/nura-clock/hook
 # recipes resolve read-only into flows/local-storage/device/testing.  Pointing
 # this at flows/local-storage directly would silently select the rc3 device
@@ -52,7 +78,7 @@ RECIPE_ROOT="${NURA_RECIPE_ROOT:-$ROOT/device/testing}"
 KERNEL_STATE="${NURA_KERNEL_STATE:-$SOURCE_ROOT/flows/rc4/build-source/kernel-state}"
 KERNEL_OUT="${NURA_KERNEL_BUILD:-$SOURCE_ROOT/flows/rc4/build-source/kernel-output}"
 KERNEL_RECIPE="${NURA_KERNEL_RECIPE:-flows/rc4/device/testing/linux-postmarketos-qcom-sm8150}"
-OUT="${NURA_ROOTFS_OUT:-$ROOT/build/local-userdata}"
+OUT="${NURA_ROOTFS_OUT:-$ROOT/build/local-userdata$UI_SUFFIX}"
 BOOT_INITRAMFS="$OUT/boot-initramfs"
 LOCAL_USERDATA="${NURA_LOCAL_USERDATA:-0}"
 CANDIDATE_HOOK_VERSION="${NURA_NETBOOT_HOOK_VERSION:-4.2.1-r4}"
@@ -142,6 +168,9 @@ case "$LOCAL_USERDATA" in
     0|1) ;;
     *) die "NURA_LOCAL_USERDATA must be 0 or 1" ;;
 esac
+if [[ "$NURA_UI" != plasma && "$LOCAL_USERDATA" != 1 && "$MODE" != check ]]; then
+    die "NURA_UI=$NURA_UI is supported in the local-userdata profile only (local_storage_build.sh --ui $NURA_UI)"
+fi
 if [[ "$LOCAL_USERDATA" = 1 ]]; then
     [[ "$MODE" = build ]] || die "the local-userdata profile is build-only"
     [[ -n "$LOCAL_HOOK_RECIPE" && -d "$LOCAL_HOOK_RECIPE" && ! -L "$LOCAL_HOOK_RECIPE" ]] ||
@@ -155,7 +184,7 @@ fi
 # checks remain, but this is the earliest possible isolation guard.
 for path in "$STATE" "$OUT"; do
     if [[ -L "$path" ]]; then
-        die "refusing a symlinked Plasma path: $path -> $(readlink -- "$path")"
+        die "refusing a symlinked candidate path: $path -> $(readlink -- "$path")"
     fi
 done
 
@@ -196,8 +225,8 @@ note "host commands: OK"
 
 RELEASE_CANDIDATE="$(python3 "$ROOT/scripts/check_local_candidate.py" release-candidate)" ||
     die "cannot read the release-candidate label from check_local_candidate.py"
-[[ "$RELEASE_CANDIDATE" =~ ^nura-plasma-rc[0-9]+$ ]] ||
-    die "invalid release-candidate label: $RELEASE_CANDIDATE"
+[[ "$RELEASE_CANDIDATE" =~ ^nura-${NURA_UI}-rc[0-9]+$ ]] ||
+    die "invalid release-candidate label for NURA_UI=$NURA_UI: $RELEASE_CANDIDATE"
 RELEASE="$(python3 "$ROOT/scripts/check_local_candidate.py" kernel-release)" ||
     die "cannot read the kernel release from check_local_candidate.py"
 [[ "$RELEASE" =~ ^7\.0\.0-sm8150-(guacamole-rc|rc|rear)[0-9]+$ ]] ||
@@ -290,8 +319,8 @@ if [[ "$MODE" != check ]]; then
         bash "$SOURCE_ROOT/scripts/plasma_shutdown.sh" || die "could not clear leftover Plasma mounts"
     fi
 fi
-refuse_active_mounts "$STATE" "Plasma candidate state"
-refuse_active_mounts "$OUT" "Plasma candidate output"
+refuse_active_mounts "$STATE" "$UI_LABEL candidate state"
+refuse_active_mounts "$OUT" "$UI_LABEL candidate output"
 
 # ---------------------------------------------------------------------------
 # Previous-candidate preservation and rollback
@@ -408,7 +437,7 @@ for name in ("DELIVERY.json", "packaging-inputs.json"):
     value = data.get("release_candidate")
     if value is None:
         continue
-    if not isinstance(value, str) or not re.fullmatch(r"nura-plasma-rc[0-9]+", value):
+    if not isinstance(value, str) or not re.fullmatch(r"nura-(?:plasma|phosh)-rc[0-9]+", value):
         raise SystemExit(f"previous candidate label in {path} is invalid: {value!r}")
     label = value
     break
@@ -789,7 +818,7 @@ for name in ("ROLLBACK.json", "DELIVERY.json", "packaging-inputs.json"):
         raise SystemExit(f"cannot read restored candidate label from {path}: {error}")
     if value is None:
         continue
-    if not isinstance(value, str) or not re.fullmatch(r"nura-plasma-rc[0-9]+", value):
+    if not isinstance(value, str) or not re.fullmatch(r"nura-(?:plasma|phosh)-rc[0-9]+", value):
         raise SystemExit(f"restored candidate label in {path} is invalid: {value!r}")
     label = value
     break
@@ -880,7 +909,7 @@ fi
 
 mkdir -p "$STATE/rootfs"
 exec > >(tee -a "$LOG") 2>&1
-trap 'status=$?; echo "Plasma packaging failed at line $LINENO (exit $status). Log: $LOG" >&2; exit "$status"' ERR
+trap 'status=$?; echo "$UI_LABEL packaging failed at line $LINENO (exit $status). Log: $LOG" >&2; exit "$status"' ERR
 echo "Build log: $LOG"
 
 [[ -f "$SRC_STATE/pmbootstrap/pmbootstrap.py" ]] || die "pinned pmbootstrap disappeared"
@@ -1230,16 +1259,46 @@ PY
 
 install_add_string() {
     local kernel_version="$1" hook_version="$2" libcamera_version="$3" ui_version="$4"
+    local device_version="$5" firmware_version="$6" gmobile_version="${7:-}"
+    # Shared by both UIs.  The kernel, device and firmware entries carry their
+    # exact built version, so /etc/apk/world pins them (as was done by hand on
+    # the phone) and a plain `apk upgrade` cannot swap in repository builds.
     local -a add=(
         "$KERNEL_PKG=$kernel_version"
+        "device-oneplus-guacamole=$device_version"
+        "firmware-oneplus-guacamole=$firmware_version"
         "postmarketos-mkinitfs-hook-netboot=$hook_version"
         "libcamera-rear=$libcamera_version"
-        "postmarketos-ui-plasma-mobile=$ui_version"
-        "plasma-camera"
+        "$UI_PKG=$ui_version"
+    )
+    case "$NURA_UI" in
+        plasma)
+            # Discover with its apk backend installs system packages.
+            add+=(
+                "plasma-camera"
+                "powerdevil=6.8.3-r0"
+                "discover"
+                "discover-backend-apk"
+            )
+            ;;
+        phosh)
+            # GNOME Software with the apk plugin (Alpine edge ships it as
+            # gnome-software-plugin-apk2, providing gnome-software-plugin-apk);
+            # gnome-app-provider-gnome-software selects it over Bazaar.
+            # gmobile carries the guacamole display panel (rounded corners).
+            add+=(
+                "snapshot"
+                "gnome-software"
+                "gnome-software-plugin-apk2"
+                "gnome-app-provider-gnome-software"
+                "gmobile=$gmobile_version"
+            )
+            ;;
+    esac
+    add+=(
         "xwayland"
         "libcamera=99990.8.0-r1"
         "libcamera-ipa=99990.8.0-r1"
-        "powerdevil=6.8.3-r0"
         "pipewire-spa-libcamera"
         "postmarketos-base-ui-audio-backend-pulseaudio"
         "modemmanager=$MODEM_VERSION"
@@ -1320,8 +1379,11 @@ run_pmbootstrap_builds() {
     seed_modem_distfile
     note "building local recipes individually; dependency builds are forbidden"
     local package
+    local -a ui_builds=("$UI_PKG")
+    # Phosh: gmobile rebuilt with the guacamole display panel (rounded corners).
+    [[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile)
     for package in firmware-oneplus-guacamole device-oneplus-guacamole hexagonrpcd \
-        iio-sensor-proxy postmarketos-ui-plasma-mobile modemmanager; do
+        iio-sensor-proxy "${ui_builds[@]}" modemmanager; do
         "${PMB[@]}" build --arch aarch64 --ignore-depends --no-depends --force "$package"
     done
     build_optional_recipe main/nura-clock nura-clock
@@ -1361,10 +1423,18 @@ run_install() {
         -w "$WORK"
     )
     local kernel_version hook_version libcamera_version ui_version add expected_hook_version
+    local device_version firmware_version gmobile_version=""
     kernel_version="$(package_version "$KERNEL_PKG")"
     hook_version="$(package_version postmarketos-mkinitfs-hook-netboot)"
     libcamera_version="$(package_version libcamera-rear)"
-    ui_version="$(package_version postmarketos-ui-plasma-mobile)"
+    ui_version="$(package_version "$UI_PKG")"
+    device_version="$(package_version device-oneplus-guacamole)"
+    firmware_version="$(package_version firmware-oneplus-guacamole)"
+    if [[ "$NURA_UI" = phosh ]]; then
+        gmobile_version="$(package_version gmobile)"
+        [[ "$gmobile_version" = 0.7.4-r100 ]] ||
+            die "refusing gmobile version $gmobile_version (expected the local 0.7.4-r100 with the guacamole panel)"
+    fi
     MODEM_VERSION="$(package_version modemmanager)"
     LIMM_GLIB_VERSION="$(package_version libmm-glib)"
     local modem_systemd modem_udev modem_lang
@@ -1385,18 +1455,22 @@ run_install() {
     [[ "$MODEM_VERSION" == 1.25.95* ]] || die "refusing modemmanager version $MODEM_VERSION"
     [[ "$LIMM_GLIB_VERSION" = "$MODEM_VERSION" ]] ||
         die "libmm-glib $LIMM_GLIB_VERSION does not match modemmanager $MODEM_VERSION"
-    add="$(install_add_string "$kernel_version" "$hook_version" "$libcamera_version" "$ui_version")"
+    [[ "$device_version" == 4-r* ]] || die "refusing device-oneplus-guacamole version $device_version"
+    add="$(install_add_string "$kernel_version" "$hook_version" "$libcamera_version" "$ui_version" \
+        "$device_version" "$firmware_version" "$gmobile_version")"
     note "kernel: $kernel_version (release $RELEASE)"
+    note "device/firmware: $device_version / $firmware_version (pinned in /etc/apk/world)"
     note "netboot hook: $hook_version"
     note "libcamera-rear: $libcamera_version"
-    note "Plasma UI: $ui_version"
+    note "$UI_LABEL UI: $ui_version"
+    [[ -z "$gmobile_version" ]] || note "gmobile (guacamole panel): $gmobile_version"
     note "modemmanager: $MODEM_VERSION (libmm-glib $LIMM_GLIB_VERSION)"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "nura-clock: $NURA_CLOCK_VERSION"
     # pmbootstrap reuses chroot_rootfs_* and only adds packages, so a rootfs
     # built before this change keeps GNOME Snapshot until it is removed once.
     # plasma-camera is installed below; that also keeps the pinned libcamera
     # 0.8 ABI, PipeWire and its libcamera SPA plugin in place.
-    if [[ -d "$WORK/chroot_rootfs_oneplus-guacamole" ]]; then
+    if [[ "$NURA_UI" = plasma && -d "$WORK/chroot_rootfs_oneplus-guacamole" ]]; then
         note "removing the previous GNOME Snapshot app from the reused candidate rootfs"
         "${PMB[@]}" chroot --rootfs -- sh -ec \
             'if grep -q "^P:snapshot$" /lib/apk/db/installed 2>/dev/null; then apk del snapshot; fi'
@@ -1434,8 +1508,9 @@ run_export() {
 verify_installed() {
     local ui_version="$1"
     local rootfs="$WORK/chroot_rootfs_oneplus-guacamole"
-    local -a clock_args=()
+    local -a clock_args=() gmobile_args=()
     [[ -z "$NURA_CLOCK_VERSION" ]] || clock_args=(--nura-clock-version "$NURA_CLOCK_VERSION")
+    [[ "$NURA_UI" != phosh ]] || gmobile_args=(--gmobile-version "$(package_version gmobile)")
     python3 "$ROOT/scripts/check_local_candidate.py" verify \
         --release "$RELEASE" \
         --kernel-dir "$KERNEL_OUT/kernel-package" \
@@ -1447,12 +1522,21 @@ verify_installed() {
         --expected-module-payload-sha "$(json_get module_payload_sha256)" \
         --expected-module-count "$(json_get module_count)" \
         --ui-version "$ui_version" \
+        --kernel-version "$(package_version "$KERNEL_PKG")" \
+        --device-version "$(package_version device-oneplus-guacamole)" \
+        --firmware-version "$(package_version firmware-oneplus-guacamole)" \
+        "${gmobile_args[@]}" \
         --modemmanager-version "$MODEM_VERSION" \
         --libmm-glib-version "$LIMM_GLIB_VERSION" \
         "${clock_args[@]}" > "$TMP/installed.json" ||
-        die "installed Plasma rootfs failed identity checks"
+        die "installed $UI_LABEL rootfs failed identity checks"
     note "installed rc4 kernel/DTB/modules/rootfs-initramfs: OK"
-    note "installed Plasma UI, Camera, system libcamera 0.8, PulseAudio, PowerDevil: OK"
+    note "kernel/device/firmware pinned to exact versions in /etc/apk/world: OK"
+    if [[ "$NURA_UI" = plasma ]]; then
+        note "installed Plasma UI, Camera, Discover+apk, system libcamera 0.8, PulseAudio, PowerDevil: OK"
+    else
+        note "installed Phosh UI, Snapshot, GNOME Software+apk, gmobile panel, system libcamera 0.8, PulseAudio: OK"
+    fi
     note "installed modemmanager $MODEM_VERSION with libmm-glib $LIMM_GLIB_VERSION: OK"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "installed nura-clock $NURA_CLOCK_VERSION and clock floor: OK"
     if [[ "$LOCAL_USERDATA" = 1 ]]; then
@@ -1685,7 +1769,7 @@ python3 "$ROOT/scripts/check_local_candidate.py" prepare \
     --work "$WORK" \
     --state "$STATE" \
     --receipt "$STATE/rootfs/candidate-state.json" > "$TMP/prepare.json" ||
-    die "could not prepare the isolated Plasma state"
+    die "could not prepare the isolated $UI_LABEL state"
 if [[ "$LOCAL_USERDATA" = 1 ]]; then
     install_local_hook_recipe
 fi
@@ -1697,7 +1781,7 @@ build_kernel_apk
 run_pmbootstrap_builds
 run_install
 run_export
-UI_VERSION="$(package_version postmarketos-ui-plasma-mobile)"
+UI_VERSION="$(package_version "$UI_PKG")"
 verify_installed "$UI_VERSION"
 if [[ "$LOCAL_USERDATA" = 1 ]]; then
     write_local_rootfs_intermediate

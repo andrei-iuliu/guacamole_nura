@@ -1,0 +1,13 @@
+# Two minutes of monotonic uptime before the slot is marked successful; see
+# guacamole-boot-slot.service.  Persistent=false: no wall-clock catch-up.
+[Unit]
+Description=Mark the current A/B boot slot successful after boot (guacamole)
+
+[Timer]
+OnBootSec=2min
+AccuracySec=15s
+Persistent=false
+Unit=guacamole-boot-slot.service
+
+[Install]
+WantedBy=timers.target
