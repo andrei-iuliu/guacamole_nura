@@ -1,0 +1,64 @@
+# Nura rc4j: Alpine community/iio-sensor-proxy 3.9-r2 (the version in the
+# pinned edge index) plus one patch.  The patch stops the four SSC drivers
+# from calling libssc's synchronous enable/disable helpers from inside the
+# D-Bus Claim*()/Release*() method handlers.
+#
+# Those helpers (libssc 0.4.4) iterate the *shared default* GMainContext in a
+# loop that does not block, so a Claim*() that arrives while another claim is
+# being served is dispatched re-entrantly inside the first claim's wait, and
+# the wait itself burns a whole core.  A client that claims several sensors at
+# once -- Phosh Mobile Settings' Sensors page does exactly that -- wedges the
+# daemon in that loop.  See flows/rc4/topics/sensors/README.md for the
+# backtrace, the disassembly of the shipped libssc helper and the analysis.
+#
+# pkgrel 100 keeps this local build above the repository's r2.  The rc4 rootfs
+# is systemd-only, so the openrc subpackage and iio-sensor-proxy.initd are
+# dropped here; -systemd (the unit) and -udev (the FastRPC rules) are the
+# subpackages the images install.
+#
+# Upstream recipe (3.9-r2):
+# https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/iio-sensor-proxy/APKBUILD
+# Contributor: Rasmus Thomsen <oss@cogitri.dev>
+# Maintainer: Natanael Copa <ncopa@alpinelinux.org>
+pkgname=iio-sensor-proxy
+pkgver=3.9
+pkgrel=100
+pkgdesc="IIO sensors to D-Bus proxy"
+url="https://gitlab.freedesktop.org/hadess/iio-sensor-proxy"
+arch="all"
+license="GPL-2.0-or-later"
+depends="dbus"
+makedepends="
+	eudev-dev
+	glib-dev
+	libgudev-dev
+	meson
+	polkit-dev
+	libssc-dev
+	"
+subpackages="$pkgname-systemd $pkgname-udev $pkgname-dbg"
+source="https://gitlab.freedesktop.org/hadess/iio-sensor-proxy/-/archive/$pkgver/iio-sensor-proxy-$pkgver.tar.gz
+	0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch
+	"
+
+build() {
+	abuild-meson \
+		-Db_lto=true \
+		-Dssc-support=enabled \
+		-Dsystemdsystemunitdir=/usr/lib/systemd/system \
+		. output
+	meson compile -C output
+}
+
+check() {
+	meson test --print-errorlogs -C output
+}
+
+package() {
+	DESTDIR="$pkgdir" meson install --no-rebuild -C output
+}
+
+sha512sums="
+a89c842f8db2a1a36c1c7c990434bb57fd905224459170cba2ec56e79f1272acc4cac4221937704d5e9247f957d86fde716d25e2d1ccb80d88fa643b47edfda6  iio-sensor-proxy-3.9.tar.gz
+7fa5df4c2322b1273a5d968615905f445727414a8693f501978725b45969eeb1f875655bf8060b8239c00198b9dd12db5c4e931992b7e28db5d8999c7049ab66  0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch
+"

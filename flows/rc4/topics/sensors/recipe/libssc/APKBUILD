@@ -1,0 +1,74 @@
+# Nura rc4j: Alpine community/libssc 0.4.4-r0 (the version in the pinned edge
+# index, and the one on the phone) plus one patch.
+#
+# The patch makes ssc_common_wait_sync_context() iterate the main context with
+# may_block=TRUE.  Upstream passes FALSE, so the loop is a busy wait: every
+# *_open_sync()/_close_sync()/_new_sync() whose completion does not land in
+# the current iteration polls with a 0 ms timeout and burns one CPU core until
+# it does.  This is the mechanism behind the 100 % iio-sensor-proxy thread in
+# the rc4j sensor report; it also makes any stuck operation a permanent 100 %
+# spin instead of a harmless block.
+#
+# This patch does *not* remove the re-entrancy that triggers the stall --
+# blocking still dispatches pending application sources -- see the companion
+# iio-sensor-proxy patch in ../iio-sensor-proxy/, which is the fix for the
+# reported bug.  Keep both: this one is what bounds the CPU cost of the
+# remaining synchronous users (sensor discovery at udev add, ssccli).
+#
+# pkgrel 100 keeps this local build above the repository's r0.
+#
+# Upstream recipe (0.4.4-r0):
+# https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/libssc/APKBUILD
+# Contributor: Dylan Van Assche <dylan@postmarketos.org>
+# Maintainer: Dylan Van Assche <dylan@postmarketos.org>
+pkgname=libssc
+pkgver=0.4.4
+pkgrel=100
+pkgdesc="Library to expose Qualcomm Sensor Core sensors"
+url="https://codeberg.org/DylanVanAssche/libssc"
+arch="all"
+license="GPL-3.0-or-later"
+makedepends="
+	eudev-dev
+	glib-dev
+	libgudev-dev
+	linux-headers
+	libqmi-dev
+	meson
+	protobuf-c-dev
+	protobuf-dev
+	python3-dev
+	py3-gobject3
+	py3-protobuf
+	qrtr-libs
+"
+subpackages="$pkgname-dbg $pkgname-dev $pkgname-pyc"
+builddir="$srcdir/$pkgname"
+source="$pkgname-$pkgver-1.tar.gz::https://codeberg.org/DylanVanAssche/libssc/archive/v$pkgver.tar.gz
+	0001-libssc-common-block-in-the-sync-wait.patch
+	"
+
+# Tests suddenly fail on s390x, disable them for now (same as aports).
+case "$CARCH" in
+	s390x) options="!check";;
+esac
+
+build() {
+	abuild-meson \
+		-Db_lto=true \
+		. output
+	meson compile -C output
+}
+
+package() {
+	DESTDIR="$pkgdir" meson install --no-rebuild -C output
+}
+
+check() {
+	meson test --print-errorlogs -C output
+}
+
+sha512sums="
+9240970f6a70f4900ef2d8fad337dac815ea2602b3b395943326fb086f59d24dcf59b76bdbc6014ebd3c450eaad5393465ca038c165845ffe99bf8e282a5c170  libssc-0.4.4-1.tar.gz
+ff6745564714413d72de76418060db2a9aad86aece8bbd6d03b68770afb093b2012acb3766d077685716a66d3a0ce263017599102e1ec66b48b9a10665646777  0001-libssc-common-block-in-the-sync-wait.patch
+"
