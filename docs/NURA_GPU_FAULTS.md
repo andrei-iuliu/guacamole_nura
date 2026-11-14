@@ -120,7 +120,7 @@ made that 60 Hz fixes it.
 | Candidate | Evidence / scope | Next-RC decision |
 | --- | --- | --- |
 | Phoc null-texture thumbnail guard | A community patch checks the missing texture before rendering; our symbolized crash uses that exact path. May avoid session death after a reset, while content can remain damaged. | Review and test as a separate recovery fix. Do not claim it prevents GPU faults. |
-| 64 KiB kernel-managed GPU VA alignment | A 9 November report on another A640/SM8150 device describes the same boundary-access pattern and reports fault-free trials after alignment. Our source still uses 4 KiB PAGE_SIZE alignment. | Strongest matching kernel experiment, not an approved default. Preserve PAGE_SIZE fallback on ENOSPC for tight GMU windows. |
+| 64 KiB kernel-managed GPU VA alignment | A 9 November report on another A640/SM8150 device describes the same boundary-access pattern and reports fault-free trials after alignment. Our source still uses 4 KiB PAGE_SIZE alignment. | Strongest matching kernel experiment, not an approved default. Preserve PAGE_SIZE fallback on ENOSPC for tight GMU windows. Carried as 0073 for the GL/kernel-managed path; Vulkan/Turnip allocates its own VA and is not covered (see the rc4j section). |
 | `FD_MESA_DEBUG=sysmem` | Supported by our exact Mesa source; GPU-accelerated system-memory rendering. Short app-only smoke test was quiet. | Test whole-session scope before considering a reversible workaround. Measure power/performance rather than assuming no cost. |
 | `FD_MESA_DEBUG=inorder` | Supported by our Mesa source; the external matching reporter says ordered submission suppresses their fault. | Separate diagnostic trial. Never combine with sysmem for the initial comparison. |
 | Mesa 26.3.0 | Official release source and relevant MSM allocation path were inspected. No confirmed fix for this exact defect identified. | Separate upgrade experiment if needed; do not advertise as a known repair. |
@@ -151,6 +151,29 @@ VMs are created with `managed=false` and never enter that branch, so no
 userspace address changes. Mesa, Phoc, Phosh and the panel mode are
 untouched.
 
+**Which path did the dumps use?** The measured buffers are on the
+kernel-managed path, so 0073 does reach them. gallium freedreno in Mesa
+26.2.6 has no VM_BIND code at all: every BO's iova comes from
+`MSM_INFO_GET_IOVA` (`msm_bo.c`, called from `fd_bo_init_common()`), and the
+kernel returns `EINVAL` for that ioctl once a context has opted in to
+VM_BIND (`msm_drv.c:433`); `msm_bo_iova()` swallows that error and
+returns 0, so gallium in that mode would give every BO address 0 and could
+not render; a working GL session therefore proves the managed path.
+The dumps' addresses (`0x101bc0000`–`0x10ee60000`) sit inside the per-process
+window `[0x100000000, BIT(48))` that the dmesg's `Stage-1: 48-bit VA`
+implies, but that window is shared with userspace-managed VMs
+(`a6xx_create_private_vm()` uses `ADRENO_VM_START` in both modes), so the
+address alone proves nothing; the gallium code does.
+
+Turnip (Vulkan) is the exception and is **not** covered by 0073: it enables
+VM_BIND whenever the kernel offers it, has no knob to disable it, and
+allocates its own VAs from a `util_vma_heap` with page (4 KiB) alignment. An
+unbuilt, unwired proposal for that path is
+`flows/rc4/topics/gpu-va-align/mesa/0001-tu-align-userspace-va-of-large-bos-to-64k.patch`;
+no measured submitter is a Vulkan client, so it is not needed for these
+faults. Full transcripts, line references and the falsification criteria are
+in `flows/rc4/topics/gpu-va-align/README.md`.
+
 Verified for the recipe only: the patch applies to the 0001-0072 tree with
 `patch -p1 --fuzz=0` (no offsets) and `drivers/gpu/drm/msm/msm_gem_vma.o`
 compiles with no diagnostics at default and at `W=1`. Nothing was booted.
@@ -168,6 +191,10 @@ display mode, normal GMEM rendering, and no `sysmem`/`inorder` in either arm:
    `round_down(target, 64K)` disappear in the 0073 arm and remain in the
    control arm. A residual fault set, a GMU probe failure (`-ENOSPC` in
    dmesg) or any boot/suspend regression rejects the arm.
+4. Sanity-check the arm from the dumps: after 0073 every kernel-managed BO
+   start is a multiple of `0x10000`. A render-target BO that is not 64 KiB
+   aligned can only come from a userspace-VA (VM_BIND, i.e. Vulkan) context,
+   which this patch does not cover.
 
 ## Proposed validation before inclusion
 

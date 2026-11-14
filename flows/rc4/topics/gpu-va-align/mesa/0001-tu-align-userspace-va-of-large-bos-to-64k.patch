@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4j series <rc4j@nura.invalid>
+Date: Sat, 14 Nov 2026 14:30:00 +0000
+Subject: [RFC PATCH] tu: align userspace VA of BOs >= 64 KiB to 64 KiB
+
+On an A640 (SM8150) the CCU can read the 64 KiB-aligned start of the block
+that holds a bound render target; when that block start belongs to another
+buffer's unmapped tail the read faults with type=TRANSLATION source=CCU
+(freedreno list, 2026-11-09, msg48724).  The kernel recipe aligns
+kernel-managed GPU VAs to 64 KiB for exactly this reason
+(0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch), but it cannot reach
+a VM_BIND context: there userspace picks the addresses, and Turnip allocates
+them from a util_vma_heap with plain page alignment
+(tu_allocate_userspace_iova(), tu_knl_drm.cc).  So a Vulkan client keeps the
+4 KiB packing that the kernel change removes for GL clients.
+
+Give BOs of 64 KiB or more a 64 KiB alignment in that heap.  Emulating the
+kernel change for every BO is not needed for the reported fault, where the
+block start that gets read is the one of a render target; keeping page
+alignment for sub-64 KiB BOs leaves the heap densely packed.  Client
+supplied addresses (VK_EXT_map_memory_placed / replayable BOs) and the
+alloc_high direction are untouched; only the allocator's alignment argument
+changes.
+
+This is the Mesa side of the experiment, not an upstream proposal: the
+measured faults on guacamole come from the GL (gallium) path, which does not
+use VM_BIND at all in 26.2.6, so this patch is not needed for them.  It is
+here so a Vulkan client can be part of an A/B if one is ever involved.
+Completely untested: not built, not run, no hardware.
+
+---
+Proposed by the nura rc4j kernel work, not by the freedreno reporters; the
+kernel-side original is Gaurav Suman's msg48724 (see the recipe patch 0073).
+Reviewed by eye against mesa-26.2.6 and apply-checked, nothing else.
+
+ src/freedreno/vulkan/tu_knl_drm.cc | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/freedreno/vulkan/tu_knl_drm.cc b/src/freedreno/vulkan/tu_knl_drm.cc
+index 68715b0..5ca246b 100644
+--- a/src/freedreno/vulkan/tu_knl_drm.cc
++++ b/src/freedreno/vulkan/tu_knl_drm.cc
+@@ -21,6 +21,13 @@ tu_allocate_userspace_iova(struct tu_device *dev,
+                            enum tu_bo_alloc_flags flags,
+                            uint64_t *iova)
+ {
++   /* On a6xx (seen on A640) the CCU can read the 64 KiB-aligned start of the
++    * block that holds a bound render target, so a >= 64 KiB BO has to own that
++    * block start itself.  Smaller BOs keep page alignment, which keeps the
++    * heap densely packed.
++    */
++   const uint64_t alignment = size >= (64 * 1024) ? (64 * 1024) : os_page_size;
++
+    *iova = 0;
+ 
+    if (flags & TU_BO_ALLOC_REPLAYABLE) {
+@@ -36,11 +43,11 @@ tu_allocate_userspace_iova(struct tu_device *dev,
+           * them from the other end of the address space.
+           */
+          dev->vma.alloc_high = true;
+-         *iova = util_vma_heap_alloc(&dev->vma, size, os_page_size);
++         *iova = util_vma_heap_alloc(&dev->vma, size, alignment);
+       }
+    } else {
+       dev->vma.alloc_high = false;
+-      *iova = util_vma_heap_alloc(&dev->vma, size, os_page_size);
++      *iova = util_vma_heap_alloc(&dev->vma, size, alignment);
+    }
+ 
+    if (!*iova)
