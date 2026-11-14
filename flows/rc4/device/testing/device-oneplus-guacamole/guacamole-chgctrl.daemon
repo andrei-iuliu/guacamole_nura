@@ -28,8 +28,10 @@ journal on every change, and `guacamole-chgctrl status` prints it.
 Warp Charge (the OnePlus 5 V/6 A protocol through the MCU at I2C 0x26) is
 not supported: a Warp charger is driven as an ordinary DCP source.
 """
+import argparse
 import os
 import signal
+import subprocess
 import sys
 import time
 
@@ -254,9 +256,43 @@ def resume_input(*_):
     sys.exit(0)
 
 
+def set_limits(minimum, maximum):
+    """Persist the charge window without replacing the thermal policy."""
+    if not 0 <= minimum < maximum <= 100:
+        raise ValueError("limits must satisfy 0 <= resume < stop <= 100")
+    if os.geteuid() != 0:
+        raise PermissionError("run with sudo: guacamole-chgctrl limit RESUME STOP")
+    subprocess.run(
+        ["systemctl", "edit", "--stdin", "--drop-in=80-nura-charge-window.conf",
+         "guacamole-chgctrl.service"],
+        input="[Service]\nEnvironment=CHG_MIN=%d CHG_MAX=%d\n" % (minimum, maximum),
+        text=True, check=True,
+    )
+    subprocess.run(["systemctl", "restart", "guacamole-chgctrl.service"], check=True)
+    subprocess.run(["systemctl", "is-active", "--quiet", "guacamole-chgctrl.service"],
+                   check=True)
+    if maximum == 100:
+        print("Charge window disabled; charge to full (thermal protections remain).")
+    else:
+        print("Configured: stop at %d%%; resume at %d%%." % (maximum, minimum))
+
+
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "status":
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command")
+    commands.add_parser("status", help="show battery and charger policy")
+    limit = commands.add_parser("limit", help="persist resume/stop percentages (sudo, systemd)")
+    limit.add_argument("resume", type=int)
+    limit.add_argument("stop", type=int, help="100 disables the charge window")
+    args = parser.parse_args()
+    if args.command == "status":
         cmd_status()
+        return
+    if args.command == "limit":
+        try:
+            set_limits(args.resume, args.stop)
+        except (ValueError, OSError, subprocess.CalledProcessError) as error:
+            parser.exit(1, "guacamole-chgctrl: %s\n" % error)
         return
     signal.signal(signal.SIGTERM, resume_input)
     signal.signal(signal.SIGINT, resume_input)
