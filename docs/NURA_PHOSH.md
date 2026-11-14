@@ -78,7 +78,7 @@ commit `286d3b4e`):
 * **Plasma**: the `plasma-corners` commits `945baff` and `a3141aa` are
   cherry-picked (top-level `device/testing/device-oneplus-guacamole`, pkgrel
   14). The same preset is installed by the device package that this flow
-  ships (`flows/rc4/device/testing/device-oneplus-guacamole`, pkgrel 19),
+  ships (`flows/rc4/device/testing/device-oneplus-guacamole`, pkgrel 20),
   under both `oneplus,guacamole.conf` and `qcom,sm8150-mtp.conf`.
 * **Phosh**: phosh (top-bar corner padding) and phoc read the panel geometry
   through `libgmobile.so.0`, keyed by the DT root compatible
@@ -426,7 +426,7 @@ hardware mechanism suspends charger input, so the phone runs from battery
 while held. Polling and system suspend can delay threshold enforcement.
 Setting limits is not evidence of a validated stop/resume cycle on hardware.
 
-## GPU workaround toggle and fault soak (device package 4-r19)
+## GPU workaround toggle and fault soak (device package 4-r20)
 
 The rc4j device package installs two root helpers. **Normal rendering stays the
 default**; nothing is set until the toggle is used.
@@ -482,7 +482,7 @@ and a one-line `SUMMARY` suitable for pasting into a report. It reads
 phoc/phosh cores with a journal fallback. It never releases a devcoredump or
 touches debugfs.
 
-## Systemd log level: info by default (device package 4-r19)
+## Systemd log level: info by default (device package 4-r20)
 
 The RAM review measured both managers at `debug` and about 145 MiB of
 journals. The cause is not our boot-image cmdline: ABL appends the bare token
@@ -523,7 +523,7 @@ To collect debug logs again, change both `info` values in that drop-in to
 `systemctl --user log-level debug` for the running managers. The persistent
 journal, `nura-boot-diagnostics` and `nura-gpu-crash-capture` are unchanged.
 
-## Known issue: iio-sensor-proxy spins one core after Mobile Settings -> Sensors (device package 4-r19)
+## Known issue: iio-sensor-proxy spins one core after Mobile Settings -> Sensors
 
 Opening Phosh Mobile Settings and switching to its **Sensors** page claims
 every SSC sensor at once. With iio-sensor-proxy 3.9-r2 + libssc 0.4.4-r0 the
@@ -568,3 +568,46 @@ Nothing in the device package changes for this: the issue lives in the two
 upstream packages, and an always-on watchdog (timer + `systemctl restart`)
 was considered and dropped as too brittle for a bug with an identified fix.
 
+## Updating safely with nura-upgrade (device package 4-r20)
+
+The rc4 images pin exact versions in `/etc/apk/world` (kernel, device,
+firmware, phoc, gmobile and the UI metapackage).  A bare `apk upgrade` can
+therefore stop on an unsatisfiable constraint or replace a nura-patched
+package with a repository build.  Use
+`nura-upgrade` instead; it is root-only and never touches a boot partition,
+boot image, DTB or devcoredump:
+
+```sh
+sudo nura-upgrade --simulate   # report only; no package changes
+sudo nura-upgrade              # report, then ask y/N
+sudo nura-upgrade --yes        # report and apply without the prompt
+```
+
+A run writes `/var/lib/nura/upgrade/<UTC timestamp>/` with:
+
+* `before.txt`: `uname -r`, `/etc/apk/world` and `apk info -v | sort`;
+* `simulate.txt`: `apk update` followed by `apk upgrade --simulate`;
+* `upgrade.txt`, `after.txt` and `after-versions.txt` after an actual run;
+* `changed.txt`: a `name before after` list derived from the two version
+  snapshots (`absent`/`removed` mark installs and removals).
+
+The report highlights changes to `mesa*`, `phoc*`, `phosh*`, `gmobile*`,
+`wlroots*`, `gtk4*`, `systemd*`, `greetd*`, `linux-*`, `device-*`,
+`firmware-*`, `pulseaudio*`, `modemmanager*` and `libcamera*` with old -> new
+versions.  Other upgrades are counted and remain visible in `simulate.txt`.
+
+If `apk upgrade --simulate` fails, the helper prints the blocking package
+names and exits non-zero **without running `apk upgrade`**.  This is the
+expected result when a pinned nura package (or a local rebuild such as
+phoc/gmobile/`postmarketos-ui-phosh`) has no matching version in the new
+repository snapshot.  Rebuild that pinned package for the snapshot, or relax
+the pin deliberately, and retry.  `apk update` may have refreshed repository
+indexes on this path, but no installed package is changed.
+
+If a `nura-gpu-soak` snapshot is still open (a `start.txt` without a
+`stop.txt`), the helper warns before doing anything: upgrading changes
+package providers and invalidates that A/B comparison.  Stop the soak first.
+
+After a successful upgrade, reboot before using the new session.  Even when
+the kernel package did not change, phoc, systemd and the session processes
+keep the old binaries until the session or the phone restarts.

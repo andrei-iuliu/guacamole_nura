@@ -1,0 +1,389 @@
+#!/bin/sh
+# nura-upgrade - safe, auditable apk upgrade for the guacamole image.
+#
+# The rc4 images pin exact versions in /etc/apk/world (kernel, device,
+# firmware) and locally rebuild a few packages (phoc, gmobile, the UI), so a
+# plain `apk upgrade` can stop with an unsatisfiable constraint or silently
+# replace a nura-patched package.  This helper makes the transaction
+# explicit:
+#
+#   nura-upgrade --simulate   report only; no package is changed
+#   nura-upgrade              report, ask for confirmation, then upgrade
+#   nura-upgrade --yes        report and upgrade without the prompt
+#
+# Each run writes /var/lib/nura/upgrade/<UTC timestamp>/:
+#   before.txt            uname -r, /etc/apk/world and `apk info -v | sort`
+#   before-versions.txt   the raw sorted package list used for the diff
+#   simulate.txt          `apk update` plus `apk upgrade --simulate`
+#   upgrade.txt           `apk upgrade` output (only after confirmation)
+#   after.txt             the same snapshot after the attempt
+#   after-versions.txt    raw sorted package list after the attempt
+#   changed.txt           name/before/after lines derived from the two lists
+#
+# If `apk upgrade --simulate` fails, the script names the blocking packages
+# and exits non-zero without running `apk upgrade`.  Exact pins are the usual
+# cause: a pinned nura package (or a local rebuild such as phoc/gmobile) has
+# no matching repository version until it is rebuilt for the new snapshot.
+# `apk update` may have refreshed the repository indexes; no installed package
+# is changed on this path.
+#
+# Sensitive packages are highlighted (mesa, phoc, phosh, gmobile, wlroots,
+# gtk4, systemd, greetd, linux, device, firmware, pulseaudio, modemmanager,
+# libcamera) with old -> new versions.  If a GPU soak snapshot is open, the
+# helper warns that upgrading invalidates that A/B comparison.
+#
+# This script never touches a boot partition, boot image, DTB or devcoredump.
+#
+# Test-only environment (the package sets none of these):
+#   NURA_UPGRADE_ROOT      prefix for /var/lib, /etc/apk/world and /proc
+#   NURA_UPGRADE_STATE     exact snapshot directory
+#   NURA_APK_WORLD         exact /etc/apk/world
+#   NURA_GPU_SOAK_STATE    exact nura-gpu-soak state directory
+#   NURA_UPGRADE_BOOT_ID   exact boot_id file
+
+set -u
+
+ROOT=${NURA_UPGRADE_ROOT:-}
+STATE=${NURA_UPGRADE_STATE:-$ROOT/var/lib/nura/upgrade}
+WORLD=${NURA_APK_WORLD:-$ROOT/etc/apk/world}
+GPU_SOAK_STATE=${NURA_GPU_SOAK_STATE:-$ROOT/var/lib/nura/gpu-soak}
+BOOT_ID_FILE=${NURA_UPGRADE_BOOT_ID:-$ROOT/proc/sys/kernel/random/boot_id}
+
+PROG=nura-upgrade
+ASSUME_YES=0
+SIMULATE=0
+
+usage() {
+    printf 'usage: %s [--simulate|-n] [--yes]\n' "$PROG" >&2
+    printf '  --simulate, -n  report only; do not prompt and do not upgrade\n' >&2
+    printf '  --yes           skip the confirmation prompt\n' >&2
+}
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+die() {
+    printf '%s: %s\n' "$PROG" "$*" >&2
+    exit 1
+}
+
+require_root() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+        printf '%s: must be run as root\n' "$PROG" >&2
+        printf 'hint: sudo %s --simulate   # report only\n' "$PROG" >&2
+        exit 1
+    fi
+}
+
+now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+boot_id() {
+    if [ -r "$BOOT_ID_FILE" ]; then
+        head -n 1 "$BOOT_ID_FILE" 2>/dev/null | tr -d '[:space:]'
+    else
+        printf 'unknown\n'
+    fi
+}
+
+soak_warning() {
+    for _soak_dir in "$GPU_SOAK_STATE"/*/; do
+        [ -f "$_soak_dir/start.txt" ] || continue
+        [ -f "$_soak_dir/stop.txt" ] && continue
+        printf '%s: WARNING: a GPU soak snapshot is still open: %s\n' "$PROG" "$_soak_dir"
+        printf '%s: upgrading invalidates that A/B comparison; run nura-gpu-soak stop first.\n' "$PROG"
+        return 0
+    done
+    return 1
+}
+
+capture_versions() {
+    _out=$1
+    apk info -v 2>/dev/null | sort > "$_out" || true
+    if [ ! -s "$_out" ]; then
+        printf '[UNAVAILABLE] apk info -v produced no output\n' > "$_out"
+    fi
+}
+
+write_snapshot() {
+    _out=$1
+    _label=$2
+    _versions=$3
+    {
+        printf '# nura-upgrade %s\n' "$_label"
+        printf 'generated=%s\n' "$(now_iso)"
+        printf 'boot_id=%s\n' "$(boot_id)"
+        printf 'uname_r=%s\n' "$(uname -r 2>/dev/null || printf 'unknown')"
+        printf 'state=%s\n' "$_dir"
+        printf '## /etc/apk/world (%s)\n' "$WORLD"
+        if [ -r "$WORLD" ]; then
+            cat "$WORLD"
+        else
+            printf '[MISSING]\n'
+        fi
+        printf '## apk info -v (sorted)\n'
+        cat "$_versions"
+    } > "$_out"
+}
+
+world_names() {
+    if [ -r "$WORLD" ]; then
+        sed -n 's/[[:space:]]//g; /^[^#]/p' "$WORLD" | sed 's/[=<>~].*//' | grep -v '^$' || true
+    fi
+}
+
+blocking_packages() {
+    _file=$1
+    _out=$2
+    : > "$_out"
+
+    # apk error lines look like:
+    #   phoc-0.58.0-r100 (no such package):
+    #     required by: world[phoc=0.58.0-r100]
+    sed -n 's/^[[:space:]]*\([A-Za-z0-9][A-Za-z0-9+._-]*\)-[0-9][^ ]*.*$/\1/p' \
+        "$_file" >> "$_out"
+    sed -n 's/.*world\[\([^]]*\)\].*/\1/p' "$_file" |
+        sed 's/[=<>~].*//' >> "$_out"
+
+    # An exact pin that is still present in /etc/apk/world is a likely
+    # blocker even when apk prints a variant of the error format.
+    world_names | while IFS= read -r _name; do
+        [ -n "$_name" ] || continue
+        if grep -F -q "$_name" "$_file"; then
+            printf '%s\n' "$_name" >> "$_out"
+        fi
+    done
+
+    sort -u "$_out" > "$_out.sorted" 2>/dev/null || true
+    mv "$_out.sorted" "$_out"
+    if [ ! -s "$_out" ]; then
+        printf '(apk did not name a package; see the simulate output)\n' > "$_out"
+    fi
+}
+
+# count_and_report_changes <simulate-output> <sensitive-output>
+# Prints the number of package changes on stdout; writes highlighted
+# sensitive lines to the second file.
+count_and_report_changes() {
+    _file=$1
+    _sensitive=$2
+    : > "$_sensitive"
+    _count=0
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        _count=$((_count + 1))
+        _rest=${_line#*) }
+        _action=${_rest%% *}
+        _rest=${_rest#* }
+        _name=${_rest%% *}
+        _versions=${_rest##*\(}
+        _versions=${_versions%)}
+
+        case "$_action" in
+            Upgrading|Downgrading|Replacing)
+                _old=${_versions%% -> *}
+                _new=${_versions#* -> }
+                ;;
+            Installing)
+                _old=absent
+                _new=$_versions
+                ;;
+            Purging)
+                _old=$_versions
+                _new=removed
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        case "$_name" in
+            mesa*|phoc*|phosh*|gmobile*|wlroots*|gtk4*|systemd*|greetd*|linux-*|device-*|firmware-*|pulseaudio*|modemmanager*|libcamera*)
+                printf '  %s: %s -> %s\n' "$_name" "$_old" "$_new" >> "$_sensitive"
+                ;;
+        esac
+    done <<EOF
+$(grep -E '^\([0-9]+/[0-9]+\) (Upgrading|Installing|Downgrading|Replacing|Purging) ' "$_file" 2>/dev/null)
+EOF
+
+    printf '%s\n' "$_count"
+}
+
+write_changes() {
+    _before=$1
+    _after=$2
+    _out=$3
+    _b="$_out.before"
+    _a="$_out.after"
+
+    # "name-version" -> "name version".  The first hyphen followed by a digit
+    # is the package/version boundary, including hyphenated package names.
+    sed 's/-\([0-9]\)/ \1/' "$_before" | sort > "$_b"
+    sed 's/-\([0-9]\)/ \1/' "$_after" | sort > "$_a"
+
+    awk 'FILENAME == ARGV[1] { old[$1] = $2; next }
+         { new[$1] = $2 }
+         END {
+             for (n in old)
+                 if (!(n in new)) print n, old[n], "removed";
+             for (n in new)
+                 if (!(n in old)) print n, "absent", new[n];
+                 else if (old[n] != new[n]) print n, old[n], new[n];
+         }' "$_b" "$_a" | sort > "$_out.awk"
+
+    {
+        printf '# nura-upgrade package version changes\n'
+        printf '# name before after\n'
+        if [ -s "$_out.awk" ]; then
+            cat "$_out.awk"
+        else
+            printf 'no package version changes\n'
+        fi
+    } > "$_out"
+
+    rm -f "$_b" "$_a" "$_out.awk"
+}
+
+cmd_run() {
+    require_root
+
+    for _tool in apk sort sed awk grep head mkdir date uname tr cat mv rm chmod; do
+        have "$_tool" || die "missing tool: $_tool"
+    done
+
+    mkdir -p "$STATE" 2>/dev/null || die "cannot create $STATE (run with sudo/root)"
+    _stamp=$(date -u +%Y%m%dT%H%M%SZ)
+    _dir="$STATE/$_stamp"
+    _i=1
+    while [ -e "$_dir" ]; do
+        _dir="$STATE/$_stamp-$_i"
+        _i=$((_i + 1))
+    done
+    mkdir "$_dir" 2>/dev/null || die "cannot create $_dir (run with sudo/root)"
+    chmod 700 "$_dir" 2>/dev/null || true
+
+    soak_warning || true
+
+    capture_versions "$_dir/before-versions.txt"
+    write_snapshot "$_dir/before.txt" before "$_dir/before-versions.txt"
+
+    printf '%s: snapshot %s\n' "$PROG" "$_dir"
+
+    _update_out="$_dir/.update.out"
+    apk update > "$_update_out" 2>&1
+    _update_rc=$?
+    {
+        printf '### apk update\n'
+        cat "$_update_out"
+    } > "$_dir/simulate.txt"
+    cat "$_update_out"
+    rm -f "$_update_out"
+
+    if [ "$_update_rc" -ne 0 ]; then
+        printf '%s: apk update failed (exit %s); no package was changed.\n' "$PROG" "$_update_rc"
+        printf '%s: output: %s/simulate.txt\n' "$PROG" "$_dir"
+        exit 1
+    fi
+
+    _sim_out="$_dir/.simulate.out"
+    apk upgrade --simulate > "$_sim_out" 2>&1
+    _sim_rc=$?
+    {
+        printf '### apk upgrade --simulate\n'
+        cat "$_sim_out"
+    } >> "$_dir/simulate.txt"
+    cat "$_sim_out"
+
+    if [ "$_sim_rc" -ne 0 ]; then
+        blocking_packages "$_sim_out" "$_dir/.blocking"
+        printf '%s: apk upgrade --simulate failed (exit %s); no package was changed.\n' "$PROG" "$_sim_rc"
+        printf '%s: blocking packages:\n' "$PROG"
+        sed 's/^/  /' "$_dir/.blocking"
+        printf '%s: a nura package pinned in /etc/apk/world (or a local rebuild such as\n' "$PROG"
+        printf '%s:   phoc/gmobile/postmarketos-ui-phosh) has no matching repository version.\n' "$PROG"
+        printf '%s:   Rebuild that pinned nura package for the new repository snapshot, or\n' "$PROG"
+        printf '%s:   relax the pin deliberately, then retry. The simulate output is %s/simulate.txt.\n' "$PROG" "$_dir"
+        rm -f "$_sim_out" "$_dir/.blocking"
+        exit 1
+    fi
+
+    _changes=$(count_and_report_changes "$_sim_out" "$_dir/.sensitive")
+    rm -f "$_sim_out"
+
+    printf '%s: simulated package changes: %s\n' "$PROG" "$_changes"
+    printf '%s: sensitive packages that would change:\n' "$PROG"
+    if [ -s "$_dir/.sensitive" ]; then
+        cat "$_dir/.sensitive"
+    else
+        printf '  (none)\n'
+    fi
+    rm -f "$_dir/.sensitive"
+
+    if [ "$_changes" -eq 0 ]; then
+        printf '%s: nothing to upgrade; no package was changed.\n' "$PROG"
+        exit 0
+    fi
+
+    if [ "$SIMULATE" -eq 1 ]; then
+        printf '%s: --simulate: stopping after the report; no package was changed.\n' "$PROG"
+        printf '%s: full output: %s/simulate.txt\n' "$PROG" "$_dir"
+        exit 0
+    fi
+
+    if [ "$ASSUME_YES" -eq 0 ]; then
+        printf '%s: apply these changes? [y/N] ' "$PROG"
+        _answer=
+        IFS= read -r _answer || true
+        case "$_answer" in
+            y|Y|yes|YES) ;;
+            *)
+                printf '%s: aborted; no package was changed.\n' "$PROG"
+                exit 0
+                ;;
+        esac
+    fi
+
+    _upgrade_out="$_dir/upgrade.txt"
+    apk upgrade > "$_upgrade_out" 2>&1
+    _upgrade_rc=$?
+    cat "$_upgrade_out"
+
+    capture_versions "$_dir/after-versions.txt"
+    write_snapshot "$_dir/after.txt" after "$_dir/after-versions.txt"
+    write_changes "$_dir/before-versions.txt" "$_dir/after-versions.txt" "$_dir/changed.txt"
+
+    printf '%s: package changes: %s/changed.txt\n' "$PROG" "$_dir"
+    printf '%s: before/after snapshots: %s/before.txt %s/after.txt\n' "$PROG" "$_dir" "$_dir"
+
+    if [ "$_upgrade_rc" -ne 0 ]; then
+        printf '%s: apk upgrade failed (exit %s); package state may be partial.\n' "$PROG" "$_upgrade_rc"
+        exit "$_upgrade_rc"
+    fi
+
+    printf '%s: upgrade complete. Reboot before using the new session: even when the\n' "$PROG"
+    printf '%s:   kernel package did not change, phoc/systemd/session processes keep the\n' "$PROG"
+    printf '%s:   old binaries until the session (or the phone) restarts.\n' "$PROG"
+    printf '%s: no boot partition, boot image, DTB or devcoredump was touched.\n' "$PROG"
+    exit 0
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --simulate|-n)
+            SIMULATE=1
+            ;;
+        --yes)
+            ASSUME_YES=1
+            ;;
+        -h|--help|help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+cmd_run

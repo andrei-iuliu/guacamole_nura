@@ -1,10 +1,12 @@
 # rc4 topic: iio-sensor-proxy spins one CPU core after Mobile Settings -> Sensors
 
 Status: **root cause identified, fix prepared as two local recipes, not built,
-not wired into the image, not tested on the phone.**  Nothing outside
-`flows/rc4/topics/sensors/` was changed by this topic, and the device package
-is untouched (no pkgrel bump: the original always-on watchdog mitigation was
-dropped after review, see "Why not a watchdog").
+not wired into the image, not tested on the phone.**  The only files this
+topic changes outside `flows/rc4/topics/sensors/` are one section in
+`docs/NURA_PHOSH.md` and `flows/rc4/tests/test_rc4_sensor_ssc_fix.py`; the
+device package is untouched (no pkgrel bump - the always-on watchdog
+mitigation from the first draft was dropped after review, see "Why not a
+watchdog").
 
 Reporter's symptom (phone, Phosh, 2026-11-14, device package 4-r19,
 iio-sensor-proxy 3.9-r2, libssc 0.4.4-r0, hexagonrpcd 0.4.0-r3):
@@ -153,8 +155,9 @@ one-minute experiments on the phone discriminate, and neither changes the fix:
   parsed twice at startup - once for the driver's `discover()`, once for its
   `open()`.  Two warnings therefore mean the accelerometer's discovery and
   open completed; they are not a symptom.
-* `CompassHeading` staying at 0.0 is just "no compass reading yet" (the claim
-  that would start it is one of the stuck ones).
+* `CompassHeading` staying at 0.0 means no compass reading arrived: Mobile
+  Settings' `ClaimCompass()` is either queued behind the stuck claims or is
+  itself another stalled open.
 * The daemon had 3 eventfds and ~20 sockets; nothing in the trace suggests an
   fd storm.  The process is not blocked on a socket: it is spinning.
 
@@ -194,15 +197,14 @@ light_open_done (GObject *source, GAsyncResult *result, gpointer user_data)
 		ssc_sensor_light_open (drv_data->sensor, NULL, light_open_done, NULL);
 ```
 
-Why this is the right layer: the driver's `set_polling()` has nothing to do
-with the return value (it only logged a warning before), the D-Bus reply
-already happens on the first reading, and with no sync call in the handler
-there is no nested iteration at all - claims are served one main-loop turn
-apart, in the order the GDBus idles run, and every open completes the way it
-does for a single (Phosh-style) claim today.  It also keeps working if libssc
-never answers: the daemon no longer blocks or spins, it just logs nothing and
-the pending claim stays unanswered (the pre-existing behaviour for an open
-that fails).
+Why this is the right layer: `set_polling()` only used the return value for a
+warning, the D-Bus reply already happens on the first reading, and with no
+sync call in the handler there is no nested iteration at all - claims are
+served one main-loop turn apart, in the order the GDBus idles run, and every
+open completes the way it does for a single (Phosh-style) claim today.  It
+also keeps working if libssc never answers: the daemon no longer blocks or
+spins, it just logs nothing and the pending claim stays unanswered (the
+pre-existing behaviour for an open that fails).
 
 The completion callbacks also guard `error ? error->message : "UNKNOWN"`:
 libssc 0.4.4 can return `FALSE` with a `NULL` `GError` (fixed upstream after

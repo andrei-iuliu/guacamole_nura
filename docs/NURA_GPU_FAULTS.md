@@ -20,7 +20,7 @@ OnePlus 7 Pro (guacamole), SM8150 / Adreno 640, local-userdata Phosh:
 | Boot ID | `REDACTED_BOOT_ID` |
 | Kernel | `7.0.0-sm8150-guacamole-rc4` |
 | Installed kernel APK | `7.0.0_p20261114110819-r0` |
-| Installed device APK | `4-r17` at measurement (the rc4j source is 4-r19) |
+| Installed device APK | `4-r17` at measurement (the rc4j source is 4-r20) |
 | Mesa | `26.2.6-r0` |
 | Phoc | `0.58.0-r0` |
 | Phosh | `99990.58.0-r0` |
@@ -249,7 +249,7 @@ RC. Label an optional sysmem workaround as such, keep a rollback path, and
 continue collecting devcoredumps. A kernel change needs recipe/checksum,
 image, DTB/module identity and rootfs verification updates together.
 
-## rc4j: opt-in A/B helpers (device package 4-r19)
+## rc4j: opt-in A/B helpers (device package 4-r20)
 
 The rc4j device package adds two root helpers for the validation above. They
 do **not** change the default: until `nura-gpu-mode sysmem` (or `inorder`) is
