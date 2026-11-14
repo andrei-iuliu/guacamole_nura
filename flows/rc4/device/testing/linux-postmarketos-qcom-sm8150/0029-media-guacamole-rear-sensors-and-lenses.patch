@@ -6,6 +6,10 @@ f702f688288e59e3566f113d411ac7d18e4d0201. Original CAMSS patches
 by Sr-0w; sensor and lens sources retain their authors and licenses.
 See docs/REAR_CAMERA_7_0_BRINGUP.md for adaptations and limitations.
 
+Nura-Category: upstream-feature
+Nura-Origin: Cube-Oakley/omarchy-mobile f702f688 (sensors by Sr-0w)
+Upstream-Status: not in mainline v7.2 (IMX586/IMX481/LC898217XC absent)
+
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig

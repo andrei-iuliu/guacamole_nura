@@ -33,6 +33,10 @@ Makefile; device-tree hunks left out).
 rc4: applies to v7.0.0-sm8150-rc3 unchanged (Kconfig/Makefile context
 survives the rear-camera series). Source-only: not compiled in this patch.
 
+Nura-Category: reference-port
+Nura-Origin: hotdog-linux-bringup popup-camera series (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (hardcoded per-unit Hall thresholds)
+
 diff --git a/Documentation/devicetree/bindings/media/oneplus,hotdog-popup-motor.yaml b/Documentation/devicetree/bindings/media/oneplus,hotdog-popup-motor.yaml
 new file mode 100644
 index 0000000..1dfdd24

@@ -3,6 +3,9 @@ From: Ali Nasrullayev <nesrullayev.ali@gmail.com>
 Date: Mon, 31 Aug 2026 10:29:48 +0400
 Subject: [PATCH] arm64: dts: qcom: sm8150-xiaomi-vayu: Remove try-power-role to fix USB OTG
 
+Nura-Category: device-dt
+Nura-Origin: Ali Nasrullayev <nesrullayev.ali@gmail.com>, commit b8e1eea25c09
+Upstream-Status: n/a: vayu DTS is fork-only (absent in mainline v7.2)
 ---
  arch/arm64/boot/dts/qcom/sm8150-xiaomi-vayu-common.dtsi | 1 file changed, 1 deletion(-)
 

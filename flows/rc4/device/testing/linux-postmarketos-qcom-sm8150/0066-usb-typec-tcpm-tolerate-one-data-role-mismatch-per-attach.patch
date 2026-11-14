@@ -7,6 +7,9 @@ lost. The same dock reports the correct role in other sessions.
 
 Process the first mismatching SOP message of an attach and log it; a
 second mismatch on the same attach still triggers error recovery.
+Nura-Category: local-workaround
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2 (unconditional error recovery)
 ---
 --- a/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:43:56.469514311 +0100
 +++ b/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:43:56.482334166 +0100

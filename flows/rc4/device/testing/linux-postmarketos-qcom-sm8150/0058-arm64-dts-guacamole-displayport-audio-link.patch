@@ -27,6 +27,9 @@ series applied).  Nothing here is known to produce sound; the DSP is expected
 to time out on port 0x6020.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: device-dt
+Nura-Origin: nura rc4 displayport series
+Upstream-Status: n/a: guacamole DTS is not upstream
 ---
  .../dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi         | 39 ++++++++++++
  1 file changed, 39 insertions(+)

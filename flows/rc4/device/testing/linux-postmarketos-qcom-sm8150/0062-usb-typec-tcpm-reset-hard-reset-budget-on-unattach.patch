@@ -7,6 +7,9 @@ next attach SNK_WAIT_CAPABILITIES goes straight to SNK_READY: the new partner
 (a USB-C dock acting as source) never gets PD, so no contract and no
 DisplayPort alternate mode. Give every new attach a fresh budget by clearing
 the count when entering SNK_UNATTACHED/SRC_UNATTACHED.
+Nura-Category: upstream-fix
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2 (resets only when CC is open)
 ---
 --- a/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:07:03.506819991 +0100
 +++ b/drivers/usb/typec/tcpm/tcpm.c	2026-11-13 21:07:20.079949867 +0100

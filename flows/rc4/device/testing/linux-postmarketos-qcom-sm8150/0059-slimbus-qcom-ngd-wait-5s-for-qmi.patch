@@ -6,6 +6,9 @@ is 0033). rc4 boots on guacamole log "QMI wait timeout" ~1 s after the NGD
 controller registers, and the same boots return all-zero microphone capture
 with the full WCD934x DAPM path powered and the TX0 port never underflowing.
 This is a test of whether the 1 s wait is too short; it is not yet a proven fix.
+Nura-Category: local-workaround
+Nura-Origin: omarchy-mobile f702f688 slim-ngd-pd-up-race (2/2)
+Upstream-Status: not in mainline v7.2 (timeout still 1 s)
 ---
 --- a/drivers/slimbus/qcom-ngd-ctrl.c	2026-11-13 19:47:39.467036689 +0100
 +++ b/drivers/slimbus/qcom-ngd-ctrl.c	2026-11-13 19:47:39.467462025 +0100

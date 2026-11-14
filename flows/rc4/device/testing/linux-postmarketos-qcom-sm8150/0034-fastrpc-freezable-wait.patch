@@ -17,6 +17,9 @@ untouched.
 
 Reference: omarchy-mobile f702f68 devices/oneplus7pro/kernel/sensors/
 fastrpc-freezable-wait.patch.
+Nura-Category: upstream-fix
+Nura-Origin: omarchy-mobile f702f688 fastrpc-freezable-wait
+Upstream-Status: not in mainline v7.2 (interruptible wait)
 ---
 --- a/drivers/misc/fastrpc.c
 +++ b/drivers/misc/fastrpc.c

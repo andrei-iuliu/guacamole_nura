@@ -18,6 +18,9 @@ aports/device/testing/linux-oneplus-hotdog-mainline616/0051-asoc-sm8150-accept-t
 0008 already moved QUATERNARY_MI2S_RX into its own shutdown case.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: reference-port
+Nura-Origin: hotdog-linux-bringup 0051
+Upstream-Status: n/a: sound/soc/qcom/sm8150.c is fork-only
 ---
  sound/soc/qcom/sm8150.c | 6 ++++++
  1 file changed, 6 insertions(+)

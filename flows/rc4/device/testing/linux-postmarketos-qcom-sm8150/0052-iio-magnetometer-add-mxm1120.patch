@@ -17,6 +17,10 @@ past the MMC5633 entry that 7.0 added. Driver content is unchanged.
 Source-only: not compiled in this patch. Keep the DT nodes gated until
 the Hall readings are measured (docs/motor-procedure.md).
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0103/0104 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (driver and binding absent)
+
 diff --git a/Documentation/devicetree/bindings/iio/magnetometer/magnachip,mxm1120.yaml b/Documentation/devicetree/bindings/iio/magnetometer/magnachip,mxm1120.yaml
 new file mode 100644
 index 0000000..e2962ab

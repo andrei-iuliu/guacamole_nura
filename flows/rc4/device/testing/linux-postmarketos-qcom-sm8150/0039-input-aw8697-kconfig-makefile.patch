@@ -10,6 +10,10 @@ actuator profile.
 
 Source-only port: not compiled in this source change.
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0129/0130 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (AW8697 absent)
+
 --- a/drivers/input/misc/Kconfig
 +++ b/drivers/input/misc/Kconfig
 @@ -137,6 +137,19 @@

@@ -30,6 +30,9 @@ References:
 https://lists.openwall.net/linux-kernel/2026/09/26/1067
 https://lists.openwall.net/linux-kernel/2026/09/30/440
 omarchy-mobile f702f68 devices/oneplus7pro/kernel/touch/s6sy761-resume-irq.patch
+Nura-Category: upstream-fix
+Nura-Origin: omarchy-mobile f702f688 s6sy761-resume-irq
+Upstream-Status: not in mainline v7.2 (IRQ unmasked before power_on)
 ---
 --- a/drivers/input/touchscreen/s6sy761.c
 +++ b/drivers/input/touchscreen/s6sy761.c

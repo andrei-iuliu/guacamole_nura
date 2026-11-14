@@ -61,6 +61,9 @@ Suggested-by: Mykyta Yatsenko <yatsenko@meta.com>
 Signed-off-by: Carlos Llamas <cmllamas@google.com>
 Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
 Link: https://lore.kernel.org/bpf/20260523162722.2718940-1-cmllamas@google.com
+Nura-Category: backport
+Nura-Origin: Carlos Llamas <cmllamas@google.com>, commit b23705e6afb6
+Upstream-Status: merged in v7.2 (commit b23705e6afb6, 2026-05-23)
 ---
  tools/lib/bpf/strset.c | 62 ++++++++++++++++++++++++++++--------------
  1 file changed, 41 insertions(+), 21 deletions(-)

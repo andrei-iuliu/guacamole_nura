@@ -9,6 +9,9 @@ when PS_RDY happens to win the race. The stock driver sets
 EXIT_SNK_BASED_ON_CC around PD resets so the sink state follows CC alone;
 set it at init. TCPM already tolerates VBUS changes while a transition is
 pending and detaches on CC.
+Nura-Category: upstream-fix
+Nura-Origin: nura local USB-PD series (emilyastranova)
+Upstream-Status: not in mainline v7.2 (bit defined but never set)
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c

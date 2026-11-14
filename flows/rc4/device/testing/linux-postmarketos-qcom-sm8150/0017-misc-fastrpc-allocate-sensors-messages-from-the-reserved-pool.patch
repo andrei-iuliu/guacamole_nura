@@ -14,6 +14,9 @@ without a session already do.
 
 From hotdog-linux-bringup patch 0148 (OnePlus 7T Pro), without its
 per-invoke dev_info().
+Nura-Category: upstream-fix
+Nura-Origin: hotdog-linux-bringup 0148 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (no SENSORS_PD exception)
 ---
 --- a/drivers/misc/fastrpc.c
 +++ b/drivers/misc/fastrpc.c

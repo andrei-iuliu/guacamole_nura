@@ -1,3 +1,7 @@
+Nura-Category: upstream-fix
+Nura-Origin: nura rear-camera port
+Upstream-Status: not in mainline v7.2 (only available masters initialised)
+
 --- a/drivers/i2c/busses/i2c-qcom-cci.c
 +++ b/drivers/i2c/busses/i2c-qcom-cci.c
 @@ -536,6 +536,10 @@

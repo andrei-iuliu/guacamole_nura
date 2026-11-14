@@ -53,6 +53,9 @@ gf_netlink.c, gf_platform.c and oplus_fp_common/. Not upstreamable as
 is: the compatible and /proc nodes are the downstream ABI.
 
 Signed-off-by: guacamole_nura rc4 proposal <nura-rc4@example.invalid>
+Nura-Category: reference-port
+Nura-Origin: LineageOS downstream interface (supplied fingerprint 0034)
+Upstream-Status: not in mainline (downstream HAL interface, not upstreamable as-is)
 ---
 --- a/drivers/input/misc/Kconfig
 +++ b/drivers/input/misc/Kconfig

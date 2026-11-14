@@ -10,6 +10,9 @@ them is online, fall through to the current-based status instead of Full.
 Without a described supplier power_supply_am_i_supplied() returns
 -ENODEV and the previous behaviour is kept.
 
+Nura-Category: upstream-fix
+Nura-Origin: nura local, guacamole fuel-gauge bring-up
+Upstream-Status: not in mainline v7.2 (no supplier check)
 ---
 diff --git a/drivers/power/supply/bq27xxx_battery.c b/drivers/power/supply/bq27xxx_battery.c
 index ad2d9ecf3..6321d9b2a 100644

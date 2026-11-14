@@ -31,6 +31,9 @@ Ported unchanged from the Omarchy Mobile OnePlus 7 Pro reference
 There the same brightness drag produced 10 dsi_err_worker errors before and
 0 after with no visible flicker. That is transferred evidence, not a
 measurement on this phone.
+Nura-Category: upstream-fix
+Nura-Origin: omarchy-mobile f702f688 dsi-cmd-frame-sync
+Upstream-Status: not in mainline v7.2 (no pending_kickoff_cnt in msm_drm_private)
 ---
 --- a/drivers/gpu/drm/msm/msm_drv.h
 +++ b/drivers/gpu/drm/msm/msm_drv.h

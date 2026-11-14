@@ -6,6 +6,9 @@ the fallback ("VBUS on" while sinking), and no interrupt fires when the
 supply later discharges to vSafe0V, so TCPM kept vbus_present and never
 attached as source (SRC_ATTACH_WAIT) to the next, unpowered partner. Signal
 a VBUS change after clearing the sink state so TCPM re-reads it.
+Nura-Category: local-workaround
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:07:03.507850969 +0100
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:07:36.214313188 +0100

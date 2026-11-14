@@ -1,3 +1,7 @@
+Nura-Category: upstream-feature
+Nura-Origin: nura local rc3 USB-PD series
+Upstream-Status: not in mainline v7.2
+
 diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
 index b855e7f48..34cf190ea 100644
 --- a/drivers/power/supply/qcom_smbx.c

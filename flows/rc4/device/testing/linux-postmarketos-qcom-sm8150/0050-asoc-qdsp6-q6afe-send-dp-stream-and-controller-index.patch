@@ -72,6 +72,9 @@ audio path.  Drop the patch (remove from source=) if the DP audio logs show the
 parameters rejected and nothing else changes.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: local-workaround
+Nura-Origin: nura rc4 displayport series (LineageOS 23.2 evidence)
+Upstream-Status: not in mainline v7.2 (params absent)
 ---
  sound/soc/qcom/qdsp6/q6afe.c | 50 +++++++++++++++++++++++++++++++++++++++++
  1 file changed, 50 insertions(+)

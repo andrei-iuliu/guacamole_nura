@@ -14,6 +14,9 @@ mode (319.75 MHz, 7.67 Gb/s at 24 bpp) works.
 
 Keep the halved clock for the pixel clock limit and use the link pixel rate
 (halved only for 4:2:0) for bpp selection and the bandwidth check.
+Nura-Category: upstream-fix
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2 (wide bus still halves the link rate)
 ---
 --- a/drivers/gpu/drm/msm/dp/dp_display.c	2026-11-13 21:20:53.530924976 +0100
 +++ b/drivers/gpu/drm/msm/dp/dp_display.c	2026-11-13 21:20:53.536246204 +0100

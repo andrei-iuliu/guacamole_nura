@@ -16,6 +16,9 @@ Name them: "config", "TDM slot mapping", "start", and "set param" (with the
 parameter id) in the set-param helper.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: upstream-fix
+Nura-Origin: nura rc4 displayport series
+Upstream-Status: not in mainline v7.2 (generic AFE enable message)
 ---
  sound/soc/qcom/qdsp6/q6afe.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
