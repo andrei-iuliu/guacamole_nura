@@ -14,6 +14,14 @@
 #   CONFIG_QCOMTEE=m (blacklisted on the kernel cmdline), CONFIG_INPUT_GOODIX_FP=m,
 #   CONFIG_QCOM_GUACAMOLE_MSS_VOTE=m, CONFIG_MXM1120/VIDEO_IMX471/
 #   VIDEO_QCOM_HOTDOG_POPUP=m.
+# rc4i (pkgrel 12) adds:
+#   0068-0071 drm/msm recovery backports (forbid memory reclaim under
+#        gpu->lock, always recover, recover the HW before retiring the hung
+#        submit, task_struct leak) from linux v7.1/v7.3 -- CONFIG_DRM_MSM=y,
+#        so they change the Image and its BTF; reinstall the module tree with
+#        it even though the release string does not change;
+#   0072 guacamole PM8150 PON reboot modes (reboot --reboot-argument=bootloader
+#        reaches the ABL as fastboot instead of a warm reset).
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -21,7 +29,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=11
+pkgrel=12
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -113,6 +121,11 @@ source="
 	0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch
 	0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch
 	0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch
+	0068-drm-msm-forbid-mem-reclaim-from-reset.patch
+	0069-drm-msm-always-recover-the-gpu.patch
+	0070-drm-msm-recover-hw-before-retire-hung-submit.patch
+	0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
+	0072-arm64-dts-guacamole-pon-reboot-modes.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -222,4 +235,9 @@ ab2a4c4e633e0f406ae18f34a81d166d6a78339cc5f6c9e19bc6d18aeea427577ccfbde002cfb862
 868c354465da38be39cdac265c589d351a31839144be3915a780fbe83158f4ac1845362c4f8bdea94beb4bcd9a0b867a980aedf76a81b7e43075fccb3b797b41  0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch
 1a518a8f004da50cecb929da0b9e98352ae8ea4f315d6e0ce1a2f9c4fe67b6dd7c4c7078497cd99446891d0619a8c48fb41eed0b9fb38dff8cf36f8e069d5912  0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch
 b49ef4a4f5ce793b799d2278c38a793309b191d0c8dc33c10a12766e48a871847fc5cf60d92e51dac05865f685c1cfeb632f3b90043ee3bc56234f0fee389aba  0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch
+a4b7404c9af760dd953bd62122c8f6547524380db66826306e5f15424317c5d836f75d8b7b7aa7911d631fc0fd134ec0ee254f3fbcd7ebb85c1ba9970c1a9e13  0068-drm-msm-forbid-mem-reclaim-from-reset.patch
+82c2da2ff85c5ba54ec2c7c7cf00d5460b181002756e4a205a47951328021b04ced67dcbad93e222d191daef9ccefcd70d265b8147c4254dfa137a459bd77f2d  0069-drm-msm-always-recover-the-gpu.patch
+6424b3e2b5abb2c8e09a266524b5d8e3a3dadd2eb8f1b892ba41a6fefac90d69d9924d05d48040da72624405188016faa58435b6bd97527399ebaa6f9ae3a0a8  0070-drm-msm-recover-hw-before-retire-hung-submit.patch
+56a7ba1f51b476ea39818362ec32fb84b74a074bfa894935acb794b1834587ea99fceb0ec0c93d39f5a3587349a19b42460fc7d1c3b1221d231e0864df03274e  0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
+92cd2c06ab6d1581f254009d1f0763e8d3d647503540ed3bbea93aa2caa279f50830866dfa2fc7dcbf652387999477665cbbb48b5e1312388cefe617c1d78cb2  0072-arm64-dts-guacamole-pon-reboot-modes.patch
 "

@@ -1,0 +1,5 @@
+# Enable the GPU crash capture sweep.  The udev rule
+# (90-nura-gpu-crash.rules) starts the same oneshot on the devcoredump
+# uevent, so this timer is only the backstop; a devcoredump is deleted after
+# 5 minutes, which is why the backstop runs every minute.
+enable nura-gpu-crash-capture.timer

@@ -1,9 +1,12 @@
 # rc4 candidate: copy of the reviewed rc3 package, pkgrel+1 with only the
 # opt-in modem-rail release helper/unit added (kernel patch 0044).
-# pkgrel 16 (shared by the Plasma and Phosh images): the Plasma Mobile
-# corner-inset preset from device/testing (plasma-corners 945baff/a3141aa)
-# and guacamole-boot-slot (timer + service, enabled by its own preset) that
-# marks the booted A/B slot successful.
+# pkgrel 17 (shared by the Plasma and Phosh images): pkgrel 16's Plasma Mobile
+# corner-inset preset from device/testing (plasma-corners 945baff/a3141aa) and
+# guacamole-boot-slot (timer + service, enabled by its own preset) that marks
+# the booted A/B slot successful, plus the rc4i GPU crash collector
+# (nura-gpu-crash-capture + its units/udev rule; the timer is enabled by
+# 83-nura-gpu-crash.preset) that copies /sys/class/devcoredump data and a
+# dmesg tail to /var/lib/nura/gpu-crash and releases the dump.
 # The unit is installed but deliberately NOT enabled in 80-guacamole.preset
 # and there is no guacamole-mpss-start hook: enabling it on the phone is the
 # opt-in.  Everything else (including the preset) is unchanged.
@@ -13,7 +16,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=16
+pkgrel=17
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -85,6 +88,11 @@ source="
 	guacamole-boot-slot.service
 	guacamole-boot-slot.timer
 	82-guacamole-boot-slot.preset
+	nura-gpu-crash-capture
+	nura-gpu-crash-capture.service
+	nura-gpu-crash-capture.timer
+	83-nura-gpu-crash.preset
+	90-nura-gpu-crash.rules
 	$_sensors.tar.gz
 "
 
@@ -236,6 +244,24 @@ package() {
 		"$pkgdir/usr/lib/systemd/system/guacamole-boot-slot.timer"
 	install -Dm644 "$srcdir/82-guacamole-boot-slot.preset" \
 		"$pkgdir/usr/lib/systemd/system-preset/82-guacamole-boot-slot.preset"
+
+	# GPU crash capture: when drm/msm publishes a devcoredump in
+	# /sys/class/devcoredump, copy it (and a dmesg tail) under
+	# /var/lib/nura/gpu-crash and release it, so the next hang is not
+	# discarded.  90-nura-gpu-crash.rules starts the oneshot on the uevent;
+	# the timer is the backstop and is what the preset enables.  The script
+	# never writes to debugfs and needs no extra package (dmesg/timeout are
+	# guarded).
+	install -Dm755 "$srcdir/nura-gpu-crash-capture" \
+		"$pkgdir/usr/libexec/nura-gpu-crash-capture"
+	install -Dm644 "$srcdir/nura-gpu-crash-capture.service" \
+		"$pkgdir/usr/lib/systemd/system/nura-gpu-crash-capture.service"
+	install -Dm644 "$srcdir/nura-gpu-crash-capture.timer" \
+		"$pkgdir/usr/lib/systemd/system/nura-gpu-crash-capture.timer"
+	install -Dm644 "$srcdir/83-nura-gpu-crash.preset" \
+		"$pkgdir/usr/lib/systemd/system-preset/83-nura-gpu-crash.preset"
+	install -Dm644 "$srcdir/90-nura-gpu-crash.rules" \
+		"$pkgdir/usr/lib/udev/rules.d/90-nura-gpu-crash.rules"
 }
 
 openrc() {
@@ -295,5 +321,10 @@ f8f8ffca1b63ea50a608b5ff89897781c514e8ed9e072a743c62334787f619c244e70ffe4c50e318
 80039741fb7e6805342ceb7c0260ed1b6a1c70381c5213b624f6372e86cd236c8bbe1e5dd9f8e3a5b50eae43b0fd60d8f488aea5ed63b9e96ca55ec0392bcfc2  guacamole-boot-slot.service
 324b823749af21f49d3bd14a0bd24c1c8b7bcdcf37f326aa179ba6e0a5f3d102bc00c1dcd364170b991007a6001cfbfb55c8301e058d4ae12ff8849d8dc4d9bd  guacamole-boot-slot.timer
 3472d9980cca5abead9e30764195292a302f9f1d1ebfc35c3d60fce964d7660a0041a21d78c7578dc1e0ef953a794b7788e32d937c76d0bacae5a3fda709f3a1  82-guacamole-boot-slot.preset
+7b4ed60cd81c5b27a5823d821e8d6a475c0d0eb63893ad62e2d1177bdf720c19f16e5e44bfa9c30e16acb9e7e89fa03834be9b52431792339690f87cd07d466d  nura-gpu-crash-capture
+6286bba1f0ba3148bb14777e9f0addbd8a86c3dba77399dbc858f6e53b42e807806c00f1fec29f020832fa80b11f900d4b64bbe6b8918a005d617b4b21b66a10  nura-gpu-crash-capture.service
+2da3bcb8b17c2285cc0bf36dc31c0ea026afecaf9b07b00043d7dfcf6cb4e17c30cceae15a9f14f887056dc42d89cc65f92bfeb5f415db618d8c731d48529d05  nura-gpu-crash-capture.timer
+a2ed87c3f3128443697458f7f600db9b31cf99469cc95222712a8f35192f05e43818f3b5d4a9d4b594eb54a7f59a48bc614d0a1c4ddb87325ac08e056551e5f9  83-nura-gpu-crash.preset
+f06dcfc62c3c0248fe5fb06b9c0988780e8716d498e42d6a1fe9e1800bfb34673788f394494053391b87e2ebadfc15f164ffec47e895f24c5a5f9e5d06f2841e  90-nura-gpu-crash.rules
 9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "

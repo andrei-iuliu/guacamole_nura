@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nura rc4i series <rc4i@nura.invalid>
+Date: Sat, 14 Nov 2026 10:30:00 +0000
+Subject: [PATCH] arm64: dts: qcom: guacamole: describe the PM8150 PON reboot modes
+
+pm8150.dtsi's pon@800 (compatible qcom,pm8998-pon) lists no mode-* magic
+values, so reboot_mode_register() in qcom-pon.c finds nothing to write and
+the PON reboot notifier ignores the reboot command string.  On this board
+that means `systemctl reboot --reboot-argument=bootloader`, which becomes
+reboot(2) with LINUX_REBOOT_CMD_RESTART2 and the argument "bootloader", is a
+plain warm reset: the ABL re-boots the current slot instead of entering
+fastboot.  The same applies to "recovery".
+
+Describe the two modes on the board, with the values pm6150.dtsi and
+pm6350.dtsi already use for the same PMIC family (0x01 recovery, 0x02
+bootloader).  They are PMIC PON "soft reboot spare" reason codes that the
+ABL reads back after the reset (PON_SOFT_RB_SPARE, GEN1 reason shift on this
+part), so they have to match what the bootloader expects, not the kernel.
+
+Nura-Category: device-dt
+Nura-Origin: nura rc4i (reboot --reboot-argument=bootloader did not reach fastboot)
+Upstream-Status: candidate
+---
+ arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+index aafda21..42ab586 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -292,6 +292,19 @@
+ 	};
+ };
+ 
++/*
++ * PM8150 PON reboot modes.  pm8150.dtsi's pon@800 carries no mode-* magic,
++ * so reboot_mode_register() has no entry for "bootloader" and
++ * `systemctl reboot --reboot-argument=bootloader` (reboot(2) RESTART2 with
++ * "bootloader") degrades to a plain warm reset: the ABL boots the current
++ * slot instead of entering fastboot.  Values and names match the PON nodes
++ * already describing this in pm6150.dtsi/pm6350.dtsi.
++ */
++&pon {
++	mode-recovery = <0x01>;
++	mode-bootloader = <0x02>;
++};
++
+ /* Bluetooth WCN3990 on QUP13 UART, same rails as flame/hotdog. */
+ &uart13 {
+ 	status = "okay";

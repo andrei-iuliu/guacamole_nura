@@ -241,12 +241,12 @@ def main():
                              if not l.lstrip().startswith("#"))
     check("flows/local-storage/device/testing" not in prepare_code,
           "flow: no direct default into the rc3-era recipe tree")
-    # The link farm must select the rc4 device package (pkgrel 16), not the
+    # The link farm must select the rc4i device package (pkgrel 17), not the
     # rc3-era one (pkgrel 14), and the rc4 kernel recipe (pkgrel 5).
     farm = pathlib.Path(args.local_flow) / "device/testing"
     dev_apk = read(farm / "device-oneplus-guacamole/APKBUILD")
-    check(re.search(r"^pkgrel=16$", dev_apk, re.M) is not None,
-          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4 pkgrel 16")
+    check(re.search(r"^pkgrel=17$", dev_apk, re.M) is not None,
+          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4i pkgrel 17")
     check("guacamole-boot-slot.timer" in dev_apk and
           "plasma-mobile-device-presets" in dev_apk,
           "flow: device package ships the A/B slot marker and the Plasma corner preset")
