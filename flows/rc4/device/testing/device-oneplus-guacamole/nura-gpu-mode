@@ -1,0 +1,168 @@
+#!/bin/sh
+# nura-gpu-mode - opt-in Mesa debug override for the guacamole graphical session.
+#
+# The default is normal rendering: no FD_MESA_DEBUG is set by this device.
+# `sysmem` and `inorder` are two separate, unvalidated trials from
+# docs/NURA_GPU_FAULTS.md.  They are mutually exclusive: this tool writes one
+# value or none, never both.
+#
+# Where the value is read
+# -----------------------
+# The Phosh session is started by greetd.  greetd's general.source_profile
+# defaults to true (the installed /etc/phrog/greetd-config.toml does not
+# override it), so the session command is run as:
+#
+#     /bin/sh -c '[ -f /etc/profile ] && . /etc/profile; ...; exec phosh-session'
+#
+# /etc/profile sources /etc/profile.d/*.sh.  The bridge installed by this
+# package, /etc/profile.d/nura-gpu.sh, reads $STATE and exports
+# FD_MESA_DEBUG in that shell before `exec phosh-session`.  phosh-session
+# therefore passes it to phoc, phoc to gnome-session, and every application
+# phoc or gnome-session launches inherits it.  The session D-Bus daemon is
+# started by phosh-session too, so DBus-activated applications also see it.
+#
+# systemd user services are not children of phosh-session.  They read
+# /etc/environment.d/90-nura-gpu.conf instead, which this tool
+# writes with the same single value.  The systemd user manager reads that
+# directory at login, so a change still needs a re-login (or reboot).
+#
+# A greetd `Environment=` drop-in would NOT work: greetd clears the session
+# environment and passes only the PAM environment (pam_getenvlist) to the
+# session worker.  `environment.d` alone would not reach phoc either.  This
+# design uses the two mechanisms that do reach the compositor and its
+# children.
+#
+# NURA_GPU_MODE_ROOT is a test-only prefix (empty on the phone); the shipped
+# package does not set it.  /etc/profile.d/nura-gpu.sh uses
+# NURA_GPU_MODE_STATE for the same purpose.
+
+set -u
+
+ROOT=${NURA_GPU_MODE_ROOT:-}
+STATE_DIR="$ROOT/var/lib/nura"
+STATE="$STATE_DIR/gpu-mode"
+ENV_DIR="$ROOT/etc/environment.d"
+ENV_FILE="$ENV_DIR/90-nura-gpu.conf"
+PROFILE="$ROOT/etc/profile.d/nura-gpu.sh"
+
+PROG=nura-gpu-mode
+
+usage() {
+    printf 'usage: %s [status|default|sysmem|inorder]\n' "$PROG" >&2
+    printf '  status    show the configured mode (no root needed)\n' >&2
+    printf '  default   remove the override (normal rendering)\n' >&2
+    printf '  sysmem    set FD_MESA_DEBUG=sysmem for the next graphical session\n' >&2
+    printf '  inorder   set FD_MESA_DEBUG=inorder for the next graphical session\n' >&2
+    printf 'sysmem and inorder are separate trials; they are never combined.\n' >&2
+}
+
+read_mode() {
+    _mode=
+    if [ -r "$STATE" ]; then
+        _mode=$(cat "$STATE" 2>/dev/null || true)
+    fi
+    case "$_mode" in
+        sysmem|inorder) printf '%s\n' "$_mode" ;;
+        *) printf 'default\n' ;;
+    esac
+}
+
+write_atomic() {
+    _target=$1
+    _value=$2
+    _tmp="$_target.tmp.$$"
+    printf '%s\n' "$_value" > "$_tmp" || return 1
+    chmod 0644 "$_tmp" || { rm -f "$_tmp"; return 1; }
+    mv "$_tmp" "$_target" || { rm -f "$_tmp"; return 1; }
+    return 0
+}
+
+require_root() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+        printf '%s: must be run as root to change the mode\n' "$PROG" >&2
+        printf 'hint: sudo %s %s\n' "$PROG" "$1" >&2
+        exit 1
+    fi
+}
+
+show_status() {
+    _mode=$(read_mode)
+    printf 'configured=%s\n' "$_mode"
+    if [ -f "$ENV_FILE" ]; then
+        printf 'systemd-user=%s\n' "$ENV_FILE"
+    else
+        printf 'systemd-user=absent\n'
+    fi
+    if [ -f "$PROFILE" ]; then
+        printf 'session-bridge=%s\n' "$PROFILE"
+    else
+        printf 'session-bridge=absent\n'
+    fi
+    if [ -n "${FD_MESA_DEBUG:-}" ]; then
+        printf 'current-shell=%s\n' "$FD_MESA_DEBUG"
+    else
+        printf 'current-shell=unset\n'
+    fi
+    if [ "$_mode" = default ]; then
+        printf 'rendering=default (normal Mesa rendering)\n'
+    else
+        printf 'rendering=FD_MESA_DEBUG=%s for graphical sessions started after the next re-login or reboot\n' "$_mode"
+    fi
+    printf 'note: changing the mode requires a re-login or reboot before phoc and apps see it\n'
+}
+
+set_mode() {
+    _mode=$1
+    require_root "$_mode"
+
+    case "$_mode" in
+        default)
+            rm -f "$STATE" "$ENV_FILE"
+            rm -f "$STATE.tmp.$$" "$ENV_FILE.tmp.$$"
+            printf '%s: override removed; normal Mesa rendering is selected.\n' "$PROG"
+            ;;
+        sysmem|inorder)
+            mkdir -p "$STATE_DIR" "$ENV_DIR" || {
+                printf '%s: cannot create %s or %s\n' "$PROG" "$STATE_DIR" "$ENV_DIR" >&2
+                exit 1
+            }
+            # One value, one file: writing the state replaces any previous
+            # mode, so sysmem and inorder can never be active together.
+            write_atomic "$STATE" "$_mode" || {
+                printf '%s: cannot write %s\n' "$PROG" "$STATE" >&2
+                exit 1
+            }
+            write_atomic "$ENV_FILE" "FD_MESA_DEBUG=$_mode" || {
+                printf '%s: cannot write %s\n' "$PROG" "$ENV_FILE" >&2
+                exit 1
+            }
+            printf '%s: FD_MESA_DEBUG=%s selected for the next graphical session.\n' "$PROG" "$_mode"
+            ;;
+        *)
+            usage
+            exit 2
+            ;;
+    esac
+
+    printf '%s: re-login or reboot before phoc and apps use it.\n' "$PROG"
+    printf '%s: never combine sysmem and inorder; select one or use default.\n' "$PROG"
+}
+
+case "${1:-status}" in
+    status)
+        show_status
+        ;;
+    default|sysmem|inorder)
+        set_mode "$1"
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac
+
+exit 0

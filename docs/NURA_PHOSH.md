@@ -78,7 +78,7 @@ commit `286d3b4e`):
 * **Plasma**: the `plasma-corners` commits `945baff` and `a3141aa` are
   cherry-picked (top-level `device/testing/device-oneplus-guacamole`, pkgrel
   14). The same preset is installed by the device package that this flow
-  ships (`flows/rc4/device/testing/device-oneplus-guacamole`, pkgrel 16),
+  ships (`flows/rc4/device/testing/device-oneplus-guacamole`, pkgrel 19),
   under both `oneplus,guacamole.conf` and `qcom,sm8150-mtp.conf`.
 * **Phosh**: phosh (top-bar corner padding) and phoc read the panel geometry
   through `libgmobile.so.0`, keyed by the DT root compatible
@@ -404,7 +404,7 @@ kernel/device/firmware pins and `discover-backend-apk`.
 * the boot-slot unit on this rootfs;
 * the `fastboot flash userdata` step.
 
-## Persistent charge limits (device package 4-r18)
+## Persistent charge limits (introduced in device package 4-r18)
 
 The rc4 device package exposes the existing charging policy as a CLI:
 
@@ -425,3 +425,100 @@ limits are not copied automatically when replacing the rootfs. The current
 hardware mechanism suspends charger input, so the phone runs from battery
 while held. Polling and system suspend can delay threshold enforcement.
 Setting limits is not evidence of a validated stop/resume cycle on hardware.
+
+## GPU workaround toggle and fault soak (device package 4-r19)
+
+The rc4j device package installs two root helpers. **Normal rendering stays the
+default**; nothing is set until the toggle is used.
+
+```sh
+nura-gpu-mode status           # no root needed
+sudo nura-gpu-mode sysmem      # whole-session FD_MESA_DEBUG=sysmem trial
+sudo nura-gpu-mode inorder     # separate diagnostic trial
+sudo nura-gpu-mode default     # remove the override
+```
+
+`nura-gpu-mode` stores exactly one value (or none) in
+`/var/lib/nura/gpu-mode`. A change needs a re-login or reboot; it never
+modifies a running process. `sysmem` and `inorder` cannot be combined: each
+set overwrites the previous value.
+
+The value reaches the session through two files, because the Phosh session
+has two process trees:
+
+* `/etc/profile.d/nura-gpu.sh` is sourced by `/etc/profile` before
+  `exec phosh-session`. greetd's `general.source_profile` defaults to true
+  (the installed `/etc/phrog/greetd-config.toml` does not override it), so
+  phoc, gnome-session, phosh and every application launched from the session
+  inherit `FD_MESA_DEBUG`. The session D-Bus daemon is a child of
+  phosh-session, so DBus-activated applications inherit it too.
+* `/etc/environment.d/90-nura-gpu.conf` is written with the same
+  value for systemd user services, which are not children of phosh-session.
+  The systemd user manager reads it at login, which is why a re-login is
+  required.
+
+This is deliberately not a `greetd.service` `Environment=` drop-in: greetd
+clears the session environment and passes only the PAM environment
+(`pam_getenvlist`) to the user session. `environment.d` alone would not reach
+phoc. The status output names both files so an incomplete install is visible.
+The full A/B procedure is in `docs/NURA_GPU_FAULTS.md` § "rc4j: opt-in A/B
+helpers".
+
+`nura-gpu-soak` records the acceptance-workload counters without changing
+anything:
+
+```sh
+sudo nura-gpu-soak start
+# run the fixed workload
+sudo nura-gpu-soak stop
+```
+
+`start` snapshots the boot ID, `uname`, kernel/mesa/phoc/phosh/device
+versions, refresh rate, GPU mode, and current `gpu fault`, `hangcheck
+recover`, coredump and devcoredump-capture counts under
+`/var/lib/nura/gpu-soak/<UTC timestamp>/`. `stop` prints and stores the delta
+and a one-line `SUMMARY` suitable for pasting into a report. It reads
+`dmesg` first and falls back to `journalctl -k -b`; `coredumpctl` is used for
+phoc/phosh cores with a journal fallback. It never releases a devcoredump or
+touches debugfs.
+
+## Systemd log level: info by default (device package 4-r19)
+
+The RAM review measured both managers at `debug` and about 145 MiB of
+journals. The cause is not our boot-image cmdline: ABL appends the bare token
+`debug` to the kernel command line after the boot image's cmdline (visible in
+`/proc/cmdline` as `androidboot.type=sdebug debug ...`). systemd parses that
+token in PID 1 and again in the user manager (both parse `/proc/cmdline`), so
+both managers report debug. `pmOS_loglevel=8` is an unrelated unknown kernel parameter
+(the kernel prints it in `Unknown kernel command line parameters`) and does
+not set the systemd level. A `systemd.log_level=info` token in the boot image
+would be parsed *before* ABL's `debug` token and would lose.
+
+The rc4j package therefore installs the same drop-in in both manager config
+directories:
+
+```
+/etc/systemd/system.conf.d/90-nura-loglevel.conf
+/etc/systemd/user.conf.d/90-nura-loglevel.conf
+```
+
+with:
+
+```ini
+[Manager]
+ManagerEnvironment=SYSTEMD_LOG_LEVEL=info
+DefaultEnvironment=SYSTEMD_LOG_LEVEL=info
+```
+
+`ManagerEnvironment=` is applied to the manager's own environment after the
+kernel-cmdline parse, so `SYSTEMD_LOG_LEVEL=info` wins over the bootloader's
+`debug` for PID 1. `DefaultEnvironment=` is part of the environment of every
+executed process, including `user@.service` (and therefore the user manager
+and its children). **This is a rootfs change: no new boot.img is needed.**
+After the next boot, `systemctl show -p LogLevel --value` and
+`systemctl --user show -p LogLevel --value` should both print `info`.
+
+To collect debug logs again, change both `info` values in that drop-in to
+`debug`, reboot, or use `sudo systemctl log-level debug` and
+`systemctl --user log-level debug` for the running managers. The persistent
+journal, `nura-boot-diagnostics` and `nura-gpu-crash-capture` are unchanged.
