@@ -85,7 +85,7 @@ class TestSelector(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), label)
         default = run([sys.executable, str(CHECKER), "release-candidate"])
-        self.assertEqual(default.stdout.strip(), "nura-plasma-rc4")
+        self.assertEqual(default.stdout.strip(), "nura-phosh-rc4")
 
     def test_unknown_ui_is_refused(self):
         result = run([sys.executable, str(CHECKER), "release-candidate"], {"NURA_UI": "gnome"})
@@ -133,14 +133,15 @@ class TestSelector(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("DRY RUN: no files written", result.stdout)
                 plans[" ".join(args) or "default"] = result.stdout
-            phosh = plans["--ui phosh"]
-            self.assertIn("ui:                 phosh", phosh)
-            self.assertIn(str(flow / ".work/local-userdata-phosh") + "\n", phosh)
-            self.assertIn(str(flow / "build/local-userdata-phosh") + "\n", phosh)
-            for key in ("--ui=plasma", "default"):
-                self.assertIn("ui:                 plasma", plans[key])
-                self.assertIn(str(flow / ".work/local-userdata") + "\n", plans[key])
-                self.assertNotIn("local-userdata-phosh", plans[key])
+            # Phosh is the default since 2026-11-14; plasma stays selectable.
+            for key in ("--ui phosh", "default"):
+                self.assertIn("ui:                 phosh", plans[key])
+                self.assertIn(str(flow / ".work/local-userdata-phosh") + "\n", plans[key])
+                self.assertIn(str(flow / "build/local-userdata-phosh") + "\n", plans[key])
+            plasma = plans["--ui=plasma"]
+            self.assertIn("ui:                 plasma", plasma)
+            self.assertIn(str(flow / ".work/local-userdata") + "\n", plasma)
+            self.assertNotIn("local-userdata-phosh", plasma)
             self.assertFalse((flow / ".work").exists())
             self.assertFalse((flow / "build").exists())
 
@@ -275,9 +276,9 @@ class TestUiExclusions(unittest.TestCase):
             result = run([sys.executable, str(CHECKER), "exclude-list"], {"NURA_UI": ui})
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), expected)
-        # Plasma stays the default and excludes nothing.
+        # Phosh is the default since 2026-11-14.
         default = run([sys.executable, str(CHECKER), "exclude-list"])
-        self.assertEqual(default.stdout.strip(), "")
+        self.assertEqual(default.stdout.strip(), ",".join(self.PHOSH))
 
     def test_post_install_check_fails_on_an_excluded_package(self):
         clc = load_checker("phosh")

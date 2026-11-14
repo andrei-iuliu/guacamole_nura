@@ -10,7 +10,7 @@
 #   bash scripts/rootfs_prepare_local.sh --build [--authorized-key PATH]
 #   bash scripts/rootfs_prepare_local.sh --restore <rollback-dir>
 #
-# NURA_UI=plasma|phosh selects the UI (default plasma).  Both UIs share the
+# NURA_UI=plasma|phosh selects the UI (default phosh since 2026-11-14).  Both UIs share the
 # rc4 kernel, device/firmware packages, pinned libcamera/ModemManager, the
 # PulseAudio backend, the /etc/apk/world pins and a graphical package
 # manager; Phosh state/output defaults live in *-phosh directories so the
@@ -40,7 +40,7 @@ FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
 ROOT="$FLOW_DIR"
 cd "$ROOT"
-NURA_UI="${NURA_UI:-plasma}"
+NURA_UI="${NURA_UI:-phosh}"
 case "$NURA_UI" in
     plasma)
         UI_PKG=postmarketos-ui-plasma-mobile

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Validate and record the isolated Plasma Mobile or Phosh candidate.
 
-The UI is selected with NURA_UI=plasma|phosh (default plasma, which keeps
+The UI is selected with NURA_UI=plasma|phosh (default phosh since 2026-11-14; plasma keeps
 every Plasma constant and check exactly as before).  Phosh uses the same rc4
 kernel, device/firmware packages, pinned libcamera, ModemManager, audio
 backend (PulseAudio) and app-store/world pins; only the UI package, its
@@ -105,7 +105,7 @@ UI_PROFILES = {
                       "pipewire-pulse"),
     },
 }
-UI = os.environ.get("NURA_UI", "plasma")
+UI = os.environ.get("NURA_UI", "phosh")
 if UI not in UI_PROFILES:
     print(f"ERROR: NURA_UI must be one of {', '.join(UI_PROFILES)}, got {UI!r}", file=sys.stderr)
     raise SystemExit(2)
