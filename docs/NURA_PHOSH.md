@@ -178,7 +178,7 @@ RAM-booted, as now.
 
 > **WARNING: this replaces the current Linux rootfs on `userdata`, including
 > `/home/user` and every package or setting changed by hand on the phone.**
-> Stock Android on slot `_b` is not touched. Back up first.
+> Android (LineageOS) lives on slot `_a` and is not touched; slot `_b` holds the nura Linux boot image. Back up first.
 
 ```bash
 # 1. back up /home/user and the package list from the running Plasma system
