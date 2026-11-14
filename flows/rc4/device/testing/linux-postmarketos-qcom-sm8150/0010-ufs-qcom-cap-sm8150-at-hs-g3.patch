@@ -6,6 +6,9 @@ recovery reports OCS_INVALID for every in-flight command, and buffered
 writes in those commands are lost (read back as zeros), corrupting files.
 Limit the negotiated gear to HS-G3 on qcom,sm8150-ufshc.
 
+Nura-Category: local-workaround
+Nura-Origin: nura local, guacamole UFS bring-up (docs/PLAN.md)
+Upstream-Status: not in mainline v7.2 (no SM8150 gear quirk)
 ---
 diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
 index 9574fdc2b..e7468d429 100644

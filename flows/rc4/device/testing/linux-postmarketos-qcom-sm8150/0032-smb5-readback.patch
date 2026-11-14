@@ -19,6 +19,9 @@ Confirmed against the OnePlus 7T Pro bring-up native3-charger.patch and the
 upstream SMB5 v4 proposal (lists.openwall.net/linux-kernel/2026/08/20/748).
 No charge-status enum, HVDCP, OTG/Type-C ownership, charge current, PDO or
 battery-data changes are included.
+Nura-Category: upstream-fix
+Nura-Origin: nura local (+ hotdog native3-charger reference)
+Upstream-Status: not in mainline v7.2 (upstream SMB5 v4 proposal is separate)
 ---
 --- a/drivers/power/supply/qcom_smbx.c
 +++ b/drivers/power/supply/qcom_smbx.c

@@ -34,6 +34,9 @@ Source: omarchy-mobile devices/oneplus7pro/kernel/radio/ath10k-snoc-key-ack.patc
 and docs/wifi-key-ack-20260917.md (https://github.com/Cube-Oakley/omarchy-mobile,
 commit f702f68); paths rebased onto drivers/net/wireless/ath/ and the
 whitespace-only re-indent of the ath10k_install_key() signature dropped.
+Nura-Category: upstream-fix
+Nura-Origin: omarchy-mobile f702f688 ath10k-snoc-key-ack
+Upstream-Status: not in mainline v7.2 (waits for HTT SEC_IND only)
 ---
 --- a/drivers/net/wireless/ath/ath10k/core.c
 +++ b/drivers/net/wireless/ath/ath10k/core.c

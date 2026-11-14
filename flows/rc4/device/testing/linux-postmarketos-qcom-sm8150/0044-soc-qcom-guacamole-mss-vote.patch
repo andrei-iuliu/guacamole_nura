@@ -28,6 +28,9 @@ diagnostic) and the module path in the header comment is corrected.
 Source: omarchy-mobile devices/oneplus7pro/kernel/radio/mss_vote.c
 (https://github.com/Cube-Oakley/omarchy-mobile, commit f702f68); module
 renamed, Kconfig/Makefile glue added for an in-tree build.
+Nura-Category: local-workaround
+Nura-Origin: omarchy-mobile f702f688 radio/mss_vote.c
+Upstream-Status: not in mainline v7.2 (device policy module)
 ---
 --- a/drivers/soc/qcom/Kconfig
 +++ b/drivers/soc/qcom/Kconfig

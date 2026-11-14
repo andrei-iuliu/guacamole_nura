@@ -32,6 +32,9 @@ Compiled with the kernel's own dtc as part of the rc4 integration: full DTB and
 all three isolate DTBs build, no new warnings.  Not booted on hardware.
 
 Signed-off-by: Nura rc4 popup-camera series <rc4-popup-camera@nura.invalid>
+Nura-Category: device-dt
+Nura-Origin: nura rc4 popup-camera topic
+Upstream-Status: n/a: guacamole DTS is not upstream
 ---
 diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-popup.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-popup.dtsi
 new file mode 100644

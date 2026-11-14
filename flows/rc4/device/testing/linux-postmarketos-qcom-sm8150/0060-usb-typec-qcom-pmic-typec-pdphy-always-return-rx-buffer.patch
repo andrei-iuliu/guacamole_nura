@@ -14,6 +14,9 @@ loop and a dropped DisplayPort/USB session ~2.5 s after docking.
 
 Hand the buffer back on every path once the RX IRQ has fired, and report
 dropped frames instead of hiding them behind dev_dbg.
+Nura-Category: upstream-fix
+Nura-Origin: nura rc4d dock debugging
+Upstream-Status: not in mainline v7.2 (RX buffer leaked on error paths)
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_pdphy.c	2026-11-13 20:33:26.416626227 +0100
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_pdphy.c	2026-11-13 20:34:26.576453481 +0100

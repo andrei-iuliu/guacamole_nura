@@ -1,3 +1,7 @@
+Nura-Category: device-dt
+Nura-Origin: pmaports official linux-postmarketos-qcom-sm8150 recipe
+Upstream-Status: n/a: cepheus DTS is fork-only (absent in mainline v7.2)
+
 diff --git a/arch/arm64/boot/dts/qcom/sm8150-xiaomi-cepheus.dts b/arch/arm64/boot/dts/qcom/sm8150-xiaomi-cepheus.dts
 index 422119fbd..3faf5bdb0 100644
 --- a/arch/arm64/boot/dts/qcom/sm8150-xiaomi-cepheus.dts

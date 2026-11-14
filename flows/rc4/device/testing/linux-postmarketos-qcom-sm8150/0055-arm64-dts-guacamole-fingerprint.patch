@@ -19,6 +19,9 @@ unused in the 7.0 guacamole tree; 90 and 101 only appear in default
 pinctrl states of unused QUP SPI groups.
 
 Signed-off-by: guacamole_nura rc4 proposal <nura-rc4@example.invalid>
+Nura-Category: device-dt
+Nura-Origin: nura rc4 fingerprint topic
+Upstream-Status: n/a: guacamole DTS is not upstream
 ---
 
 --- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole.dts

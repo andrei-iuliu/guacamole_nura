@@ -11,6 +11,9 @@ Snyders (OnePlus 7T Pro, same PM8150B):
 - define the SMB5 ICL status bits used by the AICL path.
 - rerun AICL after input-current-limit changes.
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0020/0155/0150 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (qcom_smbx is SMB2/pmi8998 only)
 ---
 diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
 index 2b5d20bac..eb46a49f7 100644

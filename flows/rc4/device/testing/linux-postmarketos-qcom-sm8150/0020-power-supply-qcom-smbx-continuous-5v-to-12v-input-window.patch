@@ -11,6 +11,9 @@ block) with the requested PD voltage, or CONTINUOUS for a range, before the
 request. Program CONTINUOUS after init and again on every USB plug-in
 interrupt, in case the PMIC firmware resets it on a cable event, and log
 the read-back so the behaviour is visible in dmesg.
+Nura-Category: local-workaround
+Nura-Origin: nura local USB-PD series (emilyastranova)
+Upstream-Status: not in mainline v7.2
 ---
 --- a/drivers/power/supply/qcom_smbx.c
 +++ b/drivers/power/supply/qcom_smbx.c

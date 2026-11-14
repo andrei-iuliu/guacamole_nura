@@ -6,6 +6,9 @@ readable and writable, so the USB gadget (dwc3 usb-psy-name) and a charge
 policy daemon can set it.
 
 From hotdog-linux-bringup patch 0152 (OnePlus 7T Pro), rebased.
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0152 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (no INPUT_CURRENT_LIMIT)
 ---
 --- a/drivers/power/supply/qcom_smbx.c	2026-10-14 16:14:19.540800902 -0600
 +++ b/drivers/power/supply/qcom_smbx.c	2026-10-14 16:14:19.542059286 -0600

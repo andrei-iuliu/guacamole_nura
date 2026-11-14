@@ -17,6 +17,10 @@ IMX586 entries that the rear-camera series (0029) added, so it inserts after
 IMX412. The driver enforces MCLK = 19.2 MHz itself and fails probe otherwise.
 Source-only: not compiled in this patch.
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0102 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (IMX471 absent)
+
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
 index 5d11d87..f80742c 100644
 --- a/drivers/media/i2c/Kconfig

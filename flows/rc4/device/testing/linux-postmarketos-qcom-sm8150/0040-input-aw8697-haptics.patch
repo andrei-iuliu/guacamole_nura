@@ -4,6 +4,10 @@ Subject: [PATCH] Input: add the Awinic AW8697 haptics driver source
 New-file part of the AW8697 port.  The Kconfig/Makefile wiring is a
 separate patch so the driver body can be reviewed on its own.
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0130 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (AW8697 absent)
+
 --- /dev/null
 +++ b/drivers/input/misc/aw8697_haptics.c
 @@ -0,0 +1,427 @@

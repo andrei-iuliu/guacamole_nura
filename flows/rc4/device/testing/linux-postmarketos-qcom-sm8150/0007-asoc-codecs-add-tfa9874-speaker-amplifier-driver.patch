@@ -9,6 +9,9 @@ register profile, so the driver applies unchanged.
 The out-of-tree tfa9872 driver also matched "nxp,tfa9874"; drop that
 compatible so the dedicated driver binds.
 
+Nura-Category: upstream-feature
+Nura-Origin: hotdog-linux-bringup 0038/0039/0041 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (tfa9874 absent)
 ---
 diff --git a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
 index 840b0ae42..d3acd2ace 100644

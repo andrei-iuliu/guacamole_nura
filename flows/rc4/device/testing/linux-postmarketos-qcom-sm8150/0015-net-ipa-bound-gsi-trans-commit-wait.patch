@@ -13,6 +13,9 @@ hardware may still complete.
 
 Extracted from hotdog-linux-bringup patch 0156 (OnePlus 7T Pro), evidence in
 docs/evidence/2026-08-18-ipa-ssr-notifier-deadlock.md.
+Nura-Category: upstream-fix
+Nura-Origin: hotdog-linux-bringup 0156 (Robin Snyders)
+Upstream-Status: not in mainline v7.2 (wait is unbounded)
 ---
 diff --git a/drivers/net/ipa/gsi_trans.c b/drivers/net/ipa/gsi_trans.c
 index 19531883864ae6a3a3e039b2fc2629103afa5266..fbe796cd8a0a87844efdd087474fbe4f85949175 100644

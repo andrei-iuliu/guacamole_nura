@@ -1,3 +1,7 @@
+Nura-Category: device-dt
+Nura-Origin: nura local board delta (6.17 bring-up, docs/PLAN.md)
+Upstream-Status: n/a: guacamole DTS is not upstream
+
 diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
 new file mode 100644
 index 000000000..c4b18ca91

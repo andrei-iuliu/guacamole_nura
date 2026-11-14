@@ -28,6 +28,9 @@ Boards without a reset line keep the previous power-cycle behaviour and gain
 the more tolerant wait.
 
 Signed-off-by: Robin Snyders <robin@snyders.xyz>
+Nura-Category: upstream-fix
+Nura-Origin: Robin Snyders <robin@snyders.xyz>, omarchy-mobile touch
+Upstream-Status: not in mainline v7.2 (no reset GPIO or boot-complete polling)
 ---
  drivers/input/touchscreen/s6sy761.c | 97 ++++++++++++++++++++++++-----
  1 file changed, 83 insertions(+), 14 deletions(-)

@@ -8,6 +8,9 @@ a 3440x1440 monitor; the same dock reported full modes on other attaches).
 
 Re-apply the EDID we hold before adding modes, and read it again once over
 AUX if that still yields none.
+Nura-Category: upstream-fix
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2 (cached EDID only)
 ---
 --- a/drivers/gpu/drm/msm/dp/dp_panel.c	2026-11-13 21:43:56.471525005 +0100
 +++ b/drivers/gpu/drm/msm/dp/dp_panel.c	2026-11-13 21:43:56.482415211 +0100

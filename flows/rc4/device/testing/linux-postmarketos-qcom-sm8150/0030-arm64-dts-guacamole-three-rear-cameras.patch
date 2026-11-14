@@ -6,6 +6,10 @@ f702f688288e59e3566f113d411ac7d18e4d0201. Original CAMSS patches
 by Sr-0w; sensor and lens sources retain their authors and licenses.
 See docs/REAR_CAMERA_7_0_BRINGUP.md for adaptations and limitations.
 
+Nura-Category: device-dt
+Nura-Origin: omarchy-mobile + nura rear-camera port
+Upstream-Status: n/a: guacamole DTS is not upstream
+
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile

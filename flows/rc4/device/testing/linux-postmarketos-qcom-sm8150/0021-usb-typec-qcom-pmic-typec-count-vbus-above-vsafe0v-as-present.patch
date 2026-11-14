@@ -12,6 +12,9 @@ presence; it used the charger's USBIN plug-in status.
 When the detect bit is clear, also look at the Type-C state machine
 status, which the driver already polls for vSafe5V/vSafe0V when sourcing:
 a supply that is not at vSafe0V is present.
+Nura-Category: local-workaround
+Nura-Origin: nura local USB-PD series (emilyastranova)
+Upstream-Status: not in mainline v7.2 (detect bit only)
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-10-14 16:52:55.842345722 -0600
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-10-14 16:52:55.857572096 -0600

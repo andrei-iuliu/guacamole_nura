@@ -41,6 +41,9 @@ and cleanup changes follow the upstream qcom-ngd-ctrl series
 ("Fix probe error path ordering", "Register callbacks after creating
 the ngd", "Initialize controller resources in controller") without
 taking its platform-driver/unregister refactor.
+Nura-Category: upstream-fix
+Nura-Origin: omarchy-mobile f702f688 slim-ngd-pd-up-race (1/2)
+Upstream-Status: partial in v7.2: workqueue/SSR order landed; ngd->base order and cancel_work_sync did not
 ---
 --- a/drivers/slimbus/qcom-ngd-ctrl.c
 +++ b/drivers/slimbus/qcom-ngd-ctrl.c

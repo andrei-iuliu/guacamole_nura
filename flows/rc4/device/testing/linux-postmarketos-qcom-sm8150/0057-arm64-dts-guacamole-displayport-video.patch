@@ -27,6 +27,9 @@ Compiled as part of the rc4 integration with the kernel's own dtc: 0 errors and
 no new warnings versus the unpatched tree.  Not booted on hardware.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: device-dt
+Nura-Origin: nura rc4 displayport series (sm8150-hdk model)
+Upstream-Status: n/a: guacamole DTS is not upstream
 ---
  arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-displayport.dtsi  | 83 ++++++++++++
  arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi         |  2 +

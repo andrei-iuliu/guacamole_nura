@@ -12,6 +12,10 @@ device-package udev rule.
 
 Source-only: not compiled here.
 
+Nura-Category: device-dt
+Nura-Origin: nura local
+Upstream-Status: n/a: guacamole DTS is not upstream
+
 --- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
 +++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
 @@ -125,6 +125,51 @@

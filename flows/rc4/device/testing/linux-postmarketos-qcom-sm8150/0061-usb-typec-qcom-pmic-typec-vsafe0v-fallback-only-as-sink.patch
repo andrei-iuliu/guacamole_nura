@@ -10,6 +10,9 @@ never attached).
 
 Track whether we present Rd and use the fallback only then; clear it when
 toggling starts.
+Nura-Category: local-workaround
+Nura-Origin: nura rc4d dock debugging
+Upstream-Status: not in mainline v7.2
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 20:33:26.416648931 +0100
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 20:34:01.336050472 +0100

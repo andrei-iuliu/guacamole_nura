@@ -1,3 +1,7 @@
+Nura-Category: local-workaround
+Nura-Origin: hotdog-linux-bringup 0138 (Robin Snyders)
+Upstream-Status: not in mainline v7.2
+
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
 index a4acb78fa..0519599e2 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c

@@ -12,6 +12,9 @@ fresh sink and the partner never answers, losing PD and DisplayPort.
 Hide "not attached" readings for 500 ms after such a flip (get_cc returns
 -EBUSY, which TCPM ignores) and make TCPM re-read CC when the window ends.
 The downstream charger stack does the equivalent with pr_swap_in_progress.
+Nura-Category: local-workaround
+Nura-Origin: nura rc4h dock debugging
+Upstream-Status: not in mainline v7.2
 ---
 --- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:22:56.590096639 +0100
 +++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c	2026-11-13 21:23:46.491826748 +0100

@@ -31,6 +31,9 @@ from the tree at github.com/Sr-0w/hotdog-linux-bringup, revision 47087509c428,
 under aports/device/testing/linux-oneplus-hotdog-mainline616/.
 
 Signed-off-by: Nura rc4 displayport series <rc4-displayport@nura.invalid>
+Nura-Category: upstream-fix
+Nura-Origin: hotdog-linux-bringup 0052
+Upstream-Status: not in mainline v7.2 (still AIF_OUT with the string NULL)
 ---
  sound/soc/qcom/qdsp6/q6afe-dai.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
