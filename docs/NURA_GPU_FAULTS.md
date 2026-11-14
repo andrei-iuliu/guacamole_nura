@@ -20,7 +20,7 @@ OnePlus 7 Pro (guacamole), SM8150 / Adreno 640, local-userdata Phosh:
 | Boot ID | `REDACTED_BOOT_ID` |
 | Kernel | `7.0.0-sm8150-guacamole-rc4` |
 | Installed kernel APK | `7.0.0_p20261114110819-r0` |
-| Installed device APK | `4-r17` (the later charge-CLI source is 4-r18) |
+| Installed device APK | `4-r17` at measurement (the rc4j source is 4-r19) |
 | Mesa | `26.2.6-r0` |
 | Phoc | `0.58.0-r0` |
 | Phosh | `99990.58.0-r0` |
@@ -248,6 +248,81 @@ Only the candidates which pass their relevant checks should enter the next
 RC. Label an optional sysmem workaround as such, keep a rollback path, and
 continue collecting devcoredumps. A kernel change needs recipe/checksum,
 image, DTB/module identity and rootfs verification updates together.
+
+## rc4j: opt-in A/B helpers (device package 4-r19)
+
+The rc4j device package adds two root helpers for the validation above. They
+do **not** change the default: until `nura-gpu-mode sysmem` (or `inorder`) is
+run, no `FD_MESA_DEBUG` is set and rendering is normal.
+
+### `nura-gpu-mode`
+
+```sh
+nura-gpu-mode status          # no root needed
+sudo nura-gpu-mode sysmem     # opt-in whole-session trial
+sudo nura-gpu-mode inorder    # separate diagnostic; never everywhere at once
+sudo nura-gpu-mode default    # remove the override
+```
+
+One value is stored in `/var/lib/nura/gpu-mode`; `sysmem` and `inorder` are
+mutually exclusive by construction, and `default` removes both the state file
+and the generated drop-in. Every mode change prints that a re-login or reboot
+is required; the helper never touches a running process.
+
+The value reaches the graphical session through two files:
+
+* `/etc/profile.d/nura-gpu.sh` exports `FD_MESA_DEBUG` from the state file.
+  greetd's `general.source_profile` defaults to true (the installed
+  `/etc/phrog/greetd-config.toml` does not override it), so greetd runs the
+  session as `/bin/sh -c '[ -f /etc/profile ] && . /etc/profile; ...; exec
+  phosh-session'`. `/etc/profile` sources `/etc/profile.d/*.sh` before the
+  `exec`; phosh-session then starts phoc, phoc starts gnome-session, and every
+  application they launch inherits the variable. The session D-Bus daemon is
+  started by phosh-session too, so DBus-activated applications see it.
+* `/etc/environment.d/90-nura-gpu.conf` is written with the same
+  single value. systemd user services are not children of phosh-session; the
+  user manager reads this directory at login, so a change also needs a
+  re-login/reboot there.
+
+A `greetd` unit `Environment=` drop-in would not work: greetd clears the
+session environment and passes only the PAM environment (`pam_getenvlist`) to
+the session worker. `environment.d` alone would not reach phoc. The status
+output names both bridge files so a failed install is visible.
+
+### `nura-gpu-soak`
+
+```sh
+sudo nura-gpu-soak start      # snapshot identity, mode and counters
+# ... run the fixed workload from "Proposed validation" ...
+sudo nura-gpu-soak stop       # print and store the delta
+```
+
+Each start creates `/var/lib/nura/gpu-soak/<UTC timestamp>/` with `start.txt`
+(boot ID, `uname`, kernel/mesa/phoc/phosh/device versions from `apk info -v`,
+refresh rate from the panel init line, GPU mode, and current `gpu fault`,
+`hangcheck recover`, `hangcheck detected gpu lockup`, coredump and
+devcoredump-capture counts) and `versions.txt`. `stop` writes `stop.txt` next
+to it and prints a one-line `SUMMARY` with the deltas, elapsed seconds and a
+`same_boot` flag. Kernel lines come from `dmesg` and fall back to
+`journalctl -k -b` when `dmesg` is empty or restricted; phoc/phosh cores are
+counted with `coredumpctl`, falling back to the journal; new devcoredump
+captures are the difference in `/var/lib/nura/gpu-crash` directory count.
+
+A practical A/B sequence (one variable at a time):
+
+1. `sudo nura-gpu-mode default`, re-login, then `sudo nura-gpu-soak start`.
+   Run the fixed workload and `stop`; keep the summary as the baseline.
+2. `sudo nura-gpu-mode sysmem`, re-login (new session; old D-Bus instances
+   would keep their earlier environment), verify the live compositor
+   environment with `tr '\0' '\n' < /proc/$(pidof phoc)/environ |
+   grep FD_MESA_DEBUG`, then repeat the workload and `stop`.
+3. `sudo nura-gpu-mode default`, re-login, and repeat once to show the
+   setting is reversible.
+4. Only then try `inorder` as its own run. Never combine it with `sysmem`.
+
+Counters measure the trial; they do not prove stability. The acceptance
+workload (three fresh logins, ten lock/suspend/resume cycles and a 30-minute
+mixed-app run) and the visible-corruption notes remain the real criteria.
 
 ## Sources and reproducible evidence
 

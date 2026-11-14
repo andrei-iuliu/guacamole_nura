@@ -1,0 +1,367 @@
+#!/bin/sh
+# nura-gpu-soak - record the GPU fault counters around the acceptance workload.
+#
+# docs/NURA_GPU_FAULTS.md "Proposed validation" asks for repeated fresh
+# logins, lock/suspend/resume cycles and a mixed-app run while counting
+# `gpu fault` and `hangcheck recover` lines, userspace cores and devcoredump
+# captures.  This helper makes that comparison mechanical:
+#
+#   nura-gpu-soak start    snapshot boot id, identities, mode and counters
+#   nura-gpu-soak stop     print and store the delta
+#
+# Each start creates /var/lib/nura/gpu-soak/<UTC timestamp>/ with:
+#   start.txt      key=value snapshot (boot id, uname, package versions,
+#                  refresh rate, GPU mode, counters and the kernel-log source)
+#   versions.txt   apk info -v lines for kernel/mesa/phoc/phosh/device
+#   stop.txt       written by stop: the same keys plus the deltas and the
+#                  one-line SUMMARY
+#
+# The kernel log comes from `dmesg` when it is readable; when it is empty or
+# restricted the script falls back to `journalctl -k -b`.  dmesg is readable
+# on this kernel (CONFIG_SECURITY_DMESG_RESTRICT is not set), but the fallback
+# keeps the helper useful on a stricter build.  `coredumpctl` is used for
+# phoc/phosh cores when available, with a journal fallback.
+#
+# This script never reboots, changes a service, writes to sysfs/debugfs or
+# releases a devcoredump.  It only reads the counters and writes its snapshot.
+#
+# Test-only environment (the package sets none of these):
+#   NURA_GPU_SOAK_ROOT     prefix for /proc, /var/lib/nura and /var/lib/nura/gpu-crash
+#   NURA_GPU_SOAK_STATE    exact snapshot directory
+#   NURA_GPU_MODE_STATE    exact gpu-mode state file
+#   NURA_GPU_CRASH_STATE   exact gpu-crash capture directory
+
+set -u
+
+ROOT=${NURA_GPU_SOAK_ROOT:-}
+STATE=${NURA_GPU_SOAK_STATE:-$ROOT/var/lib/nura/gpu-soak}
+MODE_STATE=${NURA_GPU_MODE_STATE:-$ROOT/var/lib/nura/gpu-mode}
+CRASH_DIR=${NURA_GPU_CRASH_STATE:-$ROOT/var/lib/nura/gpu-crash}
+BOOT_ID_FILE=${NURA_GPU_SOAK_BOOT_ID:-$ROOT/proc/sys/kernel/random/boot_id}
+
+PROG=nura-gpu-soak
+KLOG_SOURCE=unavailable
+TMPLOG=
+
+usage() {
+    printf 'usage: %s start|stop\n' "$PROG" >&2
+    printf '  start  snapshot identity, boot id and GPU counters\n' >&2
+    printf '  stop   compare the latest open snapshot and print a summary line\n' >&2
+}
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+die() {
+    printf '%s: %s\n' "$PROG" "$*" >&2
+    exit 1
+}
+
+now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+now_epoch() { date +%s; }
+
+boot_id() {
+    if [ -r "$BOOT_ID_FILE" ]; then
+        head -n 1 "$BOOT_ID_FILE" 2>/dev/null | tr -d '[:space:]'
+    else
+        printf 'unknown\n'
+    fi
+}
+
+gpu_mode() {
+    _mode=
+    if [ -r "$MODE_STATE" ]; then
+        _mode=$(cat "$MODE_STATE" 2>/dev/null || true)
+    fi
+    case "$_mode" in
+        sysmem|inorder) printf '%s\n' "$_mode" ;;
+        *) printf 'default\n' ;;
+    esac
+}
+
+klog_dump() {
+    _out=$1
+    : > "$_out"
+    KLOG_SOURCE=unavailable
+
+    if have dmesg; then
+        dmesg 2>/dev/null > "$_out" || true
+        if [ -s "$_out" ]; then
+            KLOG_SOURCE=dmesg
+            return 0
+        fi
+    fi
+
+    if have journalctl; then
+        journalctl -k -b --no-pager -q 2>/dev/null > "$_out" || true
+        if [ -s "$_out" ]; then
+            KLOG_SOURCE=journalctl
+            return 0
+        fi
+    fi
+
+    : > "$_out"
+    return 1
+}
+
+count_matches() {
+    _pattern=$1
+    _file=$2
+    _n=$(grep -c -i -E "$_pattern" "$_file" 2>/dev/null || true)
+    printf '%s\n' "${_n:-0}"
+}
+
+refresh_hz() {
+    _file=$1
+    _hz=$(sed -n 's/.*initializing panel at \([0-9][0-9]*\) Hz.*/\1/p' "$_file" 2>/dev/null | tail -n 1)
+    if [ -n "$_hz" ]; then
+        printf '%s\n' "$_hz"
+    else
+        printf 'unknown\n'
+    fi
+}
+
+capture_count() {
+    if [ -d "$CRASH_DIR" ]; then
+        ls -1d "$CRASH_DIR"/*/ 2>/dev/null | wc -l | tr -d ' '
+    else
+        printf '0\n'
+    fi
+}
+
+apk_versions() {
+    if ! have apk; then
+        printf '[UNAVAILABLE] apk not found\n'
+        return 0
+    fi
+    apk info -v 2>/dev/null |
+        grep -E '^(linux-postmarketos-qcom-sm8150-[0-9]|mesa-[0-9]|phoc-[0-9]|phosh-[0-9]|device-oneplus-guacamole-[0-9])' |
+        sort || true
+}
+
+version_of() {
+    _pkg=$1
+    _file=$2
+    _v=$(sed -n "s/^${_pkg}-//p" "$_file" 2>/dev/null | head -n 1)
+    printf '%s\n' "${_v:-?}"
+}
+
+coredump_count() {
+    _since=$1
+    _n=0
+    if have coredumpctl; then
+        _n=$(coredumpctl list --since "$_since" --no-pager 2>/dev/null |
+             grep -c -E '(phoc|phosh)' || true)
+    fi
+    if [ "${_n:-0}" -eq 0 ] && have journalctl; then
+        _n=$(journalctl --since "$_since" --no-pager -q 2>/dev/null |
+             grep -c -i -E '(phoc|phosh).*dumped core|dumped core.*(phoc|phosh)' || true)
+    fi
+    printf '%s\n' "${_n:-0}"
+}
+
+write_kv() {
+    _file=$1
+    shift
+    while [ "$#" -ge 2 ]; do
+        printf '%s=%s\n' "$1" "$2" >> "$_file"
+        shift 2
+    done
+}
+
+cmd_start() {
+    mkdir -p "$STATE" 2>/dev/null || die "cannot create $STATE (run with sudo/root)"
+
+    _stamp=$(date -u +%Y%m%dT%H%M%SZ)
+    _dir="$STATE/$_stamp"
+    _i=1
+    while [ -e "$_dir" ]; do
+        _dir="$STATE/$_stamp-$_i"
+        _i=$((_i + 1))
+    done
+    mkdir "$_dir" 2>/dev/null || die "cannot create $_dir (run with sudo/root)"
+
+    TMPLOG="$_dir/.klog.tmp"
+    trap 'rm -f "$TMPLOG"' 0 1 2 15
+    klog_dump "$TMPLOG" || true
+
+    _boot=$(boot_id)
+    _mode=$(gpu_mode)
+    _hz=$(refresh_hz "$TMPLOG")
+    _gpu=$(count_matches 'gpu fault' "$TMPLOG")
+    _hang=$(count_matches 'hangcheck recover' "$TMPLOG")
+    _lock=$(count_matches 'hangcheck detected gpu lockup' "$TMPLOG")
+    _caps=$(capture_count)
+    _uname=$(uname -a 2>/dev/null || printf 'unknown\n')
+
+    apk_versions > "$_dir/versions.txt"
+    _kver=$(version_of linux-postmarketos-qcom-sm8150 "$_dir/versions.txt")
+    _mesa=$(version_of mesa "$_dir/versions.txt")
+    _phoc=$(version_of phoc "$_dir/versions.txt")
+    _phosh=$(version_of phosh "$_dir/versions.txt")
+    _dev=$(version_of device-oneplus-guacamole "$_dir/versions.txt")
+
+    : > "$_dir/start.txt"
+    write_kv "$_dir/start.txt" \
+        started "$(now_iso)" \
+        epoch "$(now_epoch)" \
+        boot_id "$_boot" \
+        uname "$_uname" \
+        kernel "$_kver" \
+        mesa "$_mesa" \
+        phoc "$_phoc" \
+        phosh "$_phosh" \
+        device "$_dev" \
+        gpu_mode "$_mode" \
+        refresh_hz "$_hz" \
+        kernel_log "$KLOG_SOURCE" \
+        gpu_faults "$_gpu" \
+        hangcheck_recovers "$_hang" \
+        hangcheck_lockups "$_lock" \
+        devcoredump_captures "$_caps" \
+        coredumps 0
+
+    rm -f "$TMPLOG"
+    TMPLOG=
+    trap - 0 1 2 15
+
+    printf '%s: snapshot %s\n' "$PROG" "$_dir"
+    printf '%s: boot=%s mode=%s gpu_faults=%s hangcheck=%s captures=%s\n' \
+        "$PROG" "$_boot" "$_mode" "$_gpu" "$_hang" "$_caps"
+    printf '%s: run the workload, then: %s stop\n' "$PROG" "$PROG"
+}
+
+latest_open_dir() {
+    for _candidate in $(ls -1dt "$STATE"/*/ 2>/dev/null); do
+        [ -f "$_candidate/start.txt" ] || continue
+        [ -f "$_candidate/stop.txt" ] && continue
+        printf '%s\n' "$_candidate"
+        return 0
+    done
+    return 1
+}
+
+read_start() {
+    _key=$1
+    _file=$2
+    awk -F= -v k="$_key" '$1 == k { print substr($0, length($1) + 2); exit }' "$_file" 2>/dev/null
+}
+
+cmd_stop() {
+    _dir=$(latest_open_dir) || die "no open snapshot under $STATE; run '$PROG start' first"
+    _start="$_dir/start.txt"
+    [ -f "$_start" ] || die "missing $_start"
+
+    TMPLOG="$_dir/.klog.stop.tmp"
+    trap 'rm -f "$TMPLOG"' 0 1 2 15
+    klog_dump "$TMPLOG" || true
+
+    _start_iso=$(read_start started "$_start")
+    _start_epoch=$(read_start epoch "$_start")
+    _start_boot=$(read_start boot_id "$_start")
+    _start_gpu=$(read_start gpu_faults "$_start")
+    _start_hang=$(read_start hangcheck_recovers "$_start")
+    _start_lock=$(read_start hangcheck_lockups "$_start")
+    _start_caps=$(read_start devcoredump_captures "$_start")
+    _mode=$(read_start gpu_mode "$_start")
+    _kernel=$(read_start kernel "$_start")
+    _mesa=$(read_start mesa "$_start")
+    _phoc=$(read_start phoc "$_start")
+    _phosh=$(read_start phosh "$_start")
+    _device=$(read_start device "$_start")
+    _hz=$(read_start refresh_hz "$_start")
+
+    [ -n "$_start_gpu" ] || _start_gpu=0
+    [ -n "$_start_hang" ] || _start_hang=0
+    [ -n "$_start_lock" ] || _start_lock=0
+    [ -n "$_start_caps" ] || _start_caps=0
+    [ -n "$_start_epoch" ] || _start_epoch=$(now_epoch)
+
+    _now_boot=$(boot_id)
+    _gpu=$(count_matches 'gpu fault' "$TMPLOG")
+    _hang=$(count_matches 'hangcheck recover' "$TMPLOG")
+    _lock=$(count_matches 'hangcheck detected gpu lockup' "$TMPLOG")
+    _caps=$(capture_count)
+    _core=$(coredump_count "$_start_iso")
+
+    _dgpu=$((_gpu - _start_gpu))
+    _dhang=$((_hang - _start_hang))
+    _dlock=$((_lock - _start_lock))
+    _dcaps=$((_caps - _start_caps))
+    _rotated=no
+    _pruned=no
+    [ "$_dgpu" -ge 0 ] || { _dgpu=0; _rotated=yes; }
+    [ "$_dhang" -ge 0 ] || { _dhang=0; _rotated=yes; }
+    [ "$_dlock" -ge 0 ] || { _dlock=0; _rotated=yes; }
+    [ "$_dcaps" -ge 0 ] || { _dcaps=0; _pruned=yes; }
+
+    _elapsed=$(( $(now_epoch) - _start_epoch ))
+    [ "$_elapsed" -ge 0 ] || _elapsed=0
+
+    if [ "$_now_boot" = "$_start_boot" ]; then
+        _same_boot=yes
+    else
+        _same_boot=no
+    fi
+
+    _boot8=$(printf '%s' "$_start_boot" | cut -c 1-8)
+
+    _summary="SUMMARY boot=$_boot8 mode=$_mode kernel=$_kernel mesa=$_mesa phoc=$_phoc phosh=$_phosh device=$_device refresh_hz=$_hz gpu_faults=+$_dgpu hangcheck=+$_dhang lockups=+$_dlock coredumps=+$_core devcoredumps=+$_dcaps elapsed_s=$_elapsed same_boot=$_same_boot"
+
+    : > "$_dir/stop.txt" 2>/dev/null || die "cannot write $_dir/stop.txt (run with sudo/root)"
+    write_kv "$_dir/stop.txt" \
+        stopped "$(now_iso)" \
+        epoch "$(now_epoch)" \
+        boot_id "$_now_boot" \
+        same_boot "$_same_boot" \
+        kernel_log "$KLOG_SOURCE" \
+        gpu_faults "$_gpu" \
+        hangcheck_recovers "$_hang" \
+        hangcheck_lockups "$_lock" \
+        coredumps "$_core" \
+        devcoredump_captures "$_caps" \
+        delta_gpu_faults "$_dgpu" \
+        delta_hangcheck_recovers "$_dhang" \
+        delta_hangcheck_lockups "$_dlock" \
+        delta_coredumps "$_core" \
+        delta_devcoredump_captures "$_dcaps" \
+        elapsed_s "$_elapsed" \
+        log_rotated "$_rotated" \
+        captures_pruned "$_pruned" \
+        summary "$_summary"
+
+    rm -f "$TMPLOG"
+    TMPLOG=
+    trap - 0 1 2 15
+
+    printf '%s: snapshot %s\n' "$PROG" "$_dir"
+    printf '%s: elapsed=%ss same_boot=%s kernel_log=%s\n' "$PROG" "$_elapsed" "$_same_boot" "$KLOG_SOURCE"
+    printf '%s: gpu_faults +%s (%s -> %s), hangcheck recover +%s (%s -> %s), lockups +%s, coredumps +%s, devcoredumps +%s\n' \
+        "$PROG" "$_dgpu" "$_start_gpu" "$_gpu" "$_dhang" "$_start_hang" "$_hang" \
+        "$_dlock" "$_core" "$_dcaps"
+    if [ "$_rotated" = yes ]; then
+        printf '%s: note: the kernel ring buffer rotated; the delta is a lower bound\n' "$PROG"
+    fi
+    if [ "$_pruned" = yes ]; then
+        printf '%s: note: gpu-crash retention removed captures; the count is a lower bound\n' "$PROG"
+    fi
+    printf '%s\n' "$_summary"
+}
+
+case "${1:-}" in
+    start)
+        cmd_start
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac
+
+exit 0

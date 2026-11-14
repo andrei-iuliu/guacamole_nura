@@ -445,7 +445,7 @@ class TestDevicePackage(unittest.TestCase):
     def test_sources_and_checksums(self):
         apkbuild = DEVICE / "APKBUILD"
         text = apkbuild.read_text()
-        self.assertRegex(text, r"(?m)^pkgrel=18$")
+        self.assertRegex(text, r"(?m)^pkgrel=19$")
         sums = apkbuild_sums(apkbuild)
         for name in ("plasma-mobile-preset-oneplus-guacamole.conf", "guacamole-boot-slot",
                      "guacamole-boot-slot.service", "guacamole-boot-slot.timer",

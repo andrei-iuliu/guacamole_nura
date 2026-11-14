@@ -11,13 +11,18 @@
 # and there is no guacamole-mpss-start hook: enabling it on the phone is the
 # opt-in.  Everything else (including the preset) is unchanged.
 # pkgrel 18 adds the guacamole-chgctrl CLI and persistent custom charge windows.
+# pkgrel 19 adds the opt-in nura-gpu-mode toggle (normal rendering by default),
+# the nura-gpu-soak fault-counter helper, the /etc/profile.d bridge that makes
+# the toggle reach phoc and its children, and the systemd log-level drop-ins
+# that keep the rc4j default at info (the ABL appends a bare "debug" token to
+# the kernel cmdline; see 90-nura-loglevel.conf).
 # Reference: <https://postmarketos.org/devicepkg>
 # Co-Maintainer: Uclydde <julianbraha@gmail.com>
 maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=18
+pkgrel=19
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -94,6 +99,10 @@ source="
 	nura-gpu-crash-capture.timer
 	83-nura-gpu-crash.preset
 	90-nura-gpu-crash.rules
+	nura-gpu-mode
+	nura-gpu-soak
+	nura-gpu.sh
+	90-nura-loglevel.conf
 	$_sensors.tar.gz
 "
 
@@ -265,6 +274,27 @@ package() {
 		"$pkgdir/usr/lib/systemd/system-preset/83-nura-gpu-crash.preset"
 	install -Dm644 "$srcdir/90-nura-gpu-crash.rules" \
 		"$pkgdir/usr/lib/udev/rules.d/90-nura-gpu-crash.rules"
+
+	# GPU: opt-in Mesa debug override and the fault-counter soak helper.
+	# nura-gpu-mode writes /var/lib/nura/gpu-mode and the user-manager
+	# /etc/environment.d drop-in; /etc/profile.d/nura-gpu.sh carries the same
+	# value into phoc and every application started from the session.  The
+	# package default is normal rendering (no state file).
+	install -Dm755 "$srcdir/nura-gpu-mode" "$pkgdir/usr/bin/nura-gpu-mode"
+	install -Dm755 "$srcdir/nura-gpu-soak" "$pkgdir/usr/bin/nura-gpu-soak"
+	install -Dm644 "$srcdir/nura-gpu.sh" "$pkgdir/etc/profile.d/nura-gpu.sh"
+	install -d "$pkgdir/etc/environment.d"
+	# 0755 so `nura-gpu-mode status` works without root; the collector's
+	# StateDirectory=nura/gpu-crash keeps its own 0700 subdirectory.
+	install -d -m 755 "$pkgdir/var/lib/nura"
+
+	# rc4j: systemd and journald default to info instead of the bootloader's
+	# "debug" token.  Same file in both manager config directories; see the
+	# file header for the exact parse order.
+	install -Dm644 "$srcdir/90-nura-loglevel.conf" \
+		"$pkgdir/etc/systemd/system.conf.d/90-nura-loglevel.conf"
+	install -Dm644 "$srcdir/90-nura-loglevel.conf" \
+		"$pkgdir/etc/systemd/user.conf.d/90-nura-loglevel.conf"
 }
 
 openrc() {
@@ -329,5 +359,9 @@ f8f8ffca1b63ea50a608b5ff89897781c514e8ed9e072a743c62334787f619c244e70ffe4c50e318
 2da3bcb8b17c2285cc0bf36dc31c0ea026afecaf9b07b00043d7dfcf6cb4e17c30cceae15a9f14f887056dc42d89cc65f92bfeb5f415db618d8c731d48529d05  nura-gpu-crash-capture.timer
 a2ed87c3f3128443697458f7f600db9b31cf99469cc95222712a8f35192f05e43818f3b5d4a9d4b594eb54a7f59a48bc614d0a1c4ddb87325ac08e056551e5f9  83-nura-gpu-crash.preset
 f06dcfc62c3c0248fe5fb06b9c0988780e8716d498e42d6a1fe9e1800bfb34673788f394494053391b87e2ebadfc15f164ffec47e895f24c5a5f9e5d06f2841e  90-nura-gpu-crash.rules
+bf640f09fafc9204c29136fbb2132a145c5b1a5e4ca8ad8622ac26da3d1a277a83498e98652e08051241bc65f21ca6815529ad32212df50c9b6d0bbc17b7bf75  nura-gpu-mode
+1c90270682860e073de91fb104d9500636720ca717fbcf8d2e2e4c8543e1da6f83625a2bf38ec7059d17a4beafde624fadbd6aca86a7bd38a86a5092cdb5a1a6  nura-gpu-soak
+4011ae19f607550996a3a1dd7dfb148696a4bb11fbf6ddc4f877e224478f15d8e841baa1dd9735b300a8d7c20b36cefe0f3546798ea2e38080f6dca9f2626485  nura-gpu.sh
+5e2a237d8d3b957e5689b279d8ab434655a74a6b18fac30f8d7038aad75b79d25af51a9de20c453c2ff5c918b07dbec972f9e4f1aba854b3459d2bdc28b6cac4  90-nura-loglevel.conf
 9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "
