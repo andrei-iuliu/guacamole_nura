@@ -75,6 +75,9 @@ UI_PROFILES = {
         "logind_conf": "50-nura-plasma-nbd.conf",
         # Graphical package manager able to install system packages.
         "app_store": ("discover", "discover-backend-apk"),
+        # Default apps the delivered image must not carry.  The Plasma image
+        # keeps every _pmb_recommends entry of postmarketos-ui-plasma-mobile.
+        "excluded_packages": (),
         "forbidden": ("snapshot", "kamoso", "postmarketos-ui-phosh", "phosh", "greetd",
                       "pipewire-pulse"),
     },
@@ -92,6 +95,12 @@ UI_PROFILES = {
         # postmarketos-base-ui-gnome) selects GNOME Software over Bazaar.
         "app_store": ("gnome-software", "gnome-software-plugin-apk2",
                       "gnome-app-provider-gnome-software"),
+        # Default apps removed by hand on the phone, all of them pulled in as
+        # _pmb_recommends (nothing depends on them): phosh-tour via
+        # postmarketos-ui-phosh, lpa-gtk + vvmplayer via
+        # postmarketos-base-ui-gnome-mobile, decibels via
+        # postmarketos-base-ui-gnome.  Gapless (g4music) stays.
+        "excluded_packages": ("phosh-tour", "lpa-gtk", "vvmplayer", "decibels"),
         "forbidden": ("postmarketos-ui-plasma-mobile", "plasma-mobile", "kamoso",
                       "pipewire-pulse"),
     },
@@ -102,6 +111,11 @@ if UI not in UI_PROFILES:
     raise SystemExit(2)
 UI_PROFILE = UI_PROFILES[UI]
 UI_PACKAGE = UI_PROFILE["ui_package"]
+# Packages this UI must not install, even though pmbootstrap's
+# _pmb_recommends walk would add them.  Empty for Plasma; the build removes
+# the Phosh entries from the rootfs chroot before the image is written and
+# verify_installed() fails if any of them survives.
+EXCLUDED_PACKAGES = UI_PROFILE["excluded_packages"]
 RELEASE_SERIES = UI_PROFILE["series"]
 RELEASE_CANDIDATE = f"{RELEASE_SERIES}-rc4"
 ARTIFACT_NAME = f"{RELEASE_CANDIDATE}-oneplus-guacamole"
@@ -1147,6 +1161,21 @@ def verify_phosh_policy(rootfs: Path) -> None:
             die(f"{override} does not set {key}")
 
 
+def verify_excluded_packages(packages: dict[str, dict]) -> None:
+    """Post-install identity check for the per-UI exclusion list.
+
+    The excluded apps are _pmb_recommends entries of the UI package and of the
+    postmarketos-base-ui-* packages it depends on, so a plain
+    ``pmbootstrap install`` adds them back on every build.  The build removes
+    them from the device rootfs chroot before the image is written; this fails
+    the build if one of them is still in the installed APK database.
+    """
+    for name in EXCLUDED_PACKAGES:
+        if name in packages:
+            die(f"installed rootfs still contains the {UI} excluded package {name}; "
+                "the exclusion step did not run or did not take effect")
+
+
 def verify_world_pins(rootfs: Path, packages: dict[str, dict],
                       expected: dict[str, str | None]) -> dict[str, str]:
     """/etc/apk/world must pin the kernel, device and firmware packages to the
@@ -1276,6 +1305,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
     else:
         verify_phosh_policy(rootfs)
     packages = installed_packages(rootfs)
+    # Fail instead of shipping a default app the UI profile excludes.
+    verify_excluded_packages(packages)
     # Shared by both UIs: kernel/system libcamera/ModemManager/audio pins,
     # and the graphical package manager that can install system packages.
     required = {
@@ -1382,6 +1413,7 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "ui_package": UI_PACKAGE,
         "ui_version": packages[UI_PACKAGE].get("V"),
         "app_store": list(UI_PROFILE["app_store"]),
+        "excluded_packages": list(EXCLUDED_PACKAGES),
         "world_pins": world_pins,
         "camera_app": CAMERA_APP,
         "camera_app_version": packages[CAMERA_APP].get("V"),
@@ -2176,6 +2208,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("release-candidate", help="print the release-candidate label")
     sub.add_parser("kernel-release", help="print this candidate's kernel uname")
+    sub.add_parser(
+        "exclude-list",
+        help="print the comma-separated packages this UI must not install (empty for plasma)",
+    )
 
     source = sub.add_parser("source", help="validate the rc4 kernel + baseline pins")
     source.add_argument("--source-build", type=Path, required=True)
@@ -2285,6 +2321,8 @@ def main(argv: list[str] | None = None) -> int:
             release_identity()
         elif args.command == "kernel-release":
             print(RELEASE)
+        elif args.command == "exclude-list":
+            print(",".join(EXCLUDED_PACKAGES))
         elif args.command == "source":
             print(json.dumps(source_contract(
                 args.source_build, args.source_state, KERNEL_RECIPE,

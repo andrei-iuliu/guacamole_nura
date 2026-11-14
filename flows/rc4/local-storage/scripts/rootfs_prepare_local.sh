@@ -231,6 +231,14 @@ RELEASE="$(python3 "$ROOT/scripts/check_local_candidate.py" kernel-release)" ||
     die "cannot read the kernel release from check_local_candidate.py"
 [[ "$RELEASE" =~ ^7\.0\.0-sm8150-(guacamole-rc|rc|rear)[0-9]+$ ]] ||
     die "invalid kernel release: $RELEASE"
+# Per-UI default apps the image must not carry (empty for Plasma).  The list
+# lives next to the UI profile table in check_local_candidate.py; the same
+# module refuses the build if one of them is installed afterwards.
+EXCLUDED="$(python3 "$ROOT/scripts/check_local_candidate.py" exclude-list)" ||
+    die "cannot read the UI exclusion list from check_local_candidate.py"
+if [[ -n "$EXCLUDED" && ! "$EXCLUDED" =~ ^[a-z0-9][a-z0-9.+-]*(,[a-z0-9][a-z0-9.+-]*)*$ ]]; then
+    die "refusing an unexpected UI exclusion list: $EXCLUDED"
+fi
 ARTIFACT_NAME="$RELEASE_CANDIDATE-oneplus-guacamole"
 LOG="$STATE/rootfs/$RELEASE_CANDIDATE-package-$STAMP.log"
 
@@ -1415,6 +1423,27 @@ prepare_install_config() {
     note "authorized key: pmbootstrap install will add the validated public key(s) to the new rootfs user"
 }
 
+remove_excluded_packages() {
+    # Runs inside the device rootfs chroot, like the Plasma Snapshot removal
+    # above.  Only packages that are really installed reach apk del, so a
+    # rebuild of an already cleaned chroot is a no-op and a fresh chroot never
+    # fails on a name that the recommends walk did not add.
+    local -a pmb=("$@") packages=()
+    IFS=, read -r -a packages <<< "$EXCLUDED"
+    (( ${#packages[@]} )) || die "empty exclusion list for $UI_LABEL"
+    "${pmb[@]}" chroot --rootfs -- sh -ec '
+to_del=""
+for pkg in "$@"; do
+	grep -qx "P:$pkg" /lib/apk/db/installed && to_del="$to_del $pkg" || true
+done
+if [ -n "$to_del" ]; then
+	apk del $to_del
+else
+	echo "no excluded package is installed in this rootfs chroot"
+fi
+' -- "${packages[@]}"
+}
+
 run_install() {
     local PMB=(
         python3 "$STATE/pmbootstrap/pmbootstrap.py"
@@ -1474,6 +1503,28 @@ run_install() {
         note "removing the previous GNOME Snapshot app from the reused candidate rootfs"
         "${PMB[@]}" chroot --rootfs -- sh -ec \
             'if grep -q "^P:snapshot$" /lib/apk/db/installed 2>/dev/null; then apk del snapshot; fi'
+    fi
+    # pmbootstrap 3.12.1 refuses a "!pkgname" entry anywhere in the install
+    # package list (pmb/chroot/apk.py:220-222), and the _pmb_recommends walk
+    # (pmb/install/_install.py:1311-1312) has no CLI filter, so the per-UI exclusion
+    # cannot ride on --add.  Two phases instead: the first install populates
+    # the device rootfs chroot (recommends included, no image written), apk
+    # del removes the excluded apps from that chroot, and the second install
+    # writes the image from it.  --no-recommends keeps the deleted apps out of
+    # the second resolution; the other recommends are already installed and
+    # explicitly recorded in /etc/apk/world, so they stay.
+    if [[ -n "$EXCLUDED" ]]; then
+        note "install (1/2): populate the rootfs chroot, recommends included: $add"
+        # --no-image is mutually exclusive with --no-split/--disk: no image
+        # options are needed for this phase (the boot-size/extra-space globals
+        # only keep the two install runs configured identically).
+        "${PMB[@]}" --boot-size 1024 --extra-space 4096 install --no-image --add "$add"
+        note "removing the excluded default apps from the rootfs chroot: $EXCLUDED"
+        remove_excluded_packages "${PMB[@]}"
+        note "install (2/2): write the image from the cleaned rootfs chroot"
+        "${PMB[@]}" --boot-size 1024 --extra-space 4096 install \
+            --no-split --filesystem ext4 --no-recommends --add "$add"
+        return 0
     fi
     note "install packages: $add"
     "${PMB[@]}" --boot-size 1024 --extra-space 4096 install \
