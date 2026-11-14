@@ -1,0 +1,127 @@
+# Nura guacamole: Alpine community/phoc 0.58.0-r0 (the version the rc4
+# Phosh image installs) plus one render patch from the community that skips a
+# surface without a texture in the thumbnail iterator.  After a GPU fault the
+# compositor took a SIGSEGV in view_render_to_buffer_iterator()/src/render.c
+# (via thumbnail_frame_handle_copy), which ended the whole session; the guard
+# makes that path return instead.  pkgrel 100 keeps this local build above the
+# repository's r0; installed only by the Phosh image (NURA_UI=phosh).
+# It prevents the session crash on that path, not the GPU faults themselves
+# (docs/NURA_GPU_FAULTS.md).
+# Upstream recipe: https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/phoc/APKBUILD
+# (commit 853ef7ae, "community/phoc: upgrade to 0.58.0", unchanged since).
+# Contributor: Bart Ribbers <bribbers@disroot.org>
+# Contributor: Danct12 <danct12@disroot.org>
+# Contributor: Clayton Craft <clayton@craftyguy.net>
+# Contributor: Rasmus Thomsen <oss@cogitri.dev>
+maintainer="team/phosh <newbie13xd@gmail.com>"
+pkgname=phoc
+pkgver=0.58.0
+pkgrel=100
+pkgdesc="wlroots based Phone compositor for the Phosh shell"
+arch="all"
+url="https://gitlab.gnome.org/World/Phosh/phoc"
+license="GPL-3.0-only"
+depends="
+	$pkgname-schemas
+	dbus
+	gsettings-desktop-schemas
+	mutter-schemas
+	"
+_wlrootsmakedepends="
+	eudev-dev
+	glslang
+	hwdata-dev
+	libcap-dev
+	libdisplay-info-dev
+	libseat-dev
+	libxcb-dev
+	xcb-util-image-dev
+	xcb-util-renderutil-dev
+	xcb-util-wm-dev
+	xkeyboard-config-dev
+	xwayland-dev
+	"
+makedepends="
+	glib-dev
+	gmobile-dev
+	gnome-desktop-dev
+	json-glib-dev
+	libdrm-dev
+	libinput-dev
+	libxkbcommon-dev
+	mesa-dev
+	meson
+	pixman-dev
+	py3-docutils
+	wayland-dev
+	wayland-protocols
+	$_wlrootsmakedepends
+	"
+checkdepends="xvfb-run"
+subpackages="
+	$pkgname-dbg
+	$pkgname-doc
+	$pkgname-lang
+	$pkgname-schemas::noarch
+	"
+options="!check" # Needs fullblown EGL
+source="https://sources.phosh.mobi/releases/phoc/phoc-${pkgver/_/.}.tar.xz
+	0001-render-skip-surfaces-that-have-no-texture.patch
+	"
+replaces="wlroots-phosh"
+builddir="$srcdir/$pkgname-${pkgver/_/.}"
+
+prepare() {
+	default_prepare
+
+	# keep in sync with diff_files in subprojects/wlroots.wrap
+	local p
+	for p in \
+		text-input-v2/0001-text-input-v3-Introduce-version.patch \
+		text-input-v2/0002-text-input-Add-version-2-events.patch \
+		text-input-v2/0003-text-input-v3-Add-version-2-requests.patch \
+		text-input-v2/0004-text-input-v3-Bump-protocol-version-to-2.patch \
+		0001-Revert-layer-shell-error-on-0-dimension-without-anch.patch
+	do
+		patch -Np1 < subprojects/packagefiles/wlroots/$p \
+			-d subprojects/wlroots-0.20.x
+	done
+}
+
+build() {
+	abuild-meson \
+		-Db_lto=true \
+		-Dembed-wlroots=enabled \
+		-Dman=true \
+		-Dtests="$(want_check && echo true || echo false)" \
+		--default-library=static \
+		. output
+	meson compile -C output
+}
+
+check() {
+	xvfb-run -a meson test --print-errorlogs -C output
+}
+
+package() {
+	DESTDIR="$pkgdir/" meson install --no-rebuild -C output
+	install -Dm755 tools/scale-to-fit \
+		-t "$pkgdir"/usr/bin
+
+	# remove unneeded wlroots dev. files
+	rm -r "$pkgdir"/usr/include
+	rm -r "$pkgdir"/usr/lib/libwlroots-*.a
+	rm -r "$pkgdir"/usr/lib/pkgconfig
+}
+
+schemas() {
+	pkgdesc="$pkgdesc (schemas)"
+	depends=
+
+	amove usr/share/glib-2.0/schemas
+}
+
+sha512sums="
+8abdf88f5e00c86ce3da54b24ff691cfe1a5cc7cb55bf725714d269473d4374815dfb857028abf0a0ecab6a33ca5c350598ae872eb1f220071493f743fa15dcc  phoc-0.58.0.tar.xz
+972121a3c62cdf2981bb35048d5f49dbaf3b22476170c6cd4c5ce46da17919878726b5ff4796ff8917ba15c73da6a253647b6496c260bc09d0df56ab0485ebb3  0001-render-skip-surfaces-that-have-no-texture.patch
+"

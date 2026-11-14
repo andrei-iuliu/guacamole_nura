@@ -1278,7 +1278,7 @@ PY
 
 install_add_string() {
     local kernel_version="$1" hook_version="$2" libcamera_version="$3" ui_version="$4"
-    local device_version="$5" firmware_version="$6" gmobile_version="${7:-}"
+    local device_version="$5" firmware_version="$6" gmobile_version="${7:-}" phoc_version="${8:-}"
     # Shared by both UIs.  The kernel, device and firmware entries carry their
     # exact built version, so /etc/apk/world pins them (as was done by hand on
     # the phone) and a plain `apk upgrade` cannot swap in repository builds.
@@ -1304,13 +1304,15 @@ install_add_string() {
             # GNOME Software with the apk plugin (Alpine edge ships it as
             # gnome-software-plugin-apk2, providing gnome-software-plugin-apk);
             # gnome-app-provider-gnome-software selects it over Bazaar.
-            # gmobile carries the guacamole display panel (rounded corners).
+            # gmobile carries the guacamole display panel (rounded corners);
+            # phoc carries the null-texture thumbnail guard.
             add+=(
                 "snapshot"
                 "gnome-software"
                 "gnome-software-plugin-apk2"
                 "gnome-app-provider-gnome-software"
                 "gmobile=$gmobile_version"
+                "phoc=$phoc_version"
             )
             ;;
     esac
@@ -1399,8 +1401,10 @@ run_pmbootstrap_builds() {
     note "building local recipes individually; dependency builds are forbidden"
     local package
     local -a ui_builds=("$UI_PKG")
-    # Phosh: gmobile rebuilt with the guacamole display panel (rounded corners).
-    [[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile)
+    # Phosh: gmobile rebuilt with the guacamole display panel (rounded corners),
+    # phoc rebuilt with the null-texture thumbnail guard.  gmobile is built
+    # first because phoc's makedepends include gmobile-dev.
+    [[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile phoc)
     for package in firmware-oneplus-guacamole device-oneplus-guacamole hexagonrpcd \
         iio-sensor-proxy "${ui_builds[@]}" modemmanager; do
         "${PMB[@]}" build --arch aarch64 --ignore-depends --no-depends --force "$package"
@@ -1463,7 +1467,7 @@ run_install() {
         -w "$WORK"
     )
     local kernel_version hook_version libcamera_version ui_version add expected_hook_version
-    local device_version firmware_version gmobile_version=""
+    local device_version firmware_version gmobile_version="" phoc_version=""
     kernel_version="$(package_version "$KERNEL_PKG")"
     hook_version="$(package_version postmarketos-mkinitfs-hook-netboot)"
     libcamera_version="$(package_version libcamera-rear)"
@@ -1474,6 +1478,9 @@ run_install() {
         gmobile_version="$(package_version gmobile)"
         [[ "$gmobile_version" = 0.7.4-r100 ]] ||
             die "refusing gmobile version $gmobile_version (expected the local 0.7.4-r100 with the guacamole panel)"
+        phoc_version="$(package_version phoc)"
+        [[ "$phoc_version" = 0.58.0-r100 ]] ||
+            die "refusing phoc version $phoc_version (expected the local 0.58.0-r100 with the null-texture guard)"
     fi
     MODEM_VERSION="$(package_version modemmanager)"
     LIMM_GLIB_VERSION="$(package_version libmm-glib)"
@@ -1497,13 +1504,14 @@ run_install() {
         die "libmm-glib $LIMM_GLIB_VERSION does not match modemmanager $MODEM_VERSION"
     [[ "$device_version" == 4-r* ]] || die "refusing device-oneplus-guacamole version $device_version"
     add="$(install_add_string "$kernel_version" "$hook_version" "$libcamera_version" "$ui_version" \
-        "$device_version" "$firmware_version" "$gmobile_version")"
+        "$device_version" "$firmware_version" "$gmobile_version" "$phoc_version")"
     note "kernel: $kernel_version (release $RELEASE)"
     note "device/firmware: $device_version / $firmware_version (pinned in /etc/apk/world)"
     note "netboot hook: $hook_version"
     note "libcamera-rear: $libcamera_version"
     note "$UI_LABEL UI: $ui_version"
     [[ -z "$gmobile_version" ]] || note "gmobile (guacamole panel): $gmobile_version"
+    [[ -z "$phoc_version" ]] || note "phoc (null-texture guard): $phoc_version"
     note "modemmanager: $MODEM_VERSION (libmm-glib $LIMM_GLIB_VERSION)"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "nura-clock: $NURA_CLOCK_VERSION"
     # pmbootstrap reuses chroot_rootfs_* and only adds packages, so a rootfs
@@ -1570,9 +1578,10 @@ run_export() {
 verify_installed() {
     local ui_version="$1"
     local rootfs="$WORK/chroot_rootfs_oneplus-guacamole"
-    local -a clock_args=() gmobile_args=()
+    local -a clock_args=() gmobile_args=() phoc_args=()
     [[ -z "$NURA_CLOCK_VERSION" ]] || clock_args=(--nura-clock-version "$NURA_CLOCK_VERSION")
     [[ "$NURA_UI" != phosh ]] || gmobile_args=(--gmobile-version "$(package_version gmobile)")
+    [[ "$NURA_UI" != phosh ]] || phoc_args=(--phoc-version "$(package_version phoc)")
     python3 "$ROOT/scripts/check_local_candidate.py" verify \
         --release "$RELEASE" \
         --kernel-dir "$KERNEL_OUT/kernel-package" \
@@ -1588,6 +1597,7 @@ verify_installed() {
         --device-version "$(package_version device-oneplus-guacamole)" \
         --firmware-version "$(package_version firmware-oneplus-guacamole)" \
         "${gmobile_args[@]}" \
+        "${phoc_args[@]}" \
         --modemmanager-version "$MODEM_VERSION" \
         --libmm-glib-version "$LIMM_GLIB_VERSION" \
         "${clock_args[@]}" > "$TMP/installed.json" ||
@@ -1597,7 +1607,7 @@ verify_installed() {
     if [[ "$NURA_UI" = plasma ]]; then
         note "installed Plasma UI, Camera, Discover+apk, system libcamera 0.8, PulseAudio, PowerDevil: OK"
     else
-        note "installed Phosh UI, Snapshot, GNOME Software+apk, gmobile panel, system libcamera 0.8, PulseAudio: OK"
+        note "installed Phosh UI, Snapshot, GNOME Software+apk, gmobile panel, phoc thumbnail guard, system libcamera 0.8, PulseAudio: OK"
     fi
     note "installed modemmanager $MODEM_VERSION with libmm-glib $LIMM_GLIB_VERSION: OK"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "installed nura-clock $NURA_CLOCK_VERSION and clock floor: OK"

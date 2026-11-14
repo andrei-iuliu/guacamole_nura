@@ -13,6 +13,9 @@ live in temporary directories; the repository is only read.
   * the Phosh rootfs check requires the guacamole panel inside libgmobile;
   * the device package wires the A/B slot marker and the Plasma preset, and
     the patched gmobile recipe carries both DT compatibles;
+  * the patched phoc recipe keeps its source=/sha512sums= order, carries the
+    null-texture guard before the render call, and is built/installed/checked
+    by the Phosh flow only;
   * guacamole-boot-slot (ported from omarchy-mobile) changes exactly one
     attribute bit in both GPT copies.
 """
@@ -42,6 +45,7 @@ PREPARE = SCRIPTS / "rootfs_prepare_local.sh"
 CHECKER = SCRIPTS / "check_local_candidate.py"
 DEVICE = RC4 / "device/testing/device-oneplus-guacamole"
 GMOBILE = RC4 / "device/testing/gmobile"
+PHOC = RC4 / "device/testing/phoc"
 RELEASE = "7.0.0-sm8150-guacamole-rc4"
 
 os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
@@ -504,6 +508,128 @@ class TestGmobileRecipe(unittest.TestCase):
             self.assertEqual(panel, {"name": "OnePlus 7 Pro", "x-res": 1440, "y-res": 3120,
                                      "corner-radii": [145, 145, 145, 145],
                                      "width": 71, "height": 154})
+
+
+# --- phoc: the local 0.58.0-r100 recipe with the thumbnail null-texture guard
+
+
+def shell_function(text, name):
+    """Return the body of a top-level bash function from a script's text."""
+    start = text.index(f"{name}() {{")
+    end = text.index("\n}\n", start)
+    return text[start:end]
+
+
+class TestPhocRecipe(unittest.TestCase):
+    """rc4j: a local phoc that survives the thumbnail crash path."""
+
+    PATCH = "0001-render-skip-surfaces-that-have-no-texture.patch"
+    # sha512 of phoc-0.58.0.tar.xz, downloaded from the recipe's source= URL
+    # and identical to Alpine community/phoc's 0.58.0-r0 APKBUILD.
+    TARBALL_SHA512 = (
+        "8abdf88f5e00c86ce3da54b24ff691cfe1a5cc7cb55bf725714d269473d43748"
+        "15dfb857028abf0a0ecab6a33ca5c350598ae872eb1f220071493f743fa15dcc"
+    )
+
+    def test_recipe_and_patch(self):
+        apkbuild = PHOC / "APKBUILD"
+        text = apkbuild.read_text()
+        self.assertIn("pkgname=phoc", text)
+        self.assertEqual(re.search(r"(?m)^pkgver=(.+)$", text).group(1), "0.58.0")
+        self.assertEqual(re.search(r"(?m)^pkgrel=(.+)$", text).group(1), "100")
+        self.assertEqual("0.58.0-r100", load_checker("phosh").PHOC_VERSION)
+        # The upstream subpackages must stay exactly as Alpine ships them.
+        self.assertIn("\t$pkgname-dbg\n\t$pkgname-doc\n\t$pkgname-lang\n"
+                      "\t$pkgname-schemas::noarch\n", text)
+        self.assertIn("options=\"!check\" # Needs fullblown EGL", text)
+        sums = apkbuild_sums(apkbuild)
+        self.assertIn(self.PATCH, sums)
+        self.assertEqual(hashlib.sha512((PHOC / self.PATCH).read_bytes()).hexdigest(),
+                         sums[self.PATCH])
+        self.assertEqual(sums["phoc-0.58.0.tar.xz"], self.TARBALL_SHA512)
+        self.assertTrue((FLOW / "device/testing/phoc/APKBUILD").is_file(),
+                        "the flow link farm must expose the phoc recipe")
+        self.assertIn('links["main/phoc"] = "device/testing/phoc"', CHECKER.read_text())
+
+    def test_source_and_checksums_are_in_the_same_order(self):
+        text = (PHOC / "APKBUILD").read_text()
+        source = re.search(r'(?m)^source="(.*?)"$', text, re.S).group(1)
+        names = [pathlib.PurePosixPath(line.strip()).name
+                 for line in source.replace("${pkgver/_/.}", "0.58.0").splitlines()
+                 if line.strip()]
+        block = re.search(r'sha512sums="(.*?)"', text, re.S).group(1)
+        entries = [line.split("  ") for line in block.strip().splitlines()]
+        self.assertEqual(names, [name for _, name in entries],
+                         "abuild pairs sha512sums= with source= positionally")
+        for digest, name in entries:
+            self.assertRegex(digest, r"^[0-9a-f]{128}$", name)
+
+    def test_patch_guards_the_render_call(self):
+        patch = (PHOC / self.PATCH).read_text()
+        # Original author attribution is kept in the header.
+        self.assertIn("From: Alexandr Mironov", patch)
+        self.assertIn("phoc 0.56.0", patch)
+        # Refreshed for 0.58.0: -512,6 is the hunk's real position, so the
+        # patch applies with fuzz 0 and no offset.
+        self.assertIn("@@ -512,6 +512,9 @@", patch)
+        body = patch.split("@@", 2)[-1]
+        guard = body.index("+  if (!texture)")
+        self.assertLess(body.index("texture = wlr_surface_get_texture (surface);"), guard)
+        self.assertLess(guard, body.index("phoc_view_get_geometry"))
+        self.assertIn("+    return;", body)
+
+    def test_verify_rejects_a_missing_or_unpatched_compositor(self):
+        clc = load_checker("phosh")
+        # The recorded hash of the unpatched Alpine 0.58.0-r0 binary.
+        self.assertEqual(clc.PHOC_UPSTREAM_SHA256,
+                         "1645e7abf59ca98adf4a0a5652d4044dc7a2bb4f67014e74d918532b18b48245")
+        self.assertIn(clc.PHOC_UPSTREAM_SHA256, (RC4.parents[1] / "docs/NURA_GPU_FAULTS.md").read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            with self.assertRaises(SystemExit):
+                clc.verify_phoc_guard(root)
+            binary = root / "usr/bin/phoc"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"\0local phoc 0.58.0-r100\0")
+            binary.chmod(0o644)
+            with self.assertRaises(SystemExit):
+                clc.verify_phoc_guard(root)
+            binary.chmod(0o755)
+            clc.verify_phoc_guard(root)
+            # A rootfs that still carries the repository build must fail: pin the
+            # recorded hash onto this fixture to exercise that branch.
+            recorded = clc.PHOC_UPSTREAM_SHA256
+            clc.PHOC_UPSTREAM_SHA256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+            try:
+                with self.assertRaises(SystemExit):
+                    clc.verify_phoc_guard(root)
+            finally:
+                clc.PHOC_UPSTREAM_SHA256 = recorded
+
+    def test_flow_builds_and_pins_phoc_for_phosh_only(self):
+        prepare = PREPARE.read_text()
+        self.assertIn('[[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile phoc)', prepare)
+        self.assertIn('[[ "$phoc_version" = 0.58.0-r100 ]]', prepare)
+        self.assertIn('"phoc (null-texture guard): $phoc_version"', prepare)
+        self.assertIn('phoc_args=(--phoc-version "$(package_version phoc)")', prepare)
+        self.assertIn('"${phoc_args[@]}"', prepare)
+        adds = shell_function(prepare, "install_add_string")
+        plasma = adds.split("plasma)", 1)[1].split(";;", 1)[0]
+        phosh = adds.split("phosh)", 1)[1].split(";;", 1)[0]
+        self.assertNotIn("phoc", plasma, "Plasma must not install the local phoc")
+        self.assertIn('"phoc=$phoc_version"', phosh)
+        checker = CHECKER.read_text()
+        # verify only requires the local phoc for phosh (right after gmobile).
+        self.assertIn('required["phoc"] = args.phoc_version or PHOC_VERSION', checker)
+        self.assertGreater(checker.index('required["phoc"]'),
+                           checker.index('required["gmobile"]'))
+        self.assertIn("verify_phoc_guard(rootfs)", checker)
+        self.assertIn("verify.add_argument(\"--phoc-version\")", checker)
+        # prepare_state shadows Alpine's community/phoc for the Phosh UI only.
+        prepare_state = checker.split("def prepare_state(", 1)[1]
+        phosh_links = prepare_state.split('if UI == "phosh":', 1)[1].split(
+            "for relative, target in optional_links", 1)[0]
+        self.assertIn('links["main/phoc"] = "device/testing/phoc"', phosh_links)
 
 
 # --- guacamole-boot-slot: GPT fixture tests ported from omarchy-mobile

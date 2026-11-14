@@ -91,6 +91,31 @@ It applies to our local Phoc 0.58.0 source copy with zero fuzz and a 99-line
 offset. An assertion verified the guard precedes the rendering call. This
 was a source/apply check, not a compile or hardware test.
 
+### rc4j: the guard is now a local recipe (Phosh image only)
+
+Branch `rc4j-phoc` turns that reference patch into a recipe:
+`flows/rc4/device/testing/phoc` is Alpine `community/phoc` 0.58.0-r0 at
+`pkgrel=100` plus
+`0001-render-skip-surfaces-that-have-no-texture.patch` (author attribution
+kept; the 0.56.0 hunk `-413,6` is refreshed to `-512,6`, and it now applies to
+the 0.58.0 tarball with `--fuzz=0` and **no** offset — the 99-line offset above
+is gone). The flow builds it only for `NURA_UI=phosh`, installs
+`phoc=0.58.0-r100`, verifies that package version in the installed rootfs and
+rejects an installed `/usr/bin/phoc` whose SHA256 is the unpatched Alpine
+binary (`1645e7ab…b48245`, the build the crash was symbolized against).
+`abuild`/`meson` were not run, so this is still an unbuilt source recipe; see
+docs/NURA_PHOSH.md §2.1.
+
+**Scope, stated plainly: this prevents the session crash on this path, it does
+not prevent GPU faults.** The kernel still faults, the renderer can still
+corrupt app content and thumbnails, and a surviving but damaged desktop is not
+a repaired GPU. It changes the outcome of the post-fault thumbnail render from
+SIGSEGV to a skipped surface. Phosh is not rebuilt: phoc 0.58.0 builds its
+`libphoc` as a static library linked into the `phoc` executable and installs
+no shared library, so phosh depends on the `phoc` **package** and talks to it
+over Wayland/phosh-private. Our phoc is built after gmobile because its
+`makedepends` include `gmobile-dev`.
+
 ### Scoped sysmem smoke test
 
 Around 11:02:32–11:05:11 UTC, a separate Terminal instance ran with
@@ -119,7 +144,7 @@ made that 60 Hz fixes it.
 
 | Candidate | Evidence / scope | Next-RC decision |
 | --- | --- | --- |
-| Phoc null-texture thumbnail guard | A community patch checks the missing texture before rendering; our symbolized crash uses that exact path. May avoid session death after a reset, while content can remain damaged. | Review and test as a separate recovery fix. Do not claim it prevents GPU faults. |
+| Phoc null-texture thumbnail guard | A community patch checks the missing texture before rendering; our symbolized crash uses that exact path. May avoid session death after a reset, while content can remain damaged. | Local recipe `flows/rc4/device/testing/phoc` (0.58.0-r100) wired into the Phosh image (rc4j); still unbuilt and untested on hardware. It does not prevent GPU faults. |
 | 64 KiB kernel-managed GPU VA alignment | A 9 November report on another A640/SM8150 device describes the same boundary-access pattern and reports fault-free trials after alignment. Our source still uses 4 KiB PAGE_SIZE alignment. | Strongest matching kernel experiment, not an approved default. Preserve PAGE_SIZE fallback on ENOSPC for tight GMU windows. Carried as 0073 for the GL/kernel-managed path; Vulkan/Turnip allocates its own VA and is not covered (see the rc4j section). |
 | `FD_MESA_DEBUG=sysmem` | Supported by our exact Mesa source; GPU-accelerated system-memory rendering. Short app-only smoke test was quiet. | Test whole-session scope before considering a reversible workaround. Measure power/performance rather than assuming no cost. |
 | `FD_MESA_DEBUG=inorder` | Supported by our Mesa source; the external matching reporter says ordered submission suppresses their fault. | Separate diagnostic trial. Never combine with sysmem for the initial comparison. |
@@ -209,7 +234,8 @@ display mode, normal GMEM rendering, and no `sysmem`/`inorder` in either arm:
 4. Test the Phoc guard independently: it should eliminate the demonstrated
    thumbnail SIGSEGV without hiding continued GPU faults. Confirm that app
    content and thumbnails recover; a surviving but corrupted desktop is not
-   complete recovery.
+   complete recovery. The rc4j recipe only makes this testable: the guard was
+   verified to compile into the source patch, not to run on the phone.
 5. Test VA alignment in an isolated kernel build with matching modules,
    normal GMEM enabled and unchanged Mesa/Phoc. Validate GPU/GMU startup,
    suspend/resume and constrained allocations. Use temporary boot first.
@@ -242,7 +268,9 @@ Local private evidence is under `bringup-notes/`:
 - `flicker-review-20261114/`: recent fault logs and DisplayConfig output.
 - `gpu-next-rc/`: runtime identity, symbolized stack, matching debug package,
   the reference Phoc patch and copy-only apply check; SHA256SUMS records
-  relevant artifacts. No reference patch was applied to a build recipe.
+  relevant artifacts. No reference patch was applied to a build recipe there.
+  Branch `rc4j-phoc` now carries the refreshed patch in
+  `flows/rc4/device/testing/phoc` (phoc 0.58.0-r100, Phosh image only).
 
 Raw dumps may contain rendered application data. They remain local; inspect
 before sharing with an upstream report. No issue or message was posted.

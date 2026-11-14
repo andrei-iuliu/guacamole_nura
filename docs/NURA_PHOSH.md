@@ -18,6 +18,7 @@ either UI from the same rc4h kernel and the same device fixes:
 | camera app | `plasma-camera` | `snapshot` (GNOME Snapshot, through PipeWire's libcamera plugin) |
 | graphical package manager | `discover` + `discover-backend-apk` | `gnome-software` + `gnome-software-plugin-apk2` + `gnome-app-provider-gnome-software` |
 | rounded corners | `plasma-mobile-device-presets/{oneplus,guacamole,qcom,sm8150-mtp}.conf` (device package) | patched `gmobile` 0.7.4-r100 with a guacamole display panel |
+| GPU-fault session crash | not addressed | patched `phoc` 0.58.0-r100 with the thumbnail null-texture guard (§2.1) |
 | no idle suspend (candidate policy) | logind drop-in + PowerDevil `AutoSuspendAction=0`; first boot unlocked | the same logind drop-in + gsettings `sleep-inactive-*-type='nothing'`; phrog asks for the password at every boot |
 | default apps removed by the build | none (the image keeps every `_pmb_recommends` entry) | `phosh-tour`, `lpa-gtk`, `vvmplayer`, `decibels` (§4.1) |
 
@@ -64,6 +65,13 @@ commit `286d3b4e`):
   (see §3).
 * `gmobile` 0.7.4-r0 (Alpine `community/gmobile`). The local recipe is the same
   APKBUILD plus one data patch, at pkgrel 100.
+* `phoc` 0.58.0-r0 (Alpine `community/phoc`, aports commit `853ef7ae`). The
+  local recipe is the same APKBUILD plus one render patch, at pkgrel 100 (§2.1).
+  The pinned pmaports has no phoc recipe, so `main/phoc` in the isolated copy is
+  the only recipe that shadows the Alpine binary; phosh depends on the `phoc`
+  **package**, and phoc 0.58.0 installs no shared library (its `libphoc` is
+  static inside the executable), so phosh is not rebuilt. phoc is built after
+  gmobile because it needs `gmobile-dev`.
 
 ## 2. Rounded corners
 
@@ -97,6 +105,45 @@ commit `286d3b4e`):
   tarball (sha512 matches the APKBUILD). With the real gmobile sources and the
   generated GResource, `gm_device_info_get_display_panel()` returns this panel
   for both compatibles: radii 145 ×4, no cutout.
+
+### 2.1 rc4j: Phoc null-texture thumbnail guard (Phosh only)
+
+After a GPU fault/reset the compositor died with SIGSEGV inside
+`view_render_to_buffer_iterator()` (`src/render.c`), reached from
+`thumbnail_frame_handle_copy()` when the overview asks for a window
+thumbnail: `wlr_surface_get_texture()` returned NULL and
+`wlr_render_pass_add_texture()` dereferenced it. That killed phoc and with it
+the whole session (docs/NURA_GPU_FAULTS.md).
+
+`flows/rc4/device/testing/phoc` is Alpine's `community/phoc` 0.58.0-r0 recipe
+at `pkgrel=100` with one added patch:
+`0001-render-skip-surfaces-that-have-no-texture.patch` (Alexandr Mironov,
+written for 0.56.0 on a POCO X3 Pro; the hunk is refreshed from `-413,6` to
+`-512,6` for 0.58.0, so it applies with `--fuzz=0` and no offset). The guard
+is three lines, placed directly after the texture lookup and before the
+render call:
+
+```c
+  texture = wlr_surface_get_texture (surface);
++  if (!texture)
++    return;
++
+  phoc_view_get_geometry (data->view, &geo);
+```
+
+The flow builds it only for Phosh (`ui_builds+=(gmobile phoc)`), refuses any
+other version (`0.58.0-r100`), installs it as `phoc=0.58.0-r100` next to
+`gmobile=…` so `/etc/apk/world` keeps it, and verifies two things in the
+installed rootfs: the `phoc` package version is `0.58.0-r100`, and
+`/usr/bin/phoc` is **not** the unpatched Alpine binary (SHA256
+`1645e7ab…b48245`, the build the crash was symbolized against).
+
+**Scope: this prevents the session crash on this path, not the GPU faults.**
+Kernel GPU faults, renderer corruption and damaged app content remain; a
+session that survives with a corrupted desktop is not a repaired GPU. The
+Plasma image does not build or install this phoc (KWin is its compositor).
+Verified offline only: checksums, `patch -p1 --fuzz=0`, hunks and the flow
+wiring. No abuild/meson build and no hardware test was done here.
 
 ## 3. A/B slot marker (both UIs)
 
@@ -305,7 +352,7 @@ kernel/device/firmware pins and `discover-backend-apk`.
 ## 6. Verification done (rootless)
 
 * `bash -n` on every changed shell script.
-* `flows/rc4/tests/test_rc4_ui_variants.py` (new, 30 tests, 29 pass and one
+* `flows/rc4/tests/test_rc4_ui_variants.py` (new, 35 tests, 34 pass and one
   pre-existing skip) covers:
   * the release label for each UI, and refusal of an unknown UI;
   * a dry run of a copy of the entrypoint, showing that Phosh uses
@@ -325,6 +372,14 @@ kernel/device/firmware pins and `discover-backend-apk`.
   * the device-package wiring and sha512sums;
   * the gmobile patch content and checksum;
   * the GPT fixture tests ported from omarchy.
+* rc4j (§2.1), added after that run: the phoc recipe's `source=`/
+  `sha512sums=` pairing, its patch sha512 and the upstream tar.xz sha512
+  (`8abdf88f…a15dcc`, re-downloaded from `sources.phosh.mobi`), the guard's
+  position before the render call, the Phosh-only build/pin wiring and the
+  `verify_phoc_guard()` refusals. The patch was applied for real to an
+  extracted phoc-0.58.0 tarball with `patch -p1 --fuzz=0`: no fuzz, no offset.
+  No abuild/meson build (neither `abuild` nor `meson` exists on the host) and
+  nothing on the phone.
 * The world-pin check fails on the current Plasma rootfs tree (bare
   `device-oneplus-guacamole`), as expected.
 * The plasma-mobile UI recipe edit is byte-for-byte the code it replaced.
@@ -340,6 +395,9 @@ kernel/device/firmware pins and `discover-backend-apk`.
   and their exclusive dependencies);
 * the `rc4.sh shutdown` command against real pmbootstrap mounts;
 * the `gmobile` abuild `check()`;
+* the `phoc` abuild build (its `-Dembed-wlroots` subproject) and the patched
+  compositor on the hardware: the guard was not exercised against a real GPU
+  fault, so it is expected but not measured to keep the session alive;
 * apk resolution of the Phosh package set;
 * Phosh on the hardware (display, corner padding, audio, cameras, GNOME
   Software installs);

@@ -252,6 +252,10 @@ def main():
           "flow: device package ships the A/B slot marker and the Plasma corner preset")
     check((farm / "gmobile/APKBUILD").is_file(),
           "flow: link farm carries the patched gmobile (Phosh corner geometry)")
+    phoc_apk = read(farm / "phoc/APKBUILD")
+    check(re.search(r"^pkgrel=100$", phoc_apk, re.M) is not None and
+          "0001-render-skip-surfaces-that-have-no-texture.patch" in phoc_apk,
+          "flow: link farm carries the patched phoc (thumbnail null-texture guard)")
     krn_apk = read(farm / "linux-postmarketos-qcom-sm8150/APKBUILD")
     check(re.search(r"^pkgrel=5$", krn_apk, re.M) is not None,
           "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 pkgrel 5")

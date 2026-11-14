@@ -60,7 +60,9 @@ bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
 and keeps every path above. `phosh` writes `.work/local-userdata-phosh/`
 and `build/local-userdata-phosh/`, labels the candidate `nura-phosh-rc4`, and
 also builds the patched `gmobile` (`device/testing/gmobile`, guacamole
-display panel). See `docs/NURA_PHOSH.md`.
+display panel) and `phoc` (`device/testing/phoc`, thumbnail null-texture
+guard; it survives the post-GPU-fault crash path but does not prevent GPU
+faults). See `docs/NURA_PHOSH.md`.
 
 `--authorized-key` is optional but must be an absolute path to a **public** key;
 private key material is refused by `check_local_candidate.py`. Without it the
@@ -96,6 +98,7 @@ flows/rc4/local-storage/
       device-oneplus-guacamole            -> flows/rc4/device/testing/... (rc4, pkgrel 16)
       linux-postmarketos-qcom-sm8150      -> flows/rc4/device/testing/... (rc4 recipe)
       gmobile                             -> flows/rc4/device/testing/... (Phosh only)
+      phoc                                -> flows/rc4/device/testing/... (Phosh only)
       firmware-oneplus-guacamole, hexagonrpcd, iio-sensor-proxy, nura-clock,
       rc3, rear-camera                    -> flows/local-storage/device/testing/... (read-only)
 ```

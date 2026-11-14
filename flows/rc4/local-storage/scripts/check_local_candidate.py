@@ -134,6 +134,15 @@ GMOBILE_PANEL_MARKERS = (
     b"qcom,sm8150-mtp.json",
     b'"name":"OnePlus 7 Pro","x-res":1440,"y-res":3120,"corner-radii":[145,145,145,145]',
 )
+# Phosh only: phoc rebuilt with the null-texture thumbnail guard
+# (flows/rc4/device/testing/phoc).  The compositor is a separate process, so
+# only its binary changes; phosh depends on the `phoc` package and links no
+# library from it, so phosh is not rebuilt.
+PHOC_VERSION = "0.58.0-r100"
+# SHA256 of the unpatched Alpine phoc-0.58.0-r0 /usr/bin/phoc (symbolized
+# against phoc-dbg-0.58.0-r0, docs/NURA_GPU_FAULTS.md).  An installed binary
+# with this hash is the repository build without the guard.
+PHOC_UPSTREAM_SHA256 = "1645e7abf59ca98adf4a0a5652d4044dc7a2bb4f67014e74d918532b18b48245"
 LOCK_ON_START = False
 KERNEL_RECIPE = "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"
 KERNEL_STATE = SOURCE_ROOT / "flows/rc4/build-source/kernel-state"
@@ -944,6 +953,10 @@ def prepare_state(args: argparse.Namespace) -> dict:
     if UI == "phosh":
         # Patched gmobile (guacamole display panel); Phosh image only.
         links["main/gmobile"] = "device/testing/gmobile"
+        # Patched phoc (null-texture thumbnail guard); Phosh image only.  The
+        # pinned pmaports carries no phoc recipe, so this is the only recipe
+        # that shadows Alpine's community/phoc binary.
+        links["main/phoc"] = "device/testing/phoc"
     for relative, target in optional_links.items():
         if (ROOT / target / "APKBUILD").is_file():
             links[relative] = target
@@ -1252,6 +1265,27 @@ def verify_phosh_camera_and_panel(rootfs: Path) -> None:
                 "is the patched gmobile installed?")
 
 
+def verify_phoc_guard(rootfs: Path) -> None:
+    """The installed compositor must be the local 0.58.0-r100 build.
+
+    The package version check above proves which APK was selected; this
+    catches the other half, a rootfs that still carries the repository
+    binary (the one that SIGSEGVs in the thumbnail iterator).
+    """
+    binary = rootfs / "usr/bin/phoc"
+    if binary.is_symlink() or not binary.is_file():
+        die(f"installed Phosh compositor has no executable: {binary}")
+    if not binary.stat().st_mode & 0o111:
+        die(f"installed Phosh compositor is not executable: {binary}")
+    if digest(binary) == PHOC_UPSTREAM_SHA256:
+        die(
+            f"installed {binary} is the unpatched Alpine 0.58.0-r0 binary "
+            f"({PHOC_UPSTREAM_SHA256}); the thumbnail null-texture guard is missing. "
+            f"Build and install the local {PHOC_VERSION} recipe "
+            "(flows/rc4/device/testing/phoc)"
+        )
+
+
 def verify_installed(args: argparse.Namespace) -> dict:
     release = validate_release(args.release, "installed rootfs")
     kernel_dir = Path(args.kernel_dir).resolve()
@@ -1304,6 +1338,7 @@ def verify_installed(args: argparse.Namespace) -> dict:
         verify_plasma_policy(rootfs)
     else:
         verify_phosh_policy(rootfs)
+        verify_phoc_guard(rootfs)
     packages = installed_packages(rootfs)
     # Fail instead of shipping a default app the UI profile excludes.
     verify_excluded_packages(packages)
@@ -1330,6 +1365,7 @@ def verify_installed(args: argparse.Namespace) -> dict:
         required[CAMERA_APP] = None
         required["greetd-phrog"] = None
         required["gmobile"] = args.gmobile_version or GMOBILE_VERSION
+        required["phoc"] = args.phoc_version or PHOC_VERSION
     if args.modemmanager_version:
         required["modemmanager"] = args.modemmanager_version
         # The recipe builds aarch64 modemmanager/libmm-glib plus noarch
@@ -1420,6 +1456,7 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "libcamera_version": packages["libcamera"].get("V"),
         "powerdevil_version": packages.get("powerdevil", {}).get("V"),
         "gmobile_version": packages.get("gmobile", {}).get("V") if UI == "phosh" else None,
+        "phoc_version": packages.get("phoc", {}).get("V") if UI == "phosh" else None,
         "modemmanager_version": packages.get("modemmanager", {}).get("V"),
         "libmm_glib_version": packages.get("libmm-glib", {}).get("V"),
         "nura_clock_version": packages.get("nura-clock", {}).get("V"),
@@ -2016,6 +2053,7 @@ def check_candidate(args: argparse.Namespace) -> dict:
             device_version=None,
             firmware_version=None,
             gmobile_version=None,
+            phoc_version=None,
             modemmanager_version=apks["modemmanager"]["version"],
             libmm_glib_version=apks["libmm-glib"]["version"],
             nura_clock_version=apks.get("nura-clock", {}).get("version"),
@@ -2281,6 +2319,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--device-version")
     verify.add_argument("--firmware-version")
     verify.add_argument("--gmobile-version")
+    verify.add_argument("--phoc-version")
     verify.add_argument("--modemmanager-version")
     verify.add_argument("--libmm-glib-version")
     verify.add_argument("--nura-clock-version")
