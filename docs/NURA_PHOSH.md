@@ -25,7 +25,8 @@ either UI from the same rc4h kernel and the same device fixes:
 The two UIs share:
 
 * the rc4h kernel APK, the guarded netboot hook, `libcamera-rear`, the
-  system libcamera 0.8 pins, ModemManager, `nura-clock`;
+  system libcamera 0.8 pins, ModemManager, `nura-clock`, and the SSC sensor
+  fix (`iio-sensor-proxy` 3.9-r100 + `libssc` 0.4.4-r100, below);
 * the device package `device-oneplus-guacamole` **4-r16**, which adds the A/B
   slot marker (§3) and the Plasma corner preset;
 * **`/etc/apk/world` pins** `linux-postmarketos-qcom-sm8150=<ver>`,
@@ -523,50 +524,41 @@ To collect debug logs again, change both `info` values in that drop-in to
 `systemctl --user log-level debug` for the running managers. The persistent
 journal, `nura-boot-diagnostics` and `nura-gpu-crash-capture` are unchanged.
 
-## Known issue: iio-sensor-proxy spins one core after Mobile Settings -> Sensors
+## SSC sensor fix: iio-sensor-proxy 3.9-r100 + libssc 0.4.4-r100 (both UIs)
 
 Opening Phosh Mobile Settings and switching to its **Sensors** page claims
-every SSC sensor at once. With iio-sensor-proxy 3.9-r2 + libssc 0.4.4-r0 the
-daemon's main thread then sits at about 100 % of one core (measured on the
-phone: ~7100 s CPU in ~2.4 h, stable over five `gdb` samples) and stays
-there; accelerometer, light and proximity keep reporting and
-`CompassHeading` stays 0.0. Restarting the daemon clears it:
+every SSC sensor at once. With the Alpine builds (iio-sensor-proxy 3.9-r2,
+libssc 0.4.4-r0) that took the daemon's main thread to 100 % of one core and
+kept it there (~7100 s CPU in ~2.4 h, stable over five `gdb` samples); a
+restart was the only fix. The SSC drivers called libssc's synchronous
+`ssc_sensor_*_open_sync()` from the D-Bus `Claim*()` handler, and libssc's
+wait iterates the *shared* default main context without blocking, so the next
+pending `Claim*()` call was dispatched inside the first claim's wait and the
+loop burned a core. The full analysis, the phone backtrace and the disassembly
+of the shipped libssc helper are in `flows/rc4/topics/sensors/`.
+
+Both images now build two local `pkgrel 100` recipes and pin them:
+**iio-sensor-proxy 3.9-r100** (the four SSC drivers enable/disable their
+sensors through libssc's async API; `-systemd` and `-udev` are pinned to the
+same version) and **libssc 0.4.4-r100** (the remaining synchronous wait
+blocks instead of spinning). `libssc` is built before the daemon, both are
+pinned in `/etc/apk/world`, and `check_local_candidate.py verify` fails if the
+installed `/usr/libexec/iio-sensor-proxy` still imports
+`ssc_sensor_*_open_sync` or any package of the pair is not r100.
+
+Verify on the phone: open Mobile Settings -> Sensors and check that
+`iio-sensor-proxy` stays at ~0-3 % CPU (it used to sit at ~100 %):
 
 ```sh
-sudo systemctl restart iio-sensor-proxy
-```
-
-Root cause (backtrace, shipped-library disassembly and the full analysis in
-`flows/rc4/topics/sensors/`): the SSC drivers call libssc's
-`ssc_sensor_*_open_sync()` from the D-Bus `Claim*()` method handler, and
-libssc implements that wait as `g_main_context_iteration(default, FALSE)` on
-the *shared* main context - a non-blocking poll that dispatches every ready
-source. The wait therefore runs the next pending `Claim*()` call re-entrantly
-(inside the first claim's wait), the two opens wait for each other, and the
-loop burns a core. libssc completes an enable only when the SSC
-configuration-update or first-measurement indication arrives, and 0.4.4 has
-no timeout, so the nested open never returns.
-
-The fix is prepared but **not wired into the image**:
-`flows/rc4/topics/sensors/recipe/` holds two local recipes
-(iio-sensor-proxy 3.9-r100, which enables/disables the four SSC sensors
-through libssc's async API instead of the sync helpers; libssc 0.4.4-r100,
-which makes the remaining sync wait block), and the README there lists the
-exact wiring steps, the checks that were run and what is still unverified.
-Until then: avoid opening the Sensors page, or restart the daemon after it
-was used.
-
-Check whether the daemon is spinning, and from which point:
-
-```sh
-systemctl status iio-sensor-proxy --no-pager | head -5      # CPU time climbing
 top -b -n1 -p "$(systemctl show -p MainPID --value iio-sensor-proxy)"
-journalctl -u iio-sensor-proxy -b --no-pager | tail -20     # last SSC line before the spin
+journalctl -u iio-sensor-proxy -b --no-pager | tail -20   # SSC "Discovery"/"Configuration updated"
 ```
 
-Nothing in the device package changes for this: the issue lives in the two
-upstream packages, and an always-on watchdog (timer + `systemctl restart`)
-was considered and dropped as too brittle for a bug with an identified fix.
+Repeat with the page closed and re-opened a few times (claim/release cycles);
+the compass heading should be non-zero while the page is open. Nothing in the
+device package changes for this: the fix lives in the two upstream packages,
+and an always-on watchdog (timer + `systemctl restart`) was considered and
+dropped as too brittle for a bug with an identified fix.
 
 ## Updating safely with nura-upgrade (device package 4-r20)
 

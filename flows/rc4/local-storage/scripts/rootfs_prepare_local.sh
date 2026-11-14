@@ -1279,6 +1279,7 @@ PY
 install_add_string() {
     local kernel_version="$1" hook_version="$2" libcamera_version="$3" ui_version="$4"
     local device_version="$5" firmware_version="$6" gmobile_version="${7:-}" phoc_version="${8:-}"
+    local iio_sensor_proxy_version="${9:-}" libssc_version="${10:-}"
     # Shared by both UIs.  The kernel, device and firmware entries carry their
     # exact built version, so /etc/apk/world pins them (as was done by hand on
     # the phone) and a plain `apk upgrade` cannot swap in repository builds.
@@ -1289,6 +1290,16 @@ install_add_string() {
         "postmarketos-mkinitfs-hook-netboot=$hook_version"
         "libcamera-rear=$libcamera_version"
         "$UI_PKG=$ui_version"
+        # Both UIs: the device package depends on iio-sensor-proxy, so both
+        # images carry the local r100 daemon (SSC claim fix) and its
+        # blocking-wait libssc.  The daemon's -systemd unit and -udev FastRPC
+        # rule come from the same APKBUILD, so they are pinned to the same
+        # version: an r2 subpackage next to the r100 daemon starts the wrong
+        # binary or none at all.
+        "libssc=$libssc_version"
+        "iio-sensor-proxy=$iio_sensor_proxy_version"
+        "iio-sensor-proxy-systemd=$iio_sensor_proxy_version"
+        "iio-sensor-proxy-udev=$iio_sensor_proxy_version"
     )
     case "$NURA_UI" in
         plasma)
@@ -1405,8 +1416,11 @@ run_pmbootstrap_builds() {
     # phoc rebuilt with the null-texture thumbnail guard.  gmobile is built
     # first because phoc's makedepends include gmobile-dev.
     [[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile phoc)
-    for package in firmware-oneplus-guacamole device-oneplus-guacamole hexagonrpcd \
-        iio-sensor-proxy "${ui_builds[@]}" modemmanager; do
+    # Both UIs: libssc is built before iio-sensor-proxy because the daemon's
+    # makedepends include libssc-dev (the gmobile-before-phoc rule), and the
+    # daemon carries the SSC claim fix that both images need.
+    for package in firmware-oneplus-guacamole device-oneplus-guacamole libssc \
+        hexagonrpcd iio-sensor-proxy "${ui_builds[@]}" modemmanager; do
         "${PMB[@]}" build --arch aarch64 --ignore-depends --no-depends --force "$package"
     done
     build_optional_recipe main/nura-clock nura-clock
@@ -1468,12 +1482,23 @@ run_install() {
     )
     local kernel_version hook_version libcamera_version ui_version add expected_hook_version
     local device_version firmware_version gmobile_version="" phoc_version=""
+    local iio_sensor_proxy_version="" libssc_version=""
     kernel_version="$(package_version "$KERNEL_PKG")"
     hook_version="$(package_version postmarketos-mkinitfs-hook-netboot)"
     libcamera_version="$(package_version libcamera-rear)"
     ui_version="$(package_version "$UI_PKG")"
     device_version="$(package_version device-oneplus-guacamole)"
     firmware_version="$(package_version firmware-oneplus-guacamole)"
+    # Both UIs: the SSC claim fix (iio-sensor-proxy) and the blocking sync wait
+    # its libssc counterpart needs.  These are local pkgrel-100 recipes, so the
+    # versions must be the reviewed ones; the world pins below keep apk from
+    # replacing them with the Alpine community builds.
+    iio_sensor_proxy_version="$(package_version iio-sensor-proxy)"
+    [[ "$iio_sensor_proxy_version" = 3.9-r100 ]] ||
+        die "refusing iio-sensor-proxy version $iio_sensor_proxy_version (expected the local 3.9-r100 with the async SSC claim path)"
+    libssc_version="$(package_version libssc)"
+    [[ "$libssc_version" = 0.4.4-r100 ]] ||
+        die "refusing libssc version $libssc_version (expected the local 0.4.4-r100 with the blocking sync wait)"
     if [[ "$NURA_UI" = phosh ]]; then
         gmobile_version="$(package_version gmobile)"
         [[ "$gmobile_version" = 0.7.4-r100 ]] ||
@@ -1504,7 +1529,8 @@ run_install() {
         die "libmm-glib $LIMM_GLIB_VERSION does not match modemmanager $MODEM_VERSION"
     [[ "$device_version" == 4-r* ]] || die "refusing device-oneplus-guacamole version $device_version"
     add="$(install_add_string "$kernel_version" "$hook_version" "$libcamera_version" "$ui_version" \
-        "$device_version" "$firmware_version" "$gmobile_version" "$phoc_version")"
+        "$device_version" "$firmware_version" "$gmobile_version" "$phoc_version" \
+        "$iio_sensor_proxy_version" "$libssc_version")"
     note "kernel: $kernel_version (release $RELEASE)"
     note "device/firmware: $device_version / $firmware_version (pinned in /etc/apk/world)"
     note "netboot hook: $hook_version"
@@ -1512,6 +1538,7 @@ run_install() {
     note "$UI_LABEL UI: $ui_version"
     [[ -z "$gmobile_version" ]] || note "gmobile (guacamole panel): $gmobile_version"
     [[ -z "$phoc_version" ]] || note "phoc (null-texture guard): $phoc_version"
+    note "iio-sensor-proxy: $iio_sensor_proxy_version (async SSC claim path); libssc: $libssc_version (blocking sync wait)"
     note "modemmanager: $MODEM_VERSION (libmm-glib $LIMM_GLIB_VERSION)"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "nura-clock: $NURA_CLOCK_VERSION"
     # pmbootstrap reuses chroot_rootfs_* and only adds packages, so a rootfs
@@ -1578,10 +1605,15 @@ run_export() {
 verify_installed() {
     local ui_version="$1"
     local rootfs="$WORK/chroot_rootfs_oneplus-guacamole"
-    local -a clock_args=() gmobile_args=() phoc_args=()
+    local -a clock_args=() gmobile_args=() phoc_args=() sensor_args=()
     [[ -z "$NURA_CLOCK_VERSION" ]] || clock_args=(--nura-clock-version "$NURA_CLOCK_VERSION")
     [[ "$NURA_UI" != phosh ]] || gmobile_args=(--gmobile-version "$(package_version gmobile)")
     [[ "$NURA_UI" != phosh ]] || phoc_args=(--phoc-version "$(package_version phoc)")
+    # Both UIs: the r100 daemon and its libssc, plus the binary marker check in
+    # check_local_candidate.py (the daemon must import the async *_finish()
+    # symbols and none of the *_open_sync() ones).
+    sensor_args=(--iio-sensor-proxy-version "$(package_version iio-sensor-proxy)"
+                 --libssc-version "$(package_version libssc)")
     python3 "$ROOT/scripts/check_local_candidate.py" verify \
         --release "$RELEASE" \
         --kernel-dir "$KERNEL_OUT/kernel-package" \
@@ -1598,12 +1630,14 @@ verify_installed() {
         --firmware-version "$(package_version firmware-oneplus-guacamole)" \
         "${gmobile_args[@]}" \
         "${phoc_args[@]}" \
+        "${sensor_args[@]}" \
         --modemmanager-version "$MODEM_VERSION" \
         --libmm-glib-version "$LIMM_GLIB_VERSION" \
         "${clock_args[@]}" > "$TMP/installed.json" ||
         die "installed $UI_LABEL rootfs failed identity checks"
     note "installed rc4 kernel/DTB/modules/rootfs-initramfs: OK"
-    note "kernel/device/firmware pinned to exact versions in /etc/apk/world: OK"
+    note "kernel/device/firmware/iio-sensor-proxy/libssc pinned to exact versions in /etc/apk/world: OK"
+    note "installed iio-sensor-proxy $(package_version iio-sensor-proxy) (async SSC claim path) and libssc $(package_version libssc): OK"
     if [[ "$NURA_UI" = plasma ]]; then
         note "installed Plasma UI, Camera, Discover+apk, system libcamera 0.8, PulseAudio, PowerDevil: OK"
     else

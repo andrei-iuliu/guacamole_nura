@@ -1,12 +1,13 @@
 # rc4 topic: iio-sensor-proxy spins one CPU core after Mobile Settings -> Sensors
 
-Status: **root cause identified, fix prepared as two local recipes, not built,
-not wired into the image, not tested on the phone.**  The only files this
-topic changes outside `flows/rc4/topics/sensors/` are one section in
-`docs/NURA_PHOSH.md` and `flows/rc4/tests/test_rc4_sensor_ssc_fix.py`; the
-device package is untouched (no pkgrel bump - the always-on watchdog
-mitigation from the first draft was dropped after review, see "Why not a
-watchdog").
+Status: **root cause identified; the fix is wired into both images** as two
+local recipes in `flows/rc4/device/testing/` (iio-sensor-proxy 3.9-r100,
+libssc 0.4.4-r100) with the same plumbing the patched `phoc` has: recipe
+links in the flow, version pins in the install list and `/etc/apk/world`,
+a build-order rule and an installed-rootfs marker check.  **Not built and
+not yet tested on a phone** (no build runs here).  The device package is
+untouched - no pkgrel bump; the always-on watchdog mitigation from the first
+draft was dropped after review, see "Why not a watchdog".
 
 Reporter's symptom (phone, Phosh, 2026-11-14, device package 4-r19,
 iio-sensor-proxy 3.9-r2, libssc 0.4.4-r0, hexagonrpcd 0.4.0-r3):
@@ -164,10 +165,11 @@ one-minute experiments on the phone discriminate, and neither changes the fix:
 ## Fix
 
 Two local recipes, `pkgrel 100`, both against the exact versions that are on
-the phone.  The first is the fix; the second bounds the CPU cost of the
-synchronous calls that remain.
+the phone and now both in `flows/rc4/device/testing/`.  The first is the fix;
+the second bounds the CPU cost of the synchronous calls that remain.  The
+wiring is described in "How it is wired" below.
 
-### `recipe/iio-sensor-proxy/` - the fix (iio-sensor-proxy 3.9-r100)
+### `flows/rc4/device/testing/iio-sensor-proxy/` - the fix (3.9-r100)
 
 `0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch` replaces the
 four `ssc_sensor_*_open_sync()/_close_sync()` calls in the drivers'
@@ -211,7 +213,7 @@ libssc 0.4.4 can return `FALSE` with a `NULL` `GError` (fixed upstream after
 0.4.4, `f54187c`), and the old inline `g_warning(... error->message)` would
 then dereference NULL - the crash in libssc issue #125.
 
-### `recipe/libssc/` - the CPU bound (libssc 0.4.4-r100)
+### `flows/rc4/device/testing/libssc/` - the CPU bound (0.4.4-r100)
 
 `0001-libssc-common-block-in-the-sync-wait.patch` changes the one
 `g_main_context_iteration(..., FALSE)` in `ssc_common_wait_sync_context()` to
@@ -314,60 +316,67 @@ Not verified, and why:
   task and no build may run here), so there is no `meson compile`/`meson
   test` evidence;
 * the patched daemon was not run on the phone, so the claim path with real
-  SSC hardware is untested - including the two experiments above;
-* nothing was wired into the image (see next section).
+  SSC hardware is untested - including the two experiments above.
 
-## How to wire it (not done here)
+The wiring below adds its own checks, which do run here:
 
-The coordinator asked for the fix to be wired only if it is small and clearly
-correct.  The code change is small and compile-checked, but the only proof
-that it fixes a DSP-side claim needs the phone, and a wrong daemon patch would
-take the sensors out of a daily-use image, so this topic stops at a tested
-recipe.  Wiring is mechanical; most of it already exists for
-iio-sensor-proxy on this branch:
+```
+$ PYTHONPATH=flows/rc4/local-storage/scripts python3 -m unittest flows.rc4.tests.test_rc4_sensor_ssc_fix
+Ran 21 tests ... OK          # recipe content, patch hunks, links, pins, build order, marker check
+$ bash flows/rc4/scripts/rc4.sh check
+63 checks, 5 failed          # the 5 pre-existing kernel-recipe/label failures; both new checks PASS
+```
 
-1. **iio-sensor-proxy (the fix):** copy `recipe/iio-sensor-proxy/` to
-   `flows/rc4/device/testing/iio-sensor-proxy/` (APKBUILD + patch, the way
-   `device/testing/gmobile` keeps its patch beside its recipe).  The flow
-   already expects that directory: `check_local_candidate.py:944` maps
-   `main/iio-sensor-proxy` to `device/testing/iio-sensor-proxy` and
-   `rootfs_prepare_local.sh:1409` already builds `iio-sensor-proxy` for both
-   UIs, so the recipe alone wires it.  (On this branch the older
-   `flows/rc4/local-storage/device/testing/iio-sensor-proxy` link still points
-   at `flows/local-storage/...`; repoint it at the new recipe like `gmobile`
-   does, or drop it.)
-2. **libssc (the CPU bound):** copy `recipe/libssc/` to
-   `flows/rc4/device/testing/libssc/`, then add it to the flow:
-   * `check_local_candidate.py`, `prepare_state()` next to
-     `links["main/iio-sensor-proxy"]` (line 944):
-     `links["main/libssc"] = "device/testing/libssc"`;
-   * `rootfs_prepare_local.sh:1408-1411`: add `libssc` to the package loop
-     **before** `iio-sensor-proxy` (it is a makedepend of the daemon).
-3. **Keep the versions from drifting:** add
-   `IIO_SENSOR_PROXY_VERSION = "3.9-r100"` and `LIBSSC_VERSION = "0.4.4-r100"`
-   next to `GMOBILE_VERSION`/`PHOC_VERSION` (`check_local_candidate.py:130`),
-   feed them into the installed-version check (line 1367) and the manifest
-   (line 1458), extend the world pins in `rootfs_prepare_local.sh` (around
-   line 1314) and add the same guards as the `phoc 0.58.0-r100` one (line
-   1482), so apk cannot silently keep a repository build.
-4. **Prove the right binary is installed:** add a
-   `verify_sensor_drivers()` next to `verify_phoc_guard()`
-   (`check_local_candidate.py:1268`) that fails unless
-   `/usr/libexec/iio-sensor-proxy` imports `ssc_sensor_light_open` /
-   `ssc_sensor_proximity_open` and **not** `ssc_sensor_light_open_sync` /
-   `ssc_sensor_proximity_open_sync` (`objdump -T` on the installed binary; the
-   sync symbols are exported by libssc, the async ones by the daemon, so the
-   difference is unambiguous).
-5. **Docs/tests:** `flows/rc4/tests/test_rc4_sensor_ssc_fix.py` already pins
-   the recipe content; extend it (and `test_rc4_integration.py`) with the two
-   link-farm entries and the version guards when the recipes move, and drop
-   the "not wired" wording here.
-6. **On the phone:** rebuild the image, open Mobile Settings -> Sensors, and
-   watch `top -p $(systemctl show -p MainPID --value iio-sensor-proxy)` stay
-   at a few percent, with `journalctl -u iio-sensor-proxy` showing the SSC
-   "Discovery"/"Configuration updated" lines.  Repeat with the page closed
-   and re-opened several times (claim/release cycles), then check the compass
-   reports (`CompassHeading` != 0) while the page is open.
+## How it is wired
+
+The two recipes live in `flows/rc4/device/testing/` and are wired exactly like
+the patched `phoc` (Phosh-only) and `gmobile`:
+
+1. **Recipes:** `flows/rc4/device/testing/iio-sensor-proxy/` (3.9-r100, the
+   claim fix) and `flows/rc4/device/testing/libssc/` (0.4.4-r100, the blocking
+   wait), each with its patch beside its APKBUILD.
+2. **Recipe farm:** `flows/rc4/local-storage/device/testing/iio-sensor-proxy`
+   and `.../libssc` are symlinks to those recipes (the iio-sensor-proxy link
+   used to point at the rc3-era `flows/local-storage` tree).
+3. **pmaports links** (`check_local_candidate.py`, `prepare_state()`):
+   `links["main/libssc"]` and `links["main/iio-sensor-proxy"]`, libssc first
+   because the daemon's makedepends include libssc-dev.  The pinned pmaports
+   carries neither recipe and Alpine's `community/` builds are shadowed by
+   these `main/` entries, so nothing else can win.
+4. **Build order** (`rootfs_prepare_local.sh`): both are in the *shared*
+   package loop (not in the Phosh-only `ui_builds`, because the device package
+   depends on iio-sensor-proxy on Plasma too), with `libssc` immediately
+   before `iio-sensor-proxy` so the daemon builds against the local library.
+5. **Pins:** `install_add_string()` adds `libssc=$libssc_version`,
+   `iio-sensor-proxy=$iio_sensor_proxy_version` and the two subpackages
+   `iio-sensor-proxy-systemd` / `iio-sensor-proxy-udev` at the same r100 for
+   both UIs, so apk cannot mix an r2 unit/udev rule with the r100 daemon; the
+   two main packages are added to `WORLD_PINNED` and verified in
+   `/etc/apk/world` like the kernel/device/firmware.
+6. **Guards:** `run_install()` refuses any `iio-sensor-proxy` that is not
+   `3.9-r100` and any `libssc` that is not `0.4.4-r100`, the same way it
+   refuses a `phoc` that is not `0.58.0-r100`.
+7. **Installed-rootfs proof:** `verify_sensor_drivers()` in
+   `check_local_candidate.py` requires the daemon at
+   `/usr/libexec/iio-sensor-proxy` and inspects its dynamic symbol names:
+   no `ssc_sensor_*_open_sync` (the Alpine r2 claim path) and all
+   `ssc_sensor_*_open_finish`/`_close_finish` (the patched async path).
+   `*_close_sync` stays imported by `discover()` in both builds, so it is not
+   a marker.  The apk-db check requires the daemon, its two subpackages and
+   libssc at r100, and rejects any `iio-sensor-proxy-*`/`libssc-*` at another
+   version.
+8. **Tests:** `flows/rc4/tests/test_rc4_sensor_ssc_fix.py` pins the recipe
+   contents, the patch hunks, the linking/pinning/build order and the
+   `verify_sensor_drivers()` behaviour; `flows/rc4/scripts/check_recipe.py`
+   (run by `rc4.sh check`) now also asserts that the link farm carries both
+   r100 recipes.
+
+On the phone: rebuild the image, open Mobile Settings -> Sensors, and watch
+`top -p $(systemctl show -p MainPID --value iio-sensor-proxy)` stay at a few
+percent (0-3 %), with `journalctl -u iio-sensor-proxy` showing the SSC
+"Discovery"/"Configuration updated" lines.  Repeat with the page closed and
+re-opened several times (claim/release cycles), then check the compass reports
+(`CompassHeading` != 0) while the page is open.
 
 ## Files
 
@@ -376,10 +385,15 @@ README.md                                        this file
 evidence/iio-bt-20261114.txt                     five gdb samples from the phone (coordinator)
 evidence/libssc-0.4.4-r0-wait-loop.txt           shipped libssc wait loop: source, disassembly, address maths
 evidence/upstream.md                             release/issue/commit state of libssc + iio-sensor-proxy
-recipe/iio-sensor-proxy/APKBUILD                  3.9-r100 (fix), source= + sha512sums in order
-recipe/iio-sensor-proxy/0001-*.patch             async enable/disable in the four SSC drivers
-recipe/libssc/APKBUILD                           0.4.4-r100 (CPU bound)
-recipe/libssc/0001-*.patch                       may_block=TRUE in ssc_common_wait_sync_context()
 checks/verify.sh                                 sums + zero-fuzz apply + compile, reproducible
 checks/RESULTS.md                                the commands and outputs above, with dates
+```
+
+The recipes themselves are wired into the image and live outside this topic:
+
+```
+flows/rc4/device/testing/iio-sensor-proxy/APKBUILD   3.9-r100 (the fix)
+flows/rc4/device/testing/iio-sensor-proxy/0001-*.patch
+flows/rc4/device/testing/libssc/APKBUILD             0.4.4-r100 (the CPU bound)
+flows/rc4/device/testing/libssc/0001-*.patch
 ```

@@ -215,9 +215,13 @@ def rootfs_with(tmp, world, versions):
 
 
 class TestWorldPins(unittest.TestCase):
+    # The rc4j images pin the two SSC sensor recipes next to the kernel, the
+    # device and the firmware package: the sensor fix lives in those builds.
     VERSIONS = {"linux-postmarketos-qcom-sm8150": "7.0.0_p1-r0",
                 "device-oneplus-guacamole": "4-r16",
-                "firmware-oneplus-guacamole": "1-r7"}
+                "firmware-oneplus-guacamole": "1-r7",
+                "iio-sensor-proxy": "3.9-r100",
+                "libssc": "0.4.4-r100"}
 
     def test_exact_pins_pass(self):
         clc = load_checker("plasma")
@@ -232,7 +236,8 @@ class TestWorldPins(unittest.TestCase):
         clc = load_checker("phosh")
         with tempfile.TemporaryDirectory() as tmp:
             world = ["linux-postmarketos-qcom-sm8150=7.0.0_p1-r0", "device-oneplus-guacamole",
-                     "firmware-oneplus-guacamole=1-r7"]
+                     "firmware-oneplus-guacamole=1-r7",
+                     "iio-sensor-proxy=3.9-r100", "libssc=0.4.4-r100"]
             root = rootfs_with(tmp, world, self.VERSIONS)
             with self.assertRaises(SystemExit):
                 clc.verify_world_pins(root, clc.installed_packages(root), {})

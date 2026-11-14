@@ -123,9 +123,12 @@ NBD_PORT = 10001
 PROFILE = UI_PROFILE["profile"]
 # Packages pinned to their exact built version in /etc/apk/world on both UIs
 # (the kernel pin already existed; device and firmware were pinned by hand on
-# the phone before).
+# the phone before).  iio-sensor-proxy and libssc are added here by the r100
+# local recipes: the SSC claim fix and its blocking-wait companion live in
+# those two packages, so a plain `apk upgrade` must not swap them for the
+# repository builds.
 WORLD_PINNED = ("linux-postmarketos-qcom-sm8150", "device-oneplus-guacamole",
-                "firmware-oneplus-guacamole")
+                "firmware-oneplus-guacamole", "iio-sensor-proxy", "libssc")
 # Phosh only: gmobile rebuilt with the guacamole display panel compiled in
 # (flows/rc4/device/testing/gmobile).  phosh and phoc link libgmobile.so.0.
 GMOBILE_VERSION = "0.7.4-r100"
@@ -143,6 +146,35 @@ PHOC_VERSION = "0.58.0-r100"
 # against phoc-dbg-0.58.0-r0, docs/NURA_GPU_FAULTS.md).  An installed binary
 # with this hash is the repository build without the guard.
 PHOC_UPSTREAM_SHA256 = "1645e7abf59ca98adf4a0a5652d4044dc7a2bb4f67014e74d918532b18b48245"
+# Both UIs: iio-sensor-proxy rebuilt with the SSC claim fix
+# (flows/rc4/device/testing/iio-sensor-proxy) and libssc rebuilt with the
+# blocking synchronous wait (flows/rc4/device/testing/libssc).  The device
+# package depends on iio-sensor-proxy, which depends on libssc, so both images
+# install them; Alpine community ships 3.9-r2 / 0.4.4-r0, and the r100 builds
+# are what /etc/apk/world pins.  libssc is listed first because the daemon's
+# makedepends include libssc-dev.
+LIBSSC_VERSION = "0.4.4-r100"
+IIO_SENSOR_PROXY_VERSION = "3.9-r100"
+# Packages apk installs next to the daemon from the same APKBUILD (the unit
+# and the FastRPC udev rule); they must come from the same r100 build, so
+# they are pinned in the install list as well.
+IIO_SENSOR_PROXY_SUBPACKAGES = ("iio-sensor-proxy", "iio-sensor-proxy-systemd",
+                               "iio-sensor-proxy-udev")
+# /usr/libexec/iio-sensor-proxy imports these from libssc when the SSC drivers
+# serve claims through the synchronous helper (Alpine 3.9-r2) and these when
+# they use the async claim path (the local 3.9-r100).  The dynamic symbol table
+# is plain ASCII, so the installed binary itself is the marker.  Only
+# *_open_sync is a marker: the *_close_sync() pair is still used by the
+# drivers' discover() step, which the patch deliberately leaves synchronous.
+IIO_SENSOR_PROXY_SYNC_SYMBOLS = tuple(
+    f"ssc_sensor_{sensor}_open_sync"
+    for sensor in ("light", "proximity", "accelerometer", "compass")
+)
+IIO_SENSOR_PROXY_ASYNC_SYMBOLS = tuple(
+    f"ssc_sensor_{sensor}_{operation}"
+    for sensor in ("light", "proximity", "accelerometer", "compass")
+    for operation in ("open_finish", "close_finish")
+)
 LOCK_ON_START = False
 KERNEL_RECIPE = "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"
 KERNEL_STATE = SOURCE_ROOT / "flows/rc4/build-source/kernel-state"
@@ -941,6 +973,13 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
         "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
         "main/hexagonrpcd": "device/testing/hexagonrpcd",
+        # Both UIs: the SSC claim fix (iio-sensor-proxy 3.9-r100) and its
+        # blocking-wait companion (libssc 0.4.4-r100).  The pinned pmaports
+        # carries neither recipe and Alpine's community/ builds are shadowed
+        # by these two main/ entries.  libssc goes first: the daemon's
+        # makedepends include libssc-dev, and pmbootstrap builds it before
+        # iio-sensor-proxy (rootfs_prepare_local.sh).
+        "main/libssc": "device/testing/libssc",
         "main/iio-sensor-proxy": "device/testing/iio-sensor-proxy",
         "main/postmarketos-mkinitfs-hook-netboot":
             "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot",
@@ -1286,6 +1325,37 @@ def verify_phoc_guard(rootfs: Path) -> None:
         )
 
 
+def verify_sensor_drivers(rootfs: Path) -> None:
+    """The installed daemon must be the local 3.9-r100 build.
+
+    The package version checks prove which APKs were selected; this catches
+    the other half, a rootfs that still carries the Alpine 3.9-r2 daemon,
+    which calls libssc's synchronous open helper from the D-Bus Claim*()
+    handler (the 100 % CPU / stalled-claim bug, docs/NURA_PHOSH.md).
+    """
+    binary = rootfs / "usr/libexec/iio-sensor-proxy"
+    if binary.is_symlink() or not binary.is_file():
+        die(f"installed iio-sensor-proxy has no daemon: {binary}")
+    if not binary.stat().st_mode & 0o111:
+        die(f"installed iio-sensor-proxy daemon is not executable: {binary}")
+    data = binary.read_bytes()
+    for symbol in IIO_SENSOR_PROXY_SYNC_SYMBOLS:
+        if symbol.encode() in data:
+            die(
+                f"installed {binary} still imports {symbol}(); its SSC claim path "
+                f"is the synchronous one that spins a CPU core. Build and install "
+                f"the local {IIO_SENSOR_PROXY_VERSION} recipe "
+                "(flows/rc4/device/testing/iio-sensor-proxy)"
+            )
+    for symbol in IIO_SENSOR_PROXY_ASYNC_SYMBOLS:
+        if symbol.encode() not in data:
+            die(
+                f"installed {binary} does not import {symbol}(); it is not the "
+                f"local {IIO_SENSOR_PROXY_VERSION} build "
+                "(flows/rc4/device/testing/iio-sensor-proxy)"
+            )
+
+
 def verify_installed(args: argparse.Namespace) -> dict:
     release = validate_release(args.release, "installed rootfs")
     kernel_dir = Path(args.kernel_dir).resolve()
@@ -1334,6 +1404,9 @@ def verify_installed(args: argparse.Namespace) -> dict:
         hook_text = hook.read_text(encoding="utf-8")
         if "pmos\\.root=/dev/nbd" not in hook_text or "exit 0" not in hook_text:
             die(f"installed local rootfs hook lacks the local-root guard: {hook}")
+    # Shared by both UIs: the device package depends on iio-sensor-proxy, and
+    # the daemon's SSC claim path is the patched (async) one.
+    verify_sensor_drivers(rootfs)
     if UI == "plasma":
         verify_plasma_policy(rootfs)
     else:
@@ -1356,6 +1429,13 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "postmarketos-base-ui-audio-backend-pulseaudio": None,
         "systemd": None,
     }
+    # Both UIs: the SSC claim fix (daemon + unit + FastRPC rule from one r100
+    # APKBUILD) and its blocking-wait companion.  The device package pulls
+    # iio-sensor-proxy in on both images, so these are unconditional.
+    iio_version = args.iio_sensor_proxy_version or IIO_SENSOR_PROXY_VERSION
+    for name in IIO_SENSOR_PROXY_SUBPACKAGES:
+        required[name] = iio_version
+    required["libssc"] = args.libssc_version or LIBSSC_VERSION
     for name in UI_PROFILE["app_store"]:
         required[name] = None
     if UI == "plasma":
@@ -1382,6 +1462,17 @@ def verify_installed(args: argparse.Namespace) -> dict:
             die(f"installed rootfs is missing {name}")
         if version is not None and packages[name].get("V") != version:
             die(f"installed {name} is {packages[name].get('V')!r}, expected {version}")
+    # Subpackages are rebuilt with their parent, so a mixed set (r2 subpackage
+    # next to the r100 main package, or the reverse) is broken even when both
+    # main versions check out.  This covers any -systemd/-udev/-pyc/-dbg that
+    # happens to be installed.
+    for name, fields in packages.items():
+        for package, want in {"iio-sensor-proxy": iio_version,
+                              "libssc": args.libssc_version or LIBSSC_VERSION}.items():
+            if name == package or name.startswith(package + "-"):
+                if fields.get("V") != want:
+                    die(f"installed {name} is {fields.get('V')!r}, expected {want}; "
+                        f"the rootfs mixes repository and local sensor packages")
     for forbidden in UI_PROFILE["forbidden"]:
         if forbidden in packages:
             die(f"installed rootfs unexpectedly contains {forbidden}")
@@ -1389,6 +1480,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "linux-postmarketos-qcom-sm8150": args.kernel_version,
         "device-oneplus-guacamole": args.device_version,
         "firmware-oneplus-guacamole": args.firmware_version,
+        "iio-sensor-proxy": iio_version,
+        "libssc": args.libssc_version or LIBSSC_VERSION,
     })
     # KWin/phoc start Xwayland on demand; without it PulseAudio's X11
     # integration can stall the server and Qt camera startup.
@@ -1457,6 +1550,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "powerdevil_version": packages.get("powerdevil", {}).get("V"),
         "gmobile_version": packages.get("gmobile", {}).get("V") if UI == "phosh" else None,
         "phoc_version": packages.get("phoc", {}).get("V") if UI == "phosh" else None,
+        "iio_sensor_proxy_version": packages.get("iio-sensor-proxy", {}).get("V"),
+        "libssc_version": packages.get("libssc", {}).get("V"),
         "modemmanager_version": packages.get("modemmanager", {}).get("V"),
         "libmm_glib_version": packages.get("libmm-glib", {}).get("V"),
         "nura_clock_version": packages.get("nura-clock", {}).get("V"),
@@ -2054,6 +2149,8 @@ def check_candidate(args: argparse.Namespace) -> dict:
             firmware_version=None,
             gmobile_version=None,
             phoc_version=None,
+            iio_sensor_proxy_version=None,
+            libssc_version=None,
             modemmanager_version=apks["modemmanager"]["version"],
             libmm_glib_version=apks["libmm-glib"]["version"],
             nura_clock_version=apks.get("nura-clock", {}).get("version"),
@@ -2320,6 +2417,8 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--firmware-version")
     verify.add_argument("--gmobile-version")
     verify.add_argument("--phoc-version")
+    verify.add_argument("--iio-sensor-proxy-version")
+    verify.add_argument("--libssc-version")
     verify.add_argument("--modemmanager-version")
     verify.add_argument("--libmm-glib-version")
     verify.add_argument("--nura-clock-version")

@@ -1,5 +1,6 @@
 #!/bin/sh
-# Verify the two sensor recipes without building a package:
+# Verify the two sensor recipes (flows/rc4/device/testing/{iio-sensor-proxy,
+# libssc}) without building a package:
 #
 #   1. download the upstream tarballs the recipes name,
 #   2. check every sha512sum of the recipe (tarball + local patch) against
@@ -26,7 +27,7 @@ sums_of() {
 }
 
 # --- iio-sensor-proxy -----------------------------------------------------
-recipe="$here/recipe/iio-sensor-proxy"
+recipe="$here/../../device/testing/iio-sensor-proxy"
 dir="$work/iio-sensor-proxy"
 src="$dir/iio-sensor-proxy-3.9"
 rm -rf "$dir"
@@ -44,7 +45,7 @@ echo "== iio-sensor-proxy: apply with -F0 (zero fuzz)"
 (cd "$src" && patch -p1 -F0 < "$dir/0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch")
 
 # --- libssc ---------------------------------------------------------------
-recipe="$here/recipe/libssc"
+recipe="$here/../../device/testing/libssc"
 dir="$work/libssc"
 ssc_src="$dir/libssc"
 rm -rf "$dir"
