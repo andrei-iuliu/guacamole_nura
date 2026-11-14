@@ -1,0 +1,92 @@
+libssc 0.4.4-r0: what the shipped sync wait loop does
+=====================================================
+
+Package: libssc 0.4.4-r0 (Alpine edge community, aarch64), the exact apk
+version on the phone.  APKINDEX entry (taken 2026-11-14):
+
+    P:libssc
+    V:0.4.4-r0
+    A:aarch64
+    S:42054
+    I:260688
+    U:https://codeberg.org/DylanVanAssche/libssc
+    D:python3~3.14 so:libc.musl-aarch64.so.1 so:libgio-2.0.so.0
+      so:libglib-2.0.so.0 so:libgobject-2.0.so.0 so:libprotobuf-c.so.1
+      so:libqmi-glib.so.5 so:libqrtr-glib.so.0
+
+Source (git tag v0.4.4, codeberg.org/DylanVanAssche/libssc),
+src/libssc-common.c:51-60:
+
+    void
+    ssc_common_wait_sync_context (SyncContext *ctx) {
+            g_mutex_lock (&ctx->mutex);
+            while (!ctx->finished) {
+                    g_mutex_unlock (&ctx->mutex);
+                    g_main_context_iteration (g_main_context_default (), FALSE);
+                    g_mutex_lock (&ctx->mutex);
+            }
+            g_mutex_unlock (&ctx->mutex);
+    }
+
+The disassembly of the *shipped* library agrees (the function is not
+exported, so it has no name in the stripped .so; it is the body the
+backtrace's return address points into):
+
+    $ curl -fsSL https://dl-cdn.alpinelinux.org/alpine/edge/community/aarch64/libssc-0.4.4-r0.apk
+    $ tar -xzf libssc-0.4.4-r0.apk            # ./usr/lib/libssc.so.2
+    $ llvm-objdump -d --no-show-raw-insn \
+          --start-address=0x47c8 --stop-address=0x4810 usr/lib/libssc.so.2
+
+    47c8:  stp  x29, x30, [sp, #-0x20]!
+    47cc:  mov  x29, sp
+    47d0:  str  x19, [sp, #0x10]
+    47d4:  mov  x19, x0                  ; ctx
+    47d8:  bl   g_mutex_lock@plt         ; while (1) {
+    47dc:  ldr  w0, [x19, #0x20]         ;   ctx->finished
+    47e0:  cbz  w0, 0x47f4               ;   if (!finished) goto wait
+    47e4:  mov  x0, x19                  ;   else: unlock and return
+    47e8:  ldr  x19, [sp, #0x10]
+    47ec:  ldp  x29, x30, [sp], #0x20
+    47f0:  b    g_mutex_unlock@plt
+    47f4:  mov  x0, x19
+    47f8:  bl   g_mutex_unlock@plt
+    47fc:  bl   g_main_context_default@plt
+    4800:  mov  w1, #0x0                 ; may_block = FALSE  <-- busy poll
+    4804:  bl   g_main_context_iteration@plt
+    4808:  mov  x0, x19                  ; <-- return address in the backtrace
+    480c:  b    0x47d8                   ; }
+
+With may_block=FALSE, g_main_context_iteration() runs
+g_main_context_prepare/query/poll/dispatch with a 0 ms poll timeout.  Every
+iteration that does not complete the awaited async operation returns
+immediately, so the loop is a busy wait: 100 % of one core, and the only
+syscall in it is ppoll(2) with a zero timeout (which is why /proc/PID/io
+syscr/syscw do not move: ppoll is not a read or a write).
+
+Mapping the hardware backtrace onto this function
+-------------------------------------------------
+gdb printed the helper as `libssc+0x1c808` and
+`ssc_sensor_light_open_sync` as 0xffff8b0213f0.  The library's page-aligned
+load base is 0xffff8b018000, not 0xffff8b00000000:
+
+    ssc_sensor_light_open_sync (file offset 0x9394, from the .dynsym of
+    libssc.so.2) is entered at base + 0x9394 .. 0x9444; the backtrace's
+    0xffff8b0213f0 - 0xffff8b018000 = 0x93f0 lies inside that range, so
+
+    base = 0xffff8b018000
+    helper return address 0xffff8b01c808 - base = 0x4808   (see 4808 above)
+
+i.e. the spinning frame is exactly ssc_common_wait_sync_context(), in the
+`g_main_context_iteration(g_main_context_default(), FALSE)` loop.  The
+`+0x1c808` in the raw gdb output is relative to 0xffff8b00000000, which is
+not the load base.
+
+Consequence
+-----------
+Any synchronous libssc call (ssc_sensor_*_new_sync/_open_sync/_close_sync)
+that does not complete within the current main-context iteration - a sensor
+enable whose DSP configuration response is late or missing, a discovery of a
+sensor the DSP does not answer for - burns a whole CPU core until it does
+complete.  There is no timeout in this loop, and 0.4.4 has no wall-clock
+timeout on sensor discovery either (upstream added one after 0.4.4, see
+evidence/upstream.md).

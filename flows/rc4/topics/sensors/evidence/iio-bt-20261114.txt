@@ -1,0 +1,403 @@
+pid 22693 Sat Nov 14 13:17:25 UTC 2026
+=== sample 0
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+[Switching to thread 1 (LWP 22693)]
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+28	in src/thread/aarch64/syscall_cp.s
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+No locals.
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+        self = <optimized out>
+        r = <optimized out>
+        st = <optimized out>
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+        s = <optimized out>
+        ns = <optimized out>
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+        drv_data = 0xffff8a289c10
+        error = 0x0
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_LIGHT
+        error = 0x0
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+        drv_data = 0xffff8a180ae0
+        error = 0x0
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_PROXIMITY
+        error = 0x0
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+        data = 0xffff8ac3bad0
+        option_context = 0xffff8ac6c300
+        error = 0x0
+        verbose = 0
+        replace = 0
+        options = {{long_name = 0xaaaaaf57dadd "verbose", short_name = 118 'v', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd259085c, description = 0xaaaaaf57dae5 "Show extra debugging information", arg_description = 0x0}, {long_name = 0xaaaaaf57db06 "replace", short_name = 114 'r', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd2590858, description = 0xaaaaaf57db0e "Replace the running instance of iio-sensor-proxy", arg_description = 0x0}, {long_name = 0x0, short_name = 0 '\000', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0x0, description = 0x0, arg_description = 0x0}}
+        ret = <optimized out>
+[Inferior 1 (process 22693) detached]
+=== sample 1
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+[Switching to thread 1 (LWP 22693)]
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+28	in src/thread/aarch64/syscall_cp.s
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+No locals.
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+        self = <optimized out>
+        r = <optimized out>
+        st = <optimized out>
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+        s = <optimized out>
+        ns = <optimized out>
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+        drv_data = 0xffff8a289c10
+        error = 0x0
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_LIGHT
+        error = 0x0
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+        drv_data = 0xffff8a180ae0
+        error = 0x0
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_PROXIMITY
+        error = 0x0
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+        data = 0xffff8ac3bad0
+        option_context = 0xffff8ac6c300
+        error = 0x0
+        verbose = 0
+        replace = 0
+        options = {{long_name = 0xaaaaaf57dadd "verbose", short_name = 118 'v', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd259085c, description = 0xaaaaaf57dae5 "Show extra debugging information", arg_description = 0x0}, {long_name = 0xaaaaaf57db06 "replace", short_name = 114 'r', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd2590858, description = 0xaaaaaf57db0e "Replace the running instance of iio-sensor-proxy", arg_description = 0x0}, {long_name = 0x0, short_name = 0 '\000', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0x0, description = 0x0, arg_description = 0x0}}
+        ret = <optimized out>
+[Inferior 1 (process 22693) detached]
+=== sample 2
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+[Switching to thread 1 (LWP 22693)]
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+28	in src/thread/aarch64/syscall_cp.s
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+No locals.
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+        self = <optimized out>
+        r = <optimized out>
+        st = <optimized out>
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+        s = <optimized out>
+        ns = <optimized out>
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+        drv_data = 0xffff8a289c10
+        error = 0x0
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_LIGHT
+        error = 0x0
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+        drv_data = 0xffff8a180ae0
+        error = 0x0
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_PROXIMITY
+        error = 0x0
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+        data = 0xffff8ac3bad0
+        option_context = 0xffff8ac6c300
+        error = 0x0
+        verbose = 0
+        replace = 0
+        options = {{long_name = 0xaaaaaf57dadd "verbose", short_name = 118 'v', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd259085c, description = 0xaaaaaf57dae5 "Show extra debugging information", arg_description = 0x0}, {long_name = 0xaaaaaf57db06 "replace", short_name = 114 'r', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd2590858, description = 0xaaaaaf57db0e "Replace the running instance of iio-sensor-proxy", arg_description = 0x0}, {long_name = 0x0, short_name = 0 '\000', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0x0, description = 0x0, arg_description = 0x0}}
+        ret = <optimized out>
+[Inferior 1 (process 22693) detached]
+=== sample 3
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+[Switching to thread 1 (LWP 22693)]
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+28	in src/thread/aarch64/syscall_cp.s
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+No locals.
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+        self = <optimized out>
+        r = <optimized out>
+        st = <optimized out>
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+        s = <optimized out>
+        ns = <optimized out>
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+        drv_data = 0xffff8a289c10
+        error = 0x0
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_LIGHT
+        error = 0x0
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+        drv_data = 0xffff8a180ae0
+        error = 0x0
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_PROXIMITY
+        error = 0x0
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+        data = 0xffff8ac3bad0
+        option_context = 0xffff8ac6c300
+        error = 0x0
+        verbose = 0
+        replace = 0
+        options = {{long_name = 0xaaaaaf57dadd "verbose", short_name = 118 'v', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd259085c, description = 0xaaaaaf57dae5 "Show extra debugging information", arg_description = 0x0}, {long_name = 0xaaaaaf57db06 "replace", short_name = 114 'r', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd2590858, description = 0xaaaaaf57db0e "Replace the running instance of iio-sensor-proxy", arg_description = 0x0}, {long_name = 0x0, short_name = 0 '\000', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0x0, description = 0x0, arg_description = 0x0}}
+        ret = <optimized out>
+[Inferior 1 (process 22693) detached]
+=== sample 4
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+[Switching to thread 1 (LWP 22693)]
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+28	in src/thread/aarch64/syscall_cp.s
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+No locals.
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+        self = <optimized out>
+        r = <optimized out>
+        st = <optimized out>
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+        s = <optimized out>
+        ns = <optimized out>
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+        drv_data = 0xffff8a289c10
+        error = 0x0
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_LIGHT
+        error = 0x0
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+No symbol table info available.
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+No symbol table info available.
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+        drv_data = 0xffff8a180ae0
+        error = 0x0
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+        data = 0xffff8ac3bad0
+        driver_type = DRIVER_TYPE_PROXIMITY
+        error = 0x0
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+No symbol table info available.
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+No symbol table info available.
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+        data = 0xffff8ac3bad0
+        option_context = 0xffff8ac6c300
+        error = 0x0
+        verbose = 0
+        replace = 0
+        options = {{long_name = 0xaaaaaf57dadd "verbose", short_name = 118 'v', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd259085c, description = 0xaaaaaf57dae5 "Show extra debugging information", arg_description = 0x0}, {long_name = 0xaaaaaf57db06 "replace", short_name = 114 'r', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0xffffd2590858, description = 0xaaaaaf57db0e "Replace the running instance of iio-sensor-proxy", arg_description = 0x0}, {long_name = 0x0, short_name = 0 '\000', flags = 0, arg = G_OPTION_ARG_NONE, arg_data = 0x0, description = 0x0, arg_description = 0x0}}
+        ret = <optimized out>
+[Inferior 1 (process 22693) detached]
+=== all threads
+[New LWP 22698]
+[New LWP 22696]
+[New LWP 22695]
+__syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+
+warning: 28	src/thread/aarch64/syscall_cp.s: No such file or directory
+
+Thread 4 (LWP 22695 "pool-spawner"):
+#0  __syscall6 (n=<optimized out>, a=<optimized out>, b=<optimized out>, c=<optimized out>, d=<optimized out>, e=<optimized out>, f=<optimized out>) at ./arch/aarch64/syscall_arch.h:71
+#1  syscall (n=98) at src/misc/syscall.c:20
+#2  0x0000ffff8ad1ac94 in g_cond_wait () from target:/lib/libglib-2.0.so.0
+#3  0x0000ffff8acb095c in ?? () from target:/lib/libglib-2.0.so.0
+#4  0x0000ffff8ad1b938 in ?? () from target:/lib/libglib-2.0.so.0
+#5  0x0000ffff8ad1b58c in ?? () from target:/lib/libglib-2.0.so.0
+#6  0x0000ffff8b15f8d4 in start (p=0xffff8a32e990) at src/thread/pthread_create.c:207
+#7  0x0000ffff8b15dccc in __clone () at src/thread/aarch64/clone.s:29
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+
+Thread 3 (LWP 22696 "gmain"):
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+#5  0x0000ffff8ace9bec in ?? () from target:/lib/libglib-2.0.so.0
+#6  0x0000ffff8ad1b58c in ?? () from target:/lib/libglib-2.0.so.0
+#7  0x0000ffff8b15f8d4 in start (p=0xffff8a30b990) at src/thread/pthread_create.c:207
+#8  0x0000ffff8b15dccc in __clone () at src/thread/aarch64/clone.s:29
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+
+Thread 2 (LWP 22698 "gdbus"):
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+#4  0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+#5  0x0000ffff8af2c340 in ?? () from target:/lib/libgio-2.0.so.0
+#6  0x0000ffff8ad1b58c in ?? () from target:/lib/libglib-2.0.so.0
+#7  0x0000ffff8b15f8d4 in start (p=0xffff8a2c5990) at src/thread/pthread_create.c:207
+#8  0x0000ffff8b15dccc in __clone () at src/thread/aarch64/clone.s:29
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+
+Thread 1 (LWP 22693 "iio-sensor-prox"):
+#0  __syscall_cp_asm () at src/thread/aarch64/syscall_cp.s:28
+#1  0x0000ffff8b15e8f4 in __syscall_cp_c (nr=<optimized out>, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=<optimized out>, z=<optimized out>) at src/thread/pthread_cancel.c:33
+#2  0x0000ffff8b14eaac in ppoll (fds=<optimized out>, n=<optimized out>, to=<optimized out>, mask=<optimized out>) at src/select/ppoll.c:24
+#3  0x0000ffff8ace9300 in ?? () from target:/lib/libglib-2.0.so.0
+#4  0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+#5  0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+#6  0x0000ffff8b0213f0 in ssc_sensor_light_open_sync () from target:/lib/libssc.so.2
+#7  0x0000aaaaaf57b5d4 in ssc_light_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-light.c:94
+#8  0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171b20 ":1.336", object_path=0xffff8a2d2c50 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a171b30 "ClaimLight", parameters=<optimized out>, invocation=0xffff8a1796c0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+#9  0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+#10 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+#11 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+#12 0x0000ffff8ace9b94 in g_main_context_iteration () from target:/lib/libglib-2.0.so.0
+#13 0x0000ffff8b01c808 in ?? () from target:/lib/libssc.so.2
+#14 0x0000ffff8b020eb0 in ssc_sensor_proximity_open_sync () from target:/lib/libssc.so.2
+#15 0x0000aaaaaf57b35c in ssc_proximity_set_polling (sensor_device=<optimized out>, state=<optimized out>) at ../src/drv-ssc-proximity.c:97
+#16 0x0000aaaaaf575704 in handle_method_call (connection=<optimized out>, sender=0xffff8a171830 ":1.336", object_path=0xffff8a2d3840 "/net/hadess/SensorProxy", interface_name=<optimized out>, method_name=0xffff8a2d3880 "ClaimProximity", parameters=<optimized out>, invocation=0xffff8a1791f0, user_data=0xffff8ac3bad0) at ../src/iio-sensor-proxy.c:594
+#17 0x0000ffff8af1a25c in ?? () from target:/lib/libgio-2.0.so.0
+#18 0x0000ffff8ace57ac in ?? () from target:/lib/libglib-2.0.so.0
+#19 0x0000ffff8ace9270 in ?? () from target:/lib/libglib-2.0.so.0
+#20 0x0000ffff8ace9e70 in g_main_loop_run () from target:/lib/libglib-2.0.so.0
+#21 0x0000aaaaaf5740b4 in main (argc=<optimized out>, argv=<optimized out>) at ../src/iio-sensor-proxy.c:1182
+[Inferior 1 (process 22693) detached]

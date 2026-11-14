@@ -522,3 +522,49 @@ To collect debug logs again, change both `info` values in that drop-in to
 `debug`, reboot, or use `sudo systemctl log-level debug` and
 `systemctl --user log-level debug` for the running managers. The persistent
 journal, `nura-boot-diagnostics` and `nura-gpu-crash-capture` are unchanged.
+
+## Known issue: iio-sensor-proxy spins one core after Mobile Settings -> Sensors (device package 4-r19)
+
+Opening Phosh Mobile Settings and switching to its **Sensors** page claims
+every SSC sensor at once. With iio-sensor-proxy 3.9-r2 + libssc 0.4.4-r0 the
+daemon's main thread then sits at about 100 % of one core (measured on the
+phone: ~7100 s CPU in ~2.4 h, stable over five `gdb` samples) and stays
+there; accelerometer, light and proximity keep reporting and
+`CompassHeading` stays 0.0. Restarting the daemon clears it:
+
+```sh
+sudo systemctl restart iio-sensor-proxy
+```
+
+Root cause (backtrace, shipped-library disassembly and the full analysis in
+`flows/rc4/topics/sensors/`): the SSC drivers call libssc's
+`ssc_sensor_*_open_sync()` from the D-Bus `Claim*()` method handler, and
+libssc implements that wait as `g_main_context_iteration(default, FALSE)` on
+the *shared* main context - a non-blocking poll that dispatches every ready
+source. The wait therefore runs the next pending `Claim*()` call re-entrantly
+(inside the first claim's wait), the two opens wait for each other, and the
+loop burns a core. libssc completes an enable only when the SSC
+configuration-update or first-measurement indication arrives, and 0.4.4 has
+no timeout, so the nested open never returns.
+
+The fix is prepared but **not wired into the image**:
+`flows/rc4/topics/sensors/recipe/` holds two local recipes
+(iio-sensor-proxy 3.9-r100, which enables/disables the four SSC sensors
+through libssc's async API instead of the sync helpers; libssc 0.4.4-r100,
+which makes the remaining sync wait block), and the README there lists the
+exact wiring steps, the checks that were run and what is still unverified.
+Until then: avoid opening the Sensors page, or restart the daemon after it
+was used.
+
+Check whether the daemon is spinning, and from which point:
+
+```sh
+systemctl status iio-sensor-proxy --no-pager | head -5      # CPU time climbing
+top -b -n1 -p "$(systemctl show -p MainPID --value iio-sensor-proxy)"
+journalctl -u iio-sensor-proxy -b --no-pager | tail -20     # last SSC line before the spin
+```
+
+Nothing in the device package changes for this: the issue lives in the two
+upstream packages, and an always-on watchdog (timer + `systemctl restart`)
+was considered and dropped as too brittle for a bug with an identified fix.
+

@@ -1,0 +1,21 @@
+diff --git a/src/libssc-common.c b/src/libssc-common.c
+index 3648f47..2ea5b69 100644
+--- a/src/libssc-common.c
++++ b/src/libssc-common.c
+@@ -53,7 +53,15 @@ ssc_common_wait_sync_context (SyncContext *ctx) {
+ 	g_mutex_lock (&ctx->mutex);
+ 	while (!ctx->finished) {
+ 		g_mutex_unlock (&ctx->mutex);
+-		g_main_context_iteration (g_main_context_default (), FALSE);
++		/*
++		 * Block until a source of the main context is ready.  Passing
++		 * may_block=FALSE here turns this loop into a busy wait: the
++		 * poll() has a 0 ms timeout, so every async operation that does
++		 * not complete within the current iteration (an SSC sensor
++		 * open/close waiting for the DSP's configuration response, for
++		 * example) burns a whole CPU core for as long as it takes.
++		 */
++		g_main_context_iteration (g_main_context_default (), TRUE);
+ 		g_mutex_lock (&ctx->mutex);
+ 	}
+ 	g_mutex_unlock (&ctx->mutex);
