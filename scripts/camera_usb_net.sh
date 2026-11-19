@@ -27,8 +27,9 @@ ADDR=172.16.42.2/24
 PEER=172.16.42.1
 SYSFS=${NURA_SYSFS_ROOT:-/sys}
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-STATE_DIR=${NURA_STATE_DIR:-$ROOT/.work/delivery}
-STATE_FILE=$STATE_DIR/usb-net.state
+PROFILE=${NURA_PROFILE:-rear-camera}
+STATE_DIR=
+STATE_FILE=
 
 COMMAND=
 IFACE_ARG=${NURA_USB_IFACE:-}
@@ -49,6 +50,7 @@ Commands:
 Options:
   --iface NAME     use NAME instead of auto-detection (default: $NURA_USB_IFACE)
   --timeout SECS   wait timeout, never infinite (default: 180)
+  --profile NAME   state profile: rear-camera (default) or plasma-mobile
   --dry-run        print the privileged commands without running them
   -h, --help       show this help
 
@@ -62,6 +64,25 @@ die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*" >&2; }
 warn() { printf 'WARN  %s\n' "$*" >&2; }
 pass() { printf 'PASS  %s\n' "$*" >&2; }
+
+# Keep the default ownership record exactly where it always was.  Plasma must
+# not remove or claim an address recorded by the working Phosh session.
+configure_profile() {
+    local delivery
+    case $PROFILE in
+        rear-camera) delivery=delivery ;;
+        plasma-mobile) delivery=delivery-plasma-mobile ;;
+        *) die "unknown profile '$PROFILE' (use rear-camera or plasma-mobile)" ;;
+    esac
+    STATE_DIR=${NURA_STATE_DIR:-$ROOT/.work/$delivery}
+    STATE_FILE=$STATE_DIR/usb-net.state
+    if [[ $PROFILE == plasma-mobile ]]; then
+        case "$(readlink -m -- "$STATE_DIR")/" in
+            "$ROOT/.work/delivery/"*)
+                die "plasma-mobile must not share Phosh USB state: $STATE_DIR" ;;
+        esac
+    fi
+}
 
 is_usb_driver() {
     case "$1" in
@@ -349,6 +370,7 @@ parse_args() {
         case $1 in
             --iface) [[ $# -ge 2 ]] || die "--iface needs a value"; IFACE_ARG=$2; shift ;;
             --timeout) [[ $# -ge 2 ]] || die "--timeout needs a value"; TIMEOUT=$2; shift ;;
+            --profile) [[ $# -ge 2 ]] || die "--profile needs a value"; PROFILE=$2; shift ;;
             --dry-run) DRY_RUN=1 ;;
             -h|--help) usage; exit 0 ;;
             *) die "unknown argument: $1 (try --help)" ;;
@@ -360,6 +382,7 @@ parse_args() {
 
 main() {
     parse_args "$@"
+    configure_profile
     if [[ -n $IFACE_ARG && $COMMAND != wait ]] && ! iface_exists "$IFACE_ARG"; then
         die "no such interface: $IFACE_ARG (from --iface or NURA_USB_IFACE)"
     fi

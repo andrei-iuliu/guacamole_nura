@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Serve the *current* rear-camera rootfs over NBD on the candidate port.
+# Serve the selected candidate rootfs (default rear-camera) over NBD on the
+# candidate port; plasma-mobile uses isolated state and output paths.
 #
 # The candidate owns port 10001 and its own pmbootstrap work directory. The
 # working baseline (port 9999/10000) is only ever inspected, never stopped,
@@ -9,7 +10,7 @@
 # <work>/images_netboot/<device>.img silently unless it is missing or
 # --replace is passed, which served a pre-fix rootfs (8920-byte
 # i2c-qcom-cci.ko.zst) instead of the fixed one (8950 bytes). It:
-#   1. reads build/rear-camera/DELIVERY.json and prints the identity,
+#   1. reads the selected profile's DELIVERY.json and prints the identity,
 #   2. reads the chroot rootfs image (GPT 4K + debugfs, read-only) and proves
 #      it carries release 7.0.0-sm8150-rear1, exactly one module tree, the
 #      build's manifest CCI module, the manifest DTB and the port-10001 hook,
@@ -23,8 +24,8 @@
 #      exposure is still the same inode; it never re-hashes a whole image after
 #      the phone can write to it through NBD.
 #
-# The expected i2c-qcom-cci sha256/size comes from build/rear-camera/DELIVERY.json
-# for every build; no single binary hash is baked into this script.
+# The expected i2c-qcom-cci sha256/size comes from the selected profile's
+# DELIVERY.json for every build; no single binary hash is baked into this script.
 #
 #   scripts/camera_serve.sh --check          # validate only, no server
 #   scripts/camera_serve.sh                 # serve on 10001 (auto refresh)
@@ -33,27 +34,35 @@ set -Eeuo pipefail
 
 PROG=${0##*/}
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-RELEASE=7.0.0-sm8150-rear1
+BASELINE_RELEASE='7.0.0-sm8150-rear1'
+# rear-camera stays on the historical release; plasma reads its manifest's
+# kernel_release (rc3 = 7.0.0-sm8150-rc3, a restored rc2 = rear1).  The value
+# is still pinned by the manifest hashes; it is not a hash bypass.
+RELEASE=$BASELINE_RELEASE
 DEFAULT_PORT=10001
 DEVICE=oneplus-guacamole
 
-STATE_ROOT=$ROOT/.work/rear-camera
-WORK=$STATE_ROOT/pmbootstrap-work
-SOURCE_IMAGE=$WORK/chroot_native/home/pmos/rootfs/$DEVICE.img
-SERVED_IMAGE=$WORK/images_netboot/$DEVICE.img
-PMB=$STATE_ROOT/pmbootstrap/pmbootstrap.py
-CFG=$STATE_ROOT/rootfs/pmbootstrap.cfg
-APORTS=$STATE_ROOT/pmaports
+# Profile selection is explicit; the default remains the working rear-camera
+# candidate.  Plasma gets its own state, build output and delivery receipts.
+PROFILE=${NURA_PROFILE:-rear-camera}
+STATE_ROOT=
+BUILD_ROOT=
+WORK=
+SOURCE_IMAGE=
+SERVED_IMAGE=
+PMB=
+CFG=
+APORTS=
 USB_NET=$ROOT/scripts/camera_usb_net.sh
-MANIFEST=$ROOT/build/rear-camera/DELIVERY.json
-BOOT_IMG=$ROOT/build/rear-camera/boot.img
-
-DELIVERY_DIR=${NURA_STATE_DIR:-$ROOT/.work/delivery}
-SCRATCH=$DELIVERY_DIR/H
-IDENTITY=$SCRATCH/identity.json
-SERVED_RECORD=$DELIVERY_DIR/served-image.json
-LOG=$SCRATCH/serve-netboot.log
-KNOWN_HOSTS=$DELIVERY_DIR/known_hosts
+MANIFEST=
+BOOT_IMG=
+DELIVERY_DIR=
+SCRATCH=
+IDENTITY=
+SERVED_RECORD=
+LOG=
+KNOWN_HOSTS=
+NEVER_KILL=0
 
 PORT=$DEFAULT_PORT
 IFACE_ARG=${NURA_USB_IFACE:-}
@@ -62,6 +71,7 @@ REPLACE=auto
 ASSUME_YES=0
 DRY_RUN=0
 CHECK=0
+CLEANUP_MOUNTS=0
 RECHECK=0
 WATCH=1
 REFRESH=no
@@ -79,7 +89,8 @@ usage() {
     cat <<'EOF'
 Usage: camera_serve.sh [options]
 
-Serves the rear-camera rootfs from this checkout over NBD on port 10001.
+Serves the selected candidate rootfs (default: rear-camera) from this
+checkout over NBD on port 10001.
 Refreshes <work>/images_netboot/oneplus-guacamole.img from the current chroot
 rootfs image when they differ and refuses to print READY unless the image that
 is really served contains the i2c-qcom-cci module recorded in DELIVERY.json.
@@ -87,7 +98,9 @@ A cache that is being served (port 10001 in use) is never replaced.
 
 Options:
   --check          validate manifest, image, cache and ports; start nothing
+  --cleanup        clear leftover Plasma chroots before --check (normal Plasma serve does this automatically)
   --dry-run        print every command without running sudo/ip/pmbootstrap
+  --profile NAME   candidate profile: rear-camera (default) or plasma-mobile
   --replace        always refresh the served cache (refused while port 10001 is in use)
   --no-replace     never refresh; fail if the served cache is stale
   --port N         NBD port (default 10001; 9999 and 10000 are refused)
@@ -113,6 +126,76 @@ cmd_string() {
     local out='' word
     for word in "$@"; do out+=${out:+ }$(printf '%q' "$word"); done
     printf '%s' "$out"
+}
+
+# Resolve every profile-dependent path once, after argument parsing.  The
+# rear-camera mapping is byte-for-byte the historical one; plasma-mobile never
+# shares a state, build or receipt path with the working Phosh candidate.
+configure_profile() {
+    local state build delivery
+    case $PROFILE in
+        rear-camera) state=rear-camera; build=rear-camera; delivery=delivery ;;
+        plasma-mobile) state=plasma-mobile; build=plasma-mobile; delivery=delivery-plasma-mobile ;;
+        *) die "unknown profile '$PROFILE' (use rear-camera or plasma-mobile)" ;;
+    esac
+    STATE_ROOT=$ROOT/.work/$state
+    BUILD_ROOT=$ROOT/build/$build
+    WORK=$STATE_ROOT/pmbootstrap-work
+    SOURCE_IMAGE=$WORK/chroot_native/home/pmos/rootfs/$DEVICE.img
+    SERVED_IMAGE=$WORK/images_netboot/$DEVICE.img
+    PMB=$STATE_ROOT/pmbootstrap/pmbootstrap.py
+    CFG=$STATE_ROOT/rootfs/pmbootstrap.cfg
+    APORTS=$STATE_ROOT/pmaports
+    MANIFEST=$BUILD_ROOT/DELIVERY.json
+    BOOT_IMG=$BUILD_ROOT/boot.img
+    DELIVERY_DIR=${NURA_STATE_DIR:-$ROOT/.work/$delivery}
+    SCRATCH=$DELIVERY_DIR/H
+    IDENTITY=$SCRATCH/identity.json
+    SERVED_RECORD=$DELIVERY_DIR/served-image.json
+    LOG=$SCRATCH/serve-netboot.log
+    KNOWN_HOSTS=$DELIVERY_DIR/known_hosts
+    NEVER_KILL=0
+    if [[ $PROFILE == plasma-mobile ]]; then
+        NEVER_KILL=1
+        [[ $(readlink -m -- "$STATE_ROOT") == "$ROOT/.work/plasma-mobile" ]] \
+            || die "plasma-mobile state resolves outside $ROOT/.work/plasma-mobile: $STATE_ROOT"
+        [[ $(readlink -m -- "$BUILD_ROOT") == "$ROOT/build/plasma-mobile" ]] \
+            || die "plasma-mobile build output resolves outside $ROOT/build/plasma-mobile: $BUILD_ROOT"
+        [[ $(readlink -m -- "$WORK") == "$ROOT/.work/plasma-mobile/pmbootstrap-work" ]] \
+            || die "plasma-mobile work directory resolves outside $ROOT/.work/plasma-mobile: $WORK"
+        [[ $(readlink -m -- "$SOURCE_IMAGE") == "$ROOT/.work/plasma-mobile/pmbootstrap-work/chroot_native/home/pmos/rootfs/$DEVICE.img" ]] \
+            || die "plasma-mobile source image resolves outside its own state: $SOURCE_IMAGE"
+        [[ $(readlink -m -- "$SERVED_IMAGE") == "$ROOT/.work/plasma-mobile/pmbootstrap-work/images_netboot/$DEVICE.img" ]] \
+            || die "plasma-mobile served cache resolves outside its own state: $SERVED_IMAGE"
+        case "$(readlink -m -- "$DELIVERY_DIR")/" in
+            "$ROOT/.work/delivery/"*|"$ROOT/.work/rear-camera/"*|"$ROOT/build/rear-camera/"*)
+                die "plasma-mobile must not share Phosh delivery state: $DELIVERY_DIR" ;;
+        esac
+    fi
+}
+
+# Resolve the kernel release from the selected candidate's manifest.  Only
+# the plasma profile is dynamic; rear-camera keeps its historical constant.
+resolve_release() {
+    if [[ $PROFILE == rear-camera ]]; then
+        RELEASE=$BASELINE_RELEASE
+        return 0
+    fi
+    [[ -f $MANIFEST ]] || die "missing manifest: $MANIFEST"
+    RELEASE="$(python3 - "$MANIFEST" <<'PY'
+import json, re, sys
+try:
+    data = json.load(open(sys.argv[1], encoding='utf-8'))
+except (OSError, ValueError) as error:
+    raise SystemExit(f'cannot read manifest: {error}')
+value = data.get('kernel_release')
+if value is None:
+    value = data.get('release')
+if not isinstance(value, str) or not re.fullmatch(r'7\.0\.0-sm8150-(?:rc[0-9]+|rear[0-9]+)', value):
+    raise SystemExit(f'manifest does not describe a valid kernel release: {value!r}')
+print(value)
+PY
+)" || die "cannot resolve the kernel release from $MANIFEST"
 }
 
 # Run a privileged command (sudo when needed), or print it under --dry-run.
@@ -157,7 +240,8 @@ trap 'on_error $LINENO' ERR
 
 # ---------------------------------------------------------------- artifacts
 
-# sha256 of a file, cached by (size, mtime, inode) under .work/delivery/H.
+# sha256 of a file, cached by (size, mtime, inode) under the profile's
+# delivery scratch directory ($SCRATCH/H).
 hash_cached() {
     local path=$1 size mtime inode fingerprint state sha
     size=$(stat -c %s -- "$path")
@@ -185,13 +269,13 @@ sha_of() { sha256sum -- "$1" | cut -d' ' -f1; }
 # Validate DELIVERY.json and normalise it into $IDENTITY for the shell.
 validate_manifest() {
     python3 - "$MANIFEST" "$ROOT" "$RELEASE" \
-        "$SOURCE_IMAGE" "$PORT" "$IDENTITY" <<'PY'
+        "$SOURCE_IMAGE" "$PORT" "$IDENTITY" "$PROFILE" <<'PY'
 import hashlib
 import json
 import sys
 from pathlib import Path
 
-(manifest_arg, root_arg, release, source_arg, port_arg, out_arg) = sys.argv[1:7]
+(manifest_arg, root_arg, release, source_arg, port_arg, out_arg, profile) = sys.argv[1:8]
 root = Path(root_arg)
 source = Path(source_arg).resolve()
 port = int(port_arg)
@@ -227,6 +311,31 @@ if data.get('release') != release:
 else:
     print(f'PASS  release {release}')
     identity['release'] = release
+declared_kernel_release = data.get('kernel_release')
+if declared_kernel_release is not None and declared_kernel_release != release:
+    fail(f"manifest kernel_release {declared_kernel_release!r} != release {release!r}")
+elif declared_kernel_release is not None:
+    identity['kernel_release'] = declared_kernel_release
+
+# Never let a manifest from another UI profile ride along just because it is
+# in a similarly named directory.  The default rear-camera path only accepts
+# manifests that do not name another profile (older manifests have no field);
+# plasma-mobile must positively identify itself.
+declared_profile = data.get('profile')
+declared_ui = data.get('ui')
+if profile == 'rear-camera':
+    for field, value in (('profile', declared_profile), ('ui', declared_ui)):
+        if value not in (None, '', 'rear-camera'):
+            fail(f"manifest {field} {value!r} is not rear-camera; use scripts/plasma_serve.sh for the Plasma candidate")
+else:
+    markers = [value for value in (declared_profile, declared_ui) if value not in (None, '')]
+    if not markers:
+        fail(f"manifest does not record profile/ui {profile!r}; refusing to treat it as the {profile} candidate")
+    for field, value in (('profile', declared_profile), ('ui', declared_ui)):
+        if value not in (None, '', profile):
+            fail(f"manifest {field} {value!r} != {profile!r}")
+    print(f'PASS  profile {profile}')
+    identity['profile'] = profile
 
 for field in ('worktree', 'created_at', 'git_head'):
     if field in data:
@@ -258,6 +367,10 @@ REQUIRED = {
     'rootfs_image': ('rootfs_image',),
     'i2c_qcom_cci': ('i2c_qcom_cci',),
 }
+# Plasma rootfs initramfs is candidate bytes, distinct from the known-good
+# initramfs embedded in boot.img.  Older manifests fall back to `initramfs`.
+if data.get('rootfs_initramfs') is not None:
+    REQUIRED['rootfs_initramfs'] = ('rootfs_initramfs',)
 
 
 def pick(*names):
@@ -375,6 +488,10 @@ image_entries() {
     image_ls "$1" "$2" "$3" | awk -F/ 'NF >= 7 && $6 != "." && $6 != ".." {print $6}'
 }
 
+image_stat() {
+    debugfs -R "stat $3" "$(image_open "$1" "$2")" 2>/dev/null
+}
+
 # Dump one file out of an ext4 partition; debugfs -R cat reports a missing file
 # on stdout, so the destination file is the trustworthy signal.
 image_dump() {
@@ -406,9 +523,28 @@ find_partition() {
 # Prove one image is this release: module tree, manifest CCI module, DTB, boot
 # artifacts and the netboot hook port. Runs on the chroot image and once on the
 # served cache/staging copy before it is exposed to the phone.
+# Reuse the packaging helper's functional initramfs check (exactly one
+# lib/modules/<release> tree and one netboot.sh hook with NBD_PORT=10001).
+check_functional_initramfs() {
+    local archive=$1
+    python3 - "$archive" "$ROOT/scripts" "$RELEASE" <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[2])
+from check_rear_camera_package import check_initramfs
+
+try:
+    check_initramfs(Path(sys.argv[1]), sys.argv[3])
+except Exception as error:
+    print(f'{sys.argv[1]}: {error}', file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 inspect_image() {
     local label=$1 image=$2 root_offset boot_offset modules tree module dtb
-    local vmlinuz initramfs hook expected
+    local vmlinuz hook expected initramfs_label
     [[ -f $image ]] || die "$label: $image does not exist"
     root_offset=$(find_partition "$image" root) \
         || die "$label: no ext4 root partition with /usr/lib/modules in $image"
@@ -438,6 +574,43 @@ inspect_image() {
         || die "$label: netboot hook does not set NBD_PORT=$PORT"
     pass "$label: netboot hook sets NBD_PORT=$PORT"
 
+    if [[ $PROFILE == plasma-mobile ]]; then
+        local bin_entries unit_entries dm_entries dm_target dm_path
+        bin_entries=$(image_entries "$image" "$root_offset" /usr/bin) \
+            || die "$label: cannot list /usr/bin in $image"
+        grep -qx startplasmamobile <<<"$bin_entries" \
+            || die "$label: /usr/bin/startplasmamobile is missing; this is not a Plasma Mobile rootfs"
+        if grep -qx phosh-session <<<"$bin_entries"; then
+            die "$label: /usr/bin/phosh-session is present; this is not a Plasma-only rootfs"
+        fi
+        unit_entries=$(image_entries "$image" "$root_offset" /usr/lib/systemd/system) \
+            || die "$label: cannot list /usr/lib/systemd/system in $image"
+        grep -qx plasma-mobile.service <<<"$unit_entries" \
+            || die "$label: plasma-mobile.service is missing; this is not the Plasma Mobile systemd rootfs"
+        if grep -qx greetd.service <<<"$unit_entries"; then
+            die "$label: greetd.service is present; this is not the Plasma Mobile display-manager path"
+        fi
+        dm_entries=$(image_entries "$image" "$root_offset" /etc/systemd/system) \
+            || die "$label: cannot list /etc/systemd/system in $image"
+        dm_path=/etc/systemd/system/display-manager.service
+        if ! grep -qx display-manager.service <<<"$dm_entries"; then
+            dm_entries=$(image_entries "$image" "$root_offset" /etc/systemd/system/graphical.target.wants) \
+                || die "$label: cannot list /etc/systemd/system/graphical.target.wants in $image"
+            grep -qx display-manager.service <<<"$dm_entries" \
+                || die "$label: neither display-manager.service nor graphical.target.wants/display-manager.service exists"
+            dm_path=/etc/systemd/system/graphical.target.wants/display-manager.service
+        fi
+        dm_target=$(image_stat "$image" "$root_offset" "$dm_path" \
+            | sed -n 's/^Fast link dest: "\(.*\)"$/\1/p' | head -n1)
+        [[ $dm_target == *plasma-mobile.service ]] \
+            || die "$label: $dm_path target '${dm_target:-<not a symlink>}' is not plasma-mobile.service"
+        image_dump "$image" "$root_offset" /etc/xdg/kscreenlockerrc "$TMP/lock" \
+            || die "$label: /etc/xdg/kscreenlockerrc is missing"
+        grep -qx 'LockOnStart=false' "$TMP/lock" \
+            || die "$label: kscreenlockerrc does not set LockOnStart=false"
+        pass "$label: Plasma Mobile session/display-manager/no-greetd/lock markers"
+    fi
+
     expected=$(json_get dtb sha256)
     image_dump "$image" "$boot_offset" /sm8150-oneplus-guacamole.dtb "$TMP/dtb" \
         || die "$label: boot partition has no sm8150-oneplus-guacamole.dtb"
@@ -452,12 +625,31 @@ inspect_image() {
         || die "$label: vmlinuz differs from the manifest kernel_package"
     pass "$label: vmlinuz $expected"
 
-    expected=$(json_get initramfs sha256)
+    # The served-rootfs initramfs is the candidate export archive; it is not
+    # the running initramfs (that one is embedded in the copied boot.img).
+    # Plasma manifests name it separately so a functionally valid but
+    # byte-different archive is accepted; rear-camera/older manifests fall
+    # back to the historical `initramfs` entry.
+    expected=$(json_get rootfs_initramfs sha256 2>/dev/null || true)
+    if [[ -n $expected ]]; then
+        initramfs_label=rootfs_initramfs
+    else
+        [[ $PROFILE == plasma-mobile ]] \
+            && warn "$label: manifest has no rootfs_initramfs; falling back to the boot-image initramfs (older manifest)"
+        expected=$(json_get initramfs sha256)
+        initramfs_label=initramfs
+    fi
     image_dump "$image" "$boot_offset" /initramfs "$TMP/initramfs" \
         || die "$label: boot partition has no initramfs"
     [[ $(sha_of "$TMP/initramfs") == "$expected" ]] \
-        || die "$label: initramfs differs from the manifest initramfs"
-    pass "$label: initramfs $expected"
+        || die "$label: rootfs initramfs differs from the manifest $initramfs_label ($expected)"
+    if [[ $PROFILE == plasma-mobile ]]; then
+        check_functional_initramfs "$TMP/initramfs" \
+            || die "$label: rootfs initramfs is not a functional $RELEASE port-$PORT netboot archive"
+        pass "$label: rootfs_initramfs $expected (release $RELEASE, NBD_PORT=$PORT)"
+    else
+        pass "$label: initramfs $expected"
+    fi
 }
 
 # Report the CCI module hash found in an image without failing; used to make a
@@ -485,7 +677,7 @@ report_image_module() {
 
 # ------------------------------------------------------------------- network
 
-usb_net() { bash "$USB_NET" "$@"; }
+usb_net() { NURA_STATE_DIR="$DELIVERY_DIR" bash "$USB_NET" "$@"; }
 
 usb_net_with_iface() {
     local -a arguments=("$1")
@@ -564,6 +756,10 @@ free_port() {
     fi
     warn "port $PORT is already in use:"
     printf '%s\n' "$lines" >&2
+    if (( NEVER_KILL )); then
+        warn "profile $PROFILE never stops another server; stop the process holding port $PORT yourself, then rerun"
+        return 1
+    fi
     pids=$(grep -o 'pid=[0-9]*' <<<"$lines" | cut -d= -f2 | sort -u || true)
     if [[ -z $pids ]]; then
         warn "cannot identify the owner of port $PORT without root: sudo ss -ltnp '( sport = :$PORT )'"
@@ -787,7 +983,7 @@ print_ssh_command() {
 }
 
 print_ready() {
-    local iface=$1 driver=$2 verified_note
+    local iface=$1 driver=$2 verified_note next
     if (( DRY_RUN )); then
         verified_note='planned: staged next to the stopped cache, verified, then renamed into place'
     else
@@ -796,6 +992,7 @@ print_ready() {
     note ''
     note '================ READY: candidate rootfs is served ================'
     note "worktree:       $ROOT"
+    note "profile:        $PROFILE"
     note "release:        $RELEASE"
     note "boot.img:       $BOOT_IMG"
     note "                sha256 $(json_get boot_img sha256) ($(json_get boot_img size) bytes)"
@@ -809,7 +1006,12 @@ print_ready() {
     note "host address:   172.16.42.2/24"
     note "NBD port:       $PORT"
     print_ssh_command
-    note "next:           bash \"$ROOT/scripts/camera_boot.sh\"   (temporary boot, never flashes)"
+    if [[ $PROFILE == plasma-mobile ]]; then
+        next=$ROOT/scripts/plasma_boot.sh
+    else
+        next=$ROOT/scripts/camera_boot.sh
+    fi
+    note "next:           bash \"$next\"   (temporary boot, never flashes)"
     note '=================================================================='
 }
 
@@ -867,9 +1069,14 @@ cleanup() {
         kill -0 "$SERVER_PID" 2>/dev/null && kill -KILL "$SERVER_PID" 2>/dev/null || true
     fi
     if [[ -n $(ss -H -ltn "( sport = :$PORT )" 2>/dev/null || true) ]]; then
-        warn "port $PORT is still bound (nbd-server runs as root in chroot_native); free it with:"
-        info "  sudo ss -ltnp '( sport = :$PORT )'"
-        info "  sudo pkill -f 'nbd-server 172.16.42.2@$PORT'"
+        if [[ $PROFILE == plasma-mobile ]]; then
+            warn "port $PORT is still bound; with the same phone in Android/fastboot, run:"
+            info "  bash scripts/plasma_serve.sh --cleanup --check"
+        else
+            warn "port $PORT is still bound (nbd-server runs as root in chroot_native); free it with:"
+            info "  sudo ss -ltnp '( sport = :$PORT )'"
+            info "  sudo pkill -f 'nbd-server 172.16.42.2@$PORT'"
+        fi
     fi
     [[ -n $TMP ]] && rm -rf -- "$TMP"
     [[ -n $REFRESH_TMP ]] && rm -f -- "$REFRESH_TMP"
@@ -884,6 +1091,8 @@ parse_args() {
             -h|--help) usage; exit 0 ;;
             --dry-run) DRY_RUN=1 ;;
             --check) CHECK=1 ;;
+            --cleanup) CLEANUP_MOUNTS=1 ;;
+            --profile) [[ $# -ge 2 ]] || die "--profile needs a value"; PROFILE=$2; shift ;;
             --replace) REPLACE=yes ;;
             --no-replace) REPLACE=no ;;
             --port) [[ $# -ge 2 ]] || die "--port needs a value"; PORT=$2; shift ;;
@@ -905,21 +1114,54 @@ parse_args() {
     if (( CHECK && DRY_RUN )); then
         die "--check and --dry-run are separate modes"
     fi
+    if (( CLEANUP_MOUNTS )) && [[ $PROFILE != plasma-mobile ]]; then
+        die "--cleanup is only supported for plasma-mobile"
+    fi
+}
+
+mounts_below() {
+    local root="${1%/}" target
+    while read -r _ _ _ _ target _; do
+        case "$target" in
+            "$root"|"$root"/*) return 0 ;;
+        esac
+    done </proc/self/mountinfo 2>/dev/null
+    return 1
 }
 
 preflight() {
-    info "camera_serve: worktree $ROOT"
+    info "camera_serve: worktree $ROOT profile $PROFILE"
     case $ROOT in
         *nura-sm8150-7-0*) die "refusing to serve from the baseline checkout $ROOT" ;;
     esac
+    if [[ $PROFILE == plasma-mobile ]]; then
+        case $ROOT in
+            *nura-rear-cameras-7-0*) die "refusing to serve the Plasma candidate from the working Phosh checkout $ROOT" ;;
+        esac
+    fi
+    [[ -d $BUILD_ROOT ]] || die "missing candidate build directory: $BUILD_ROOT"
     [[ -f $USB_NET ]] || die "missing helper $USB_NET"
     [[ -f $PMB ]] || die "missing pmbootstrap: $PMB"
     [[ -f $CFG ]] || die "missing pmbootstrap config: $CFG"
     [[ -d $APORTS ]] || die "missing pmaports: $APORTS"
     [[ -d $WORK ]] || die "missing pmbootstrap work dir: $WORK"
+    if [[ $PROFILE == plasma-mobile ]] && (( !DRY_RUN && (!CHECK || CLEANUP_MOUNTS) )); then
+        bash "$ROOT/scripts/plasma_shutdown.sh" "$PORT" || die "could not clear leftover Plasma mounts"
+    fi
+    if [[ $PROFILE == plasma-mobile ]] && mounts_below "$WORK"; then
+        die "mounts are active under $WORK; run bash scripts/plasma_serve.sh --cleanup --check, or serve normally for automatic cleanup"
+    fi
     [[ -f $SOURCE_IMAGE ]] || die "missing chroot rootfs image: $SOURCE_IMAGE"
-    [[ -f $MANIFEST ]] || die "missing $MANIFEST; run: bash \"$ROOT/scripts/camera_build.sh\" manifest"
+    if [[ ! -f $MANIFEST ]]; then
+        if [[ $PROFILE == plasma-mobile ]]; then
+            die "missing $MANIFEST; prepare the Plasma candidate first: bash \"$ROOT/scripts/rootfs_prepare_plasma.sh\""
+        fi
+        die "missing $MANIFEST; run: bash \"$ROOT/scripts/camera_build.sh\" manifest"
+    fi
     command -v debugfs >/dev/null 2>&1 || die "debugfs is required (install e2fsprogs)"
+    if [[ $PROFILE == plasma-mobile ]]; then
+        command -v cpio >/dev/null 2>&1 || die "cpio is required to validate the candidate rootfs initramfs"
+    fi
     command -v od >/dev/null 2>&1 || die "od is required (coreutils)"
     command -v python3 >/dev/null 2>&1 || die "python3 is required"
     mkdir -p -- "$SCRATCH"
@@ -939,10 +1181,12 @@ preflight() {
 
 main() {
     parse_args "$@"
+    configure_profile
     trap cleanup EXIT INT TERM
     preflight
 
     # 1. Manifest identity (fails closed; prints boot.img/rootfs/module hashes).
+    resolve_release
     validate_manifest || die "DELIVERY.json validation failed (see the FAIL lines above)"
     local expected_rootfs source_sha
     EXPECTED_CCI_SHA=$(json_get i2c_qcom_cci sha256)
@@ -1082,7 +1326,7 @@ main() {
     verify_served_still_exposed
     local driver=''
     if [[ -n $iface ]]; then
-        driver=$(bash "$USB_NET" status --iface "$iface" 2>/dev/null \
+        driver=$(usb_net status --iface "$iface" 2>/dev/null \
             | sed -n 's/^DRIVER=//p' | head -n1 || true)
     fi
     print_ready "${iface:-unknown}" "$driver"

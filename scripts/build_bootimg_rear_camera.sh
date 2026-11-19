@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Pack a v7.0.0-sm8150-rear1 guacamole boot image from the worktree-local kernel
-# package staging.  Host-only: this script never talks to a phone.
+# Pack a guacamole boot image from the worktree-local kernel package staging.
+# Host-only: this script never talks to a phone.  The release defaults to the
+# historical 7.0.0-sm8150-rear1; a later candidate sets RELEASE (or the rc3
+# pipeline exports it) and must match the staged kernel exactly.
 #
 # The 7.0 Image is larger than the 6.17/7.3.3 Images.  Its arm64 header
 # extent (0x2ae0000) ends at 0x2ae8000 with kernel_offset=0x8000, so neither
@@ -14,6 +16,7 @@ set -euo pipefail
 
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="${OUTPUT_DIR:-${WORKSPACE_DIR}/build/rear-camera}"
+RELEASE="${RELEASE:-7.0.0-sm8150-rear1}"
 KERNEL_DIR="${KERNEL_DIR:-${OUTPUT_DIR}/kernel-package}"
 BASE_DTB="${BASE_DTB:-${KERNEL_DIR}/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb}"
 DTB_MODE="${DTB_MODE:-abl-quarantine}"
@@ -38,7 +41,9 @@ AVBTOOL="${WORKSPACE_DIR}/local/tools/avbtool.py"
 export PATH="${LOCAL_BIN}:${PATH}"
 export LD_LIBRARY_PATH="${LOCAL_LIB}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
-echo "=== Packing OnePlus 7 Pro (guacamole) 7.0.0-sm8150-rear1 boot.img ==="
+[[ "${RELEASE}" =~ ^[0-9A-Za-z._+-]+$ ]] ||
+    { echo "ERROR: invalid RELEASE='${RELEASE}'" >&2; exit 1; }
+echo "=== Packing OnePlus 7 Pro (guacamole) ${RELEASE} boot.img ==="
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -66,8 +71,8 @@ if [ ! -f "${KERNEL_RELEASE_FILE}" ]; then
     exit 1
 fi
 KERNEL_RELEASE="$(cat "${KERNEL_RELEASE_FILE}")"
-if [ "${KERNEL_RELEASE}" != "7.0.0-sm8150-rear1" ]; then
-    echo "ERROR: staging release is '${KERNEL_RELEASE}', expected 7.0.0-sm8150-rear1." >&2
+if [ "${KERNEL_RELEASE}" != "${RELEASE}" ]; then
+    echo "ERROR: staging release is '${KERNEL_RELEASE}', expected ${RELEASE}." >&2
     echo "       Refusing to mix another kernel with these modules." >&2
     exit 1
 fi
@@ -148,8 +153,16 @@ python3 "${WORKSPACE_DIR}/scripts/check_initramfs_release.py" \
 
 # 4. Refuse an envelope where the Image extent reaches the DTB address.
 # The privileged preparer hashes these genuine inputs after checking port 10001.
-python3 "${WORKSPACE_DIR}/scripts/check_rear_camera_package.py" \
-    --initramfs "${INITRAMFS}" --kernel-dir "${KERNEL_DIR}"
+# The candidate initramfs may be a newly exported rootfs archive with no prior
+# packaging-inputs.json.  The listing/module-payload checks still run; only the
+# comparison with a *previous* packaging-inputs.json is opt-in.
+CHECK_INPUTS_ARGS=(--initramfs "${INITRAMFS}" --kernel-dir "${KERNEL_DIR}" --release "${RELEASE}")
+if [ "${CHECK_RECORDED_INPUTS:-0}" = "1" ]; then
+    CHECK_INPUTS_ARGS+=(--manifest "${CHECK_INPUTS_MANIFEST:-${OUTPUT_DIR}/packaging-inputs.json}")
+else
+    CHECK_INPUTS_ARGS+=(--no-recorded-inputs)
+fi
+python3 "${WORKSPACE_DIR}/scripts/check_rear_camera_package.py" "${CHECK_INPUTS_ARGS[@]}"
 echo "[4/5] Checking boot envelope..."
 python3 "${WORKSPACE_DIR}/scripts/check_boot_envelope.py" \
     --image "${IMAGE}" \
