@@ -1,0 +1,71 @@
+From: Nura rc4 series <rc4@nura.invalid>
+Subject: [PATCH] lockscreen-manager: drop shields destroyed by the compositor
+
+A lock shield is a PhoshLayerSurface. When the compositor closes it, e.g.
+because its output is disabled or reconfigured while the session is locked,
+layer_surface_closed() destroys the widget, but the manager keeps the dead
+pointer in its shields array. On unlock g_clear_pointer(&self->shields,
+g_ptr_array_unref) calls gtk_widget_destroy() on it again and phosh
+crashes (seen docked: SIGSEGV in gtk_widget_destroy from
+on_lockscreen_unlock, lockscreen-manager.c:218, via
+on_auth_authenticate_ready, lockscreen.c:400).
+
+Track each shield's "destroy" signal and steal it from the array. The
+unlock/dispose paths NULL the array before unref, so the handler returns
+early there. remove_shield_by_monitor() now steals before destroying, since
+g_ptr_array_remove() runs the free function before removing the element.
+
+Nura-Origin: guacamole docked lock/unlock crash 2026-11-15
+Upstream-Status: candidate
+---
+--- a/src/lockscreen-manager.c
++++ b/src/lockscreen-manager.c
+@@ -229,6 +229,28 @@
+ }
+ 
+ 
++/*
++ * A shield is a layer surface: when the compositor closes it (e.g. its output
++ * is disabled or reconfigured while locked) PhoshLayerSurface destroys itself.
++ * Drop it from the array without destroying it again, otherwise unlock frees
++ * a dead widget (gtk_widget_destroy in on_lockscreen_unlock -> SIGSEGV).
++ */
++static void
++on_shield_destroy (PhoshLockscreenManager *self, GtkWidget *shield)
++{
++  guint index;
++
++  /* g_clear_pointer() NULLs the array before unref destroys the shields */
++  if (!self->shields)
++    return;
++
++  if (g_ptr_array_find (self->shields, shield, &index)) {
++    g_debug ("Shield %p destroyed externally", shield);
++    g_ptr_array_steal_index (self->shields, index);
++  }
++}
++
++
+ /* Lock a non primary monitor bringing up a shield */
+ static void
+ lock_monitor (PhoshLockscreenManager *self,
+@@ -248,6 +270,8 @@
+   g_object_set_data (G_OBJECT (shield), "phosh-monitor", monitor);
+ 
+   g_ptr_array_add (self->shields, shield);
++  g_signal_connect_object (shield, "destroy", G_CALLBACK (on_shield_destroy),
++                           self, G_CONNECT_SWAPPED);
+   gtk_widget_set_visible (shield, TRUE);
+ }
+ 
+@@ -269,7 +293,9 @@
+     g_return_if_fail (PHOSH_IS_MONITOR (shield_monitor));
+     if (shield_monitor == monitor) {
+       g_debug ("Removing shield %p", shield);
+-      g_ptr_array_remove (self->shields, shield);
++      /* Steal first: destroying it emits "destroy" (on_shield_destroy) */
++      g_ptr_array_steal_index (self->shields, i);
++      gtk_widget_destroy (GTK_WIDGET (shield));
+       break;
+     }
+   }
