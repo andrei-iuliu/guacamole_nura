@@ -242,6 +242,65 @@ EF-vs-active-slot comparison or a classified failure, plus usable cached data
 from unchanged modem/SIM objects. Neither global SIM-swap suppression nor a
 fake `/dev/qrtr0` node follows from the current evidence.
 
+## Discriminator result (two cards) and the shortest next step
+
+A user-run privileged sample (`USER_PRIVILEGED_COMPARISON.md` in the nura-rc2
+modem investigation) changed the picture:
+
+* `SLOT`, `CARD` and `READ` succeeded; `MODEM`/`SIM` were unavailable at both
+  sample points (the loop removes the object), and `DMS UIM Get ICCID` returned
+  QMI protocol error 94 = `QMI_PROTOCOL_ERROR_NOT_SUPPORTED` (libqmi
+  `qmi-errors.h:317`), which says nothing about identity.
+* **Both physical slots hold a card**, with distinct 19-digit `89`-prefix ICCIDs.
+* The EF2FE2 read (10 bytes) normalizes/decodes exactly to **slot 1's** ICCID,
+  not slot 2's (per-run salted hash equality).
+* `Primary GW` provisioning session = slot 1 / application 1; `Secondary GW` =
+  slot 2 / application 1.
+* The old single-active parser reported “unavailable” because it had no way to
+  print the per-slot status fields; that is ambiguous (zero or several ACTIVE
+  slots). The earlier MM `PrimarySimSlot=2` is a different-time snapshot and the
+  cached identifier was not sampled, so “cached = slot 2” is inferred from code,
+  not measured.
+* A separate **locked baseline** (fresh boot, same kernel) shows `modem0`
+  `locked`/`sim-pin`, power off, `primary-sim-slot = 2`, `sim-slots.length = 2`,
+  all DSPs running and no loop while locked. MM already selects slot 2 at probe,
+  before any enable; different boot from the user-run sample, so the per-slot
+  ACTIVE/logical fields are still needed for an atomic pairing.
+
+Code consequence (ModemManager `7f0bf17`): `uim_get_slot_status_ready()` assigns
+`active_slot_number` and `active_logical_id` for **every** ACTIVE entry with no
+`break`, so with two ACTIVE slots the **last** wins (slot 2); EF2FE2 Read
+Transparent instead follows the `PRIMARY_GW_PROVISIONING` session (slot 1).
+qmicli's switch-slot helper takes the **first** ACTIVE slot. If both slots are
+ACTIVE, cached=slot2 and current=slot1 on every probe, reproducing the loop — a
+slot/session mapping fault (H2), not the single-source ICCID issue.
+
+### Shortest next discriminator (read-only, identifier-free)
+
+Run it on the next fresh boot **while the modem is still locked** (the state the
+baseline above captured): no unlock, no PIN, no enable, no loop. It reports the
+per-slot ACTIVE flags and logical slots that MM's probe saw, plus the same-instant
+MM primary slot and the GW session slots.
+
+```sh
+# on the phone, from the copied helper; user-run
+python3 /path/to/cellular_iccid_compare.py --slot-summary --local
+```
+
+It runs only `mmcli -m any` (state/primary slot), `--uim-get-slot-status` and
+`--uim-get-card-status`, and prints **no ICCID/IMSI/AID, not even a hash**:
+per-slot card status, slot status and logical slot; the active-slot list/count;
+the same-instant `modem.generic.primary-sim-slot`; the Primary/Secondary GW
+session slots; and a MATCH/MISMATCH line. It does not switch slots, attempt a
+PIN, touch firmware or restart a service.
+
+| `--slot-summary` shows | Next step |
+|---|---|
+| 2 active slots, modem primary 2, primary GW 1 | Mapping confirmed: align the session/primary selection (device `msm-modem-uim-selection`/slot choice, or MM's multi-active selection). Do not adopt the single-source patch. |
+| 1 active slot = primary GW slot = modem primary, loop persists | Re-run the full four-view sample at that instant; the mismatch is then in the identifier sources (same-card H1/H3), not the slot mapping. |
+| 1 active slot but primary GW/modem primary differ | Session/primary selection mismatch; fix that path first. |
+| no active slot parsed | Check query status and the `Slot status:` values/schema before concluding anything. |
+
 ## Focused validation
 
 ```sh
@@ -254,3 +313,78 @@ sentinel distinctions, shared per-run hashes, physical slot 2 selection,
 identity changes, private error categorization and execution of generated
 query commands against synthetic binaries. Tests never contact a phone.
 Passing unit tests does not demonstrate registration, data, or reset recovery.
+
+## Candidate source patch (opt-in, gated on the discriminator)
+
+Status: **source candidate only; not built, not installed, not integrated, not
+in the default rootfs build list or the RC label.** Nothing here changes the
+active delivery artifacts.
+
+Location: `device/testing/modemmanager/`. It is an **aports delta, not a pmaports
+package**: there is deliberately no `APKBUILD` file, so no build or install list
+can pick it up by accident. The earlier identifier-from-EF2FE2 workaround is
+**withdrawn and archived** under `superseded/` (not in the recipe).
+
+* `0002-primary-sim-slot-selection.patch` — `src/mm-shared-qmi.c` only. It asks
+  **UIM Get Card Status first**, decodes the **Primary GW** session index (high
+  byte = physical slot, low byte = application, both 0-based), and selects that
+  physical slot as primary **only while it is ACTIVE and a SIM object was
+  successfully constructed for it** (ICCID bytes alone do not count). Otherwise it
+  falls back to **exactly the previous behaviour, the last ACTIVE slot** (no extra
+  “has a SIM” preference in the fallback). The selection is a pure
+  `select_primary_sim_slot()` helper (no QMI or GLib calls), compiled and
+  behaviour-tested on the host. The obsolete `LoadSimSlotsContext.active_logical_id`
+  (assigned, never read) is removed; the separate switch-slot path keeps its own
+  local variable. The invariant is ModemManager's own:
+  `mm_qmi_uim_get_card_status_output_parse()` already defines “the SIM to use” as
+  the Primary GW one, and `UIM Read Transparent` follows that same session. No
+  physical slot number is hardcoded and no first/last-ACTIVE rule is applied when
+  the session is valid.
+* `apkbuild.patch` + `APKBUILD.upstream` — delta against the exact pinned Alpine
+  APKBUILD (sha256 `c952de6a…`, aports `50e2994…`, ModemManager `7f0bf17…`,
+  tarball sha512 `e049eec…`): `pkgrel` 0→1, adds the source patch and its
+  recomputed sha512. Dependencies, sources and all other checksums are unchanged
+  (no invented checksum).
+* `README.md` — selection rule and fallbacks, the one-extra-card-status-request
+  tradeoff, preserved swap/indication paths, unverified aarch64 build/runtime,
+  the rootlessly verified aports-apply step, and why no runnable install/rollback
+  command is provided at this source-only stage.
+
+**Mapping status: measured.** `--slot-summary` shows both slots present/ACTIVE
+with logical slots 1 and 2, the locked modem reporting primary **slot 2**, and
+the Primary GW provisioning session on **slot 1** (Secondary on slot 2); the
+prior EF2FE2 read matched slot 1. The candidate therefore targets
+**selection**, not the identifier comparison. It is still opt-in: review, an
+aarch64 build and a runtime test are required before any integration.
+
+**Packaging is not buildable with a host `abuild -r`.** The retained r0 APKs are
+`arch = aarch64` (`modemmanager`, `libmm-glib`; the `-lang`/`-systemd`/`-udev`
+subpackages are `noarch`), while `abuild` defaults to the host architecture and
+`arch="all"` in the APKBUILD only means “buildable on all architectures”.
+Producing r1 needs a supported **aarch64** build environment; no cross-build
+command is provided or verified here.
+
+**Unverified:** aarch64 build, install, runtime behaviour, and the live selection
+on this firmware. The patch applies to the exact pinned source and the helper's
+behaviour cases pass, and the new libqmi call shapes were checked against the
+existing in-tree caller and qmicli, but the full ModemManager build and the new
+card-status callback have not been compiled or run. No runtime stop of the loop
+is claimed.
+
+**Rollback:** only a package-version switch back to the exact retained r0 APKs
+(`modemmanager`/`libmm-glib` aarch64 plus the noarch subpackages), and only after
+their signatures are verified as trusted by the phone. It must not fetch from a
+repository (the phone has no uplink) and must not use `--allow-untrusted`. If
+those APKs or their trust are unavailable, rollback is not available from this
+source-only stage and the candidate must not be installed. No configuration,
+udev rule or service unit is touched by the candidate.
+
+Rootless validation of the recipe, the exact patch application and the compiled
+selection helper (single/dual ACTIVE; Primary GW on either slot; stale Primary GW
+pointing at an INACTIVE slot; Primary GW slot with no constructed SIM; unknown
+session; out-of-range index; reversed order; no card; swap/indication paths
+unchanged; obsolete context field gone):
+
+```sh
+python3 -m unittest tests.test_modemmanager_primary_sim_selection -v
+```

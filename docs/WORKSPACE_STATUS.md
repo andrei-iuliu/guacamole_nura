@@ -1,5 +1,33 @@
 # Authoritative workspace and runtime status
 
+## Current: rc4j on local userdata (2026-11-14)
+
+The rc4j Phosh image is built and running on the phone, with speakers,
+Bluetooth and Wi-Fi confirmed by the user. Rootfs expansion, Phosh/Stevia,
+the sensor packages and exact world pins were verified over SSH. See
+[the success record](RC4J_SUCCESS_20261114.md) for artifact identity,
+`fastboot -S 64M` transfer evidence, and remaining issues. No boot partition
+was flashed in this session; the matching boot image was RAM-booted.
+
+`runtime-workspace` remains the prepared runtime/build workspace. The independent
+local source fork is `guacamole_nura-workspace/fork`.
+Build
+artifacts and privileged chroots are not moved into the fork. Retention is the
+rc4j and rc4i kernel generations plus the current normal/debug rc4j boot images;
+historical archive paths below may have been pruned.
+
+## Historical checkpoints
+
+2026-11-12: rc3 sources are prepared in this checkout.  `nura-plasma-rc3`
+rebuilds the kernel (`7.0.0-sm8150-rc3`) and boot chain in
+`.work/rc3-kernel` / `build/rc3-kernel`, keeps the candidate state/output in
+`.work/plasma-mobile` / `build/plasma-mobile` so rc2 is preserved as rollback,
+and keeps `.work/rear-camera` / `build/rear-camera` read-only.  The single
+user-run entrypoint is `bash scripts/rc3_build.sh build`; see
+`docs/NURA_RC3.md`.  This is source-ready only: no rc3 kernel/APK/rootfs/boot
+image was built and no hardware result exists.  The actual build, serve, boot,
+modem/clock/haptics/camera checks and any rollback boot remain user-run.
+
 2026-11-10: `runtime-workspace` is the consolidated source workspace.
 It includes the latest tested-source delta from `nura-rear-cameras-7-0`,
 reviewed delivery lifecycle fixes, checkpoint tooling and profiling tooling.

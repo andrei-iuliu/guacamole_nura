@@ -1,15 +1,17 @@
 # Nura rc4: Phosh variant (`nura-phosh-rc4`)
 
-**Status: source only.** Nothing on this page has been built, installed or
-booted. The scripts were checked with `bash -n` and the rootless tests listed
-in §6.
+**Status (2026-11-14): rc4j built and booted successfully.** Speakers, Bluetooth
+and Wi-Fi were confirmed by the user; SSH verified Phosh, Stevia, package pins,
+sensor-proxy operation and rootfs expansion. Use a 64 MiB sparse-transfer cap
+for userdata flashing. See [the success record and remaining issues](RC4J_SUCCESS_20261114.md).
+The earlier password retry remains documented in `flows/rc4/local-storage/README.md`.
 
-The local-userdata rootfs build (`flows/rc4/local-storage`) can now produce
-either UI from the same rc4h kernel and the same device fixes:
+The local-userdata rootfs build (`flows/rc4/local-storage`) can produce
+either UI from the same rc4j kernel and the same device fixes:
 
 | | Plasma Mobile | Phosh (default since 2026-11-14) |
 | --- | --- | --- |
-| selector | `--ui plasma` / `NURA_UI=plasma` / nothing | `--ui phosh` / `NURA_UI=phosh` |
+| selector | `--ui plasma` / `NURA_UI=plasma` | `--ui phosh` / `NURA_UI=phosh` / nothing |
 | release label | `nura-plasma-rc4` | `nura-phosh-rc4` |
 | state | `flows/rc4/local-storage/.work/local-userdata/` | `flows/rc4/local-storage/.work/local-userdata-phosh/` |
 | output (boot.img, manifest) | `flows/rc4/local-storage/build/local-userdata/` | `flows/rc4/local-storage/build/local-userdata-phosh/` |
@@ -24,10 +26,10 @@ either UI from the same rc4h kernel and the same device fixes:
 
 The two UIs share:
 
-* the rc4h kernel APK, the guarded netboot hook, `libcamera-rear`, the
+* the rc4j kernel APK, the guarded netboot hook, `libcamera-rear`, the
   system libcamera 0.8 pins, ModemManager, `nura-clock`, and the SSC sensor
   fix (`iio-sensor-proxy` 3.9-r100 + `libssc` 0.4.4-r100, below);
-* the device package `device-oneplus-guacamole` **4-r16**, which adds the A/B
+* the device package `device-oneplus-guacamole` **4-r20**, which adds the A/B
   slot marker (§3) and the Plasma corner preset;
 * **`/etc/apk/world` pins** `linux-postmarketos-qcom-sm8150=<ver>`,
   `device-oneplus-guacamole=<ver>` and `firmware-oneplus-guacamole=<ver>`.
@@ -310,10 +312,10 @@ gzip -t ~/guacamole-home-user-*.tar.gz && ls -l ~/guacamole-home-user-*.tar.gz
 # 2. reboot into the bootloader
 ssh -t user@172.16.42.1 'sync; sudo sh -c "sync; reboot bootloader"'
 
-# 3. write the Phosh image to userdata (fastboot sends it in sparse chunks;
+# 3. write the Phosh image to userdata in sparse chunks capped at 64 MiB;
 #    prefix sudo if your fastboot needs root for USB access)
 cd runtime-workspace
-platform-tools/fastboot flash userdata \
+platform-tools/fastboot -S 64M flash userdata \
   flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img
 
 # 4. RAM-boot the matching Phosh boot image (never `fastboot flash boot`);
@@ -339,7 +341,7 @@ with `successful=1`.
 
 ```bash
 ssh -t user@172.16.42.1 'sync; sudo sh -c "sync; reboot bootloader"'
-platform-tools/fastboot flash userdata ~/oneplus-guacamole-plasma-rc4h-<date>.img
+platform-tools/fastboot -S 64M flash userdata ~/oneplus-guacamole-plasma-rc4h-<date>.img
 #   (or the unchanged .work/local-userdata/.../oneplus-guacamole.img if Plasma was not rebuilt)
 PATH="$PWD/platform-tools:$PATH" bash scripts/fastboot_boot.sh \
   flows/rc4/local-storage/build/local-userdata/boot/boot.img

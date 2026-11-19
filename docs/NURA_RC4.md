@@ -1,8 +1,12 @@
-# Nura rc4 (source candidate): 7.0.0-sm8150-guacamole-rc4
+# Nura rc4: 7.0.0-sm8150-guacamole-rc4
 
-**Status: source candidate only. Nothing here is built, packaged, booted or
-tested on hardware by this work, and it must not be described as fixed or
-boot-ready until the full build and the parent's review are done.**
+**Current status (2026-11-14): rc4j built and RAM-booted successfully with the
+Phosh rootfs on userdata.** The user confirmed speakers, Bluetooth and Wi-Fi.
+SSH checks confirmed Phosh/Stevia, low sensor-proxy CPU use, exact package pins,
+and successful filesystem expansion. This is a working checkpoint, not complete
+hardware acceptance: the debug-shell USB teardown logged a kernel Oops, and
+GPU stress, microphone, cameras, cellular and suspend/resume remain unverified
+on this version. See [the rc4j success record](RC4J_SUCCESS_20261114.md).
 
 This document describes what the rc4 source candidate changes relative to the
 booted rc3 (`7.0.0-sm8150-rc3`) and what still has to be verified on the phone.
@@ -290,9 +294,11 @@ bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
 bash flows/rc4/scripts/rc4.sh bootimg
 ```
 
-**UI variants.** Step 2 takes `--ui plasma|phosh` (default `plasma`). Both
-images use the same rc4i kernel (pkgrel 12) and device package 4-r17, which
-adds:
+**UI variants.** Step 2 takes `--ui plasma|phosh` (default `phosh`). The
+current rc4j recipes use kernel pkgrel 13 and device package 4-r20. Kernel
+patch 0073 aligns kernel-managed GPU virtual addresses to 64 KiB; its scope
+and remaining hardware validation are described in
+`flows/rc4/topics/gpu-va-align/README.md`. The device package includes:
 
 * the A/B slot marker `guacamole-boot-slot.timer`;
 * the GPU crash collector `nura-gpu-crash-capture.timer` + udev rule
@@ -310,7 +316,14 @@ for the build and install commands and for the fallback to Plasma:
 bash flows/rc4/scripts/rc4.sh rootfs --ui phosh --authorized-key /absolute/path/to/key.pub
 ```
 
-None of these commands flashes, boots, mounts, repartitions or restarts
-anything, and the userdata upgrade path is deliberately not automated: the
+The 2026-11-14 password-confirmation and stale isolated-kernel-copy failures
+were resolved; the resulting rc4j image booted successfully. Flash with
+`fastboot -S 64M` as documented in `docs/NURA_PHOSH.md`. An earlier uncapped
+transfer was followed by filesystem corruption; the capped transfer passed a
+full read-only filesystem check on the phone before expansion. The precise
+cause of the earlier corruption is not established.
+
+These commands do not flash, boot or repartition the phone; rootfs creation
+may use host chroot mounts. The userdata upgrade path is deliberately not automated: the
 user already has a local Linux on `userdata`, and the delivery method for the
 candidate is the parent's decision after reviewing the actual build.
