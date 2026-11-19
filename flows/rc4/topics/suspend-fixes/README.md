@@ -43,10 +43,28 @@ WoWLAN armed, remoteproc recovery enabled. The 0044 module was loaded from
   CLOCK_MONOTONIC) and woke on the PM8150 RTC. No modem crash after resume;
   Wi-Fi reconnected, Phosh was up, and unlocking with touch worked.
 
-Still open: longer and repeated cycles, waking with the Power button, a
-cycle on battery, the camera after resume, and running the release at every
-boot (needs the rc4o kernel package installed, then
-`guacamole-mss-release.service` enabled). Automatic suspend stays off.
+**rc4o installed (same day).** The rc4o kernel package (fixed 0044) and
+`device-oneplus-guacamole-4-r21` were installed with `apk add` on the
+existing rootfs; `boot_b` was not reflashed, because only a module changed.
+At boot the unit released `mss.lvl` to corner 0 about 15 s after power-on,
+with no manual step. Then:
+
+* `rtcwake -m mem -s 30` slept 30.6 s and resumed cleanly (modem, SLPI and
+  ADSP running, Wi-Fi reconnected, Phosh up, no CCI clock errors).
+* `echo mem > /sys/power/state` slept about 35 s and woke on the Power
+  button.
+* On battery (USB unplugged, SSH over Wi-Fi), `rtcwake -m mem -s 600`
+  slept the full 600 s, woke on the RTC, and resumed cleanly. Wi-Fi stayed
+  associated through the sleep (no NetworkManager state change), the modem
+  did not crash, and the gauge moved from 71 % to 70 % over about 16 minutes
+  including the awake time.
+* The first warm reboot after installing the packages hung with a black
+  screen and no USB enumeration, and left no journal; a forced reset and
+  `fastboot reboot` booted normally. The same symptom was seen once on rc4l.
+  It happens before the rootfs is mounted, so the package change is not the
+  suspect, but warm reboots need watching.
+
+Still open: the camera after resume and the intermittent warm-reboot hang. Automatic suspend stays off.
 
 ## 1. Baseline actually used
 
