@@ -35,6 +35,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -76,6 +77,8 @@ def load_checker(ui="plasma"):
     old = os.environ.get("NURA_UI")
     os.environ["NURA_UI"] = ui
     try:
+        if str(CHECKER.parent) not in sys.path:      # its sibling helper modules
+            sys.path.insert(0, str(CHECKER.parent))
         spec = importlib.util.spec_from_file_location(f"clc_{ui}_{id(ui)}", CHECKER)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

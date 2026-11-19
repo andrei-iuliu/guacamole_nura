@@ -37,6 +37,7 @@ REPO = RC4.parents[1]
 sys.path.insert(0, str(RC4 / "scripts"))
 
 import dt_facts  # noqa: E402  (same-directory helper)
+from check_recipe import REVERTED_RC3, strip_trailers  # noqa: E402
 
 RECIPE = RC4 / "device/testing/linux-postmarketos-qcom-sm8150"
 DEVICE = RC4 / "device/testing/device-oneplus-guacamole"
@@ -136,7 +137,12 @@ class TestRecipe(unittest.TestCase):
         for p in sorted(RC3_RECIPE.glob("0*.patch")):
             if p.name >= "0042":
                 continue
-            self.assertEqual((RECIPE / p.name).read_bytes(), p.read_bytes(),
+            if p.name in REVERTED_RC3:
+                self.assertFalse((RECIPE / p.name).exists(), "%s was reverted" % p.name)
+                continue
+            # a140ea1 added classification trailers only; the diff must be unchanged
+            self.assertEqual(strip_trailers((RECIPE / p.name).read_bytes()),
+                             strip_trailers(p.read_bytes()),
                              "%s was rewritten" % p.name)
 
     def test_reviewed_new_patch_set_and_order(self):
