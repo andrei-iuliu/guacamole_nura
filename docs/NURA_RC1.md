@@ -271,7 +271,7 @@ user-collected evidence. The source preparation cannot satisfy any row.
 | Microphone raw capture | Run the `parecord` discriminator in section 6.1 while speaking/tapping | Bytes and `rms_dbfs`/`peak_dbfs` classify frames vs no frames; do not infer from KRecorder |
 | Clock | Section 5 | `date -u` not 1970 and `NTPSynchronized=yes` after a real uplink |
 | Graphics | Use the shell/camera for several minutes; collect `journalctl -k` and KWin/Mesa errors | Accelerated baseline remains unchanged. Compositor mapping faults remain unresolved; camera EGL import fallback is understood, while the proposed CAMSS stride change is untested and not integrated. |
-| pstore | No panic test is required for rc1; optional persistence testing is a separate hardware experiment | The captured boot registered ramoops. `/sys/fs/pstore` was empty after a normal boot; persistence across a crash is untested. See [pstore investigation](bringup-notes/nura-rc1-20261111/pstore/REPORT.md). |
+| pstore | No panic test is required for rc1; optional persistence testing is a separate hardware experiment | The captured boot registered ramoops. `/sys/fs/pstore` was empty after a normal boot; persistence across a crash is untested. See pstore investigation (local rc1 notes, `nura-rc1-20261111/pstore/REPORT.md`, not published). |
 | Charging | Connect the 5 V charger; check `/run/guacamole/charger`, `guacamole-chgctrl`, charge current and `0x1070`/`0x1061`/`0x1370` readback | Expected source/current and no input suspension; never leave input suspended |
 | Rollback | Section 4 against a real rc1 rollback | `--restore` verifies checksums, old rootfs serves and boots, current attempt is preserved |
 
@@ -324,10 +324,10 @@ These findings do not change the rc1 source:
 - **Graphics** — the accelerated baseline is unchanged. Compositor GPU mapping
   faults and recovery remain unresolved. The camera EGL import stride mismatch
   is understood and falls back to CPU upload; the CAMSS alignment proposal is
-  untested and not integrated. See the [graphics investigation](bringup-notes/nura-rc1-20261111/graphics/REPORT.md).
+  untested and not integrated. See the graphics investigation in the local rc1 notes (`nura-rc1-20261111/graphics/REPORT.md`, not published).
 - **pstore** — ramoops registered successfully; duplicate-probe errors are
   benign for this boot and need no source fix. Crash persistence is untested;
-  rc1 does not require an induced panic. See the [pstore investigation](bringup-notes/nura-rc1-20261111/pstore/REPORT.md).
+  rc1 does not require an induced panic. See the pstore investigation in the local rc1 notes (`nura-rc1-20261111/pstore/REPORT.md`, not published).
 - **Microphone/UCM/audio route** — no confirmed defect; no speculative route,
   mute or kernel change.
 - **GPU fallback / compositor backend switch** — no evidence-based fallback is

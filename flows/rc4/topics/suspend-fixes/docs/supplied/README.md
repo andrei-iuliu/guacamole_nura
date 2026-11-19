@@ -2,7 +2,7 @@
 
 Proposed changes to [guacamole_nura](https://github.com/emilyastranova/guacamole_nura) for the phone crashing when it goes into standby (screen off / s2idle). The fixes are taken from [omarchy-mobile](https://github.com/Cube-Oakley/omarchy-mobile), which runs the same `sm8150` kernel line on the same phone and documented each failure.
 
-**Status: proposal. Nothing here has been built or run on a phone.** Each patch was checked with `git am` against the real kernel sources (see "What was verified"). Start with [docs/00-diagnose.md](docs/00-diagnose.md) so the fixes are matched to the failure you actually see.
+**Status: proposal. Nothing here has been built or run on a phone.** Each patch was checked with `git am` against the real kernel sources (see "What was verified"). Start with [docs/00-diagnose.md](00-diagnose.md) so the fixes are matched to the failure you actually see.
 
 ## Pinned sources
 
@@ -37,10 +37,10 @@ device/90-guacamole-modem-recovery.rules   OPTIONAL: disable modem SSR (diagnost
 
 | # | Fixes | Symptom | Severity | Docs |
 | --- | --- | --- | --- | --- |
-| 0027 | AP keeps voting the modem rail (`mss.lvl`) at the top corner. The modem's QLink asserts after the radio idles, and resume re-sends the vote | modem watchdog after screen-off; whole phone **freezes** at `pm_test=platform`; with modem recovery on, kernel dies → reboot | **crash** | [0027](docs/0027-guacamole-mss-vote.md) |
-| 0025 | FastRPC invoke restarted after the task freezer → sensor DSP gets a duplicate call | SLPI crashes 6 ms after every resume; sensors dead until reboot | **crash** (DSP) | [0025](docs/0025-fastrpc-freezable-wait.md) |
-| 0026 | s6sy761 IRQ enabled before the controller restart finishes | touchscreen `-ENODEV` on resume; phone "looks dead" | looks like a crash | [0026](docs/0026-s6sy761-resume-irq.md) |
-| 0028 | ath10k waits 3 s for an HTT event WCN3990 never sends on key removal | `-110` timeout, ~3 s extra on every suspend/disconnect | slow, not a crash | [0028](docs/0028-ath10k-snoc-wmi-key-ack.md) |
+| 0027 | AP keeps voting the modem rail (`mss.lvl`) at the top corner. The modem's QLink asserts after the radio idles, and resume re-sends the vote | modem watchdog after screen-off; whole phone **freezes** at `pm_test=platform`; with modem recovery on, kernel dies → reboot | **crash** | [0027](0027-guacamole-mss-vote.md) |
+| 0025 | FastRPC invoke restarted after the task freezer → sensor DSP gets a duplicate call | SLPI crashes 6 ms after every resume; sensors dead until reboot | **crash** (DSP) | [0025](0025-fastrpc-freezable-wait.md) |
+| 0026 | s6sy761 IRQ enabled before the controller restart finishes | touchscreen `-ENODEV` on resume; phone "looks dead" | looks like a crash | [0026](0026-s6sy761-resume-irq.md) |
+| 0028 | ath10k waits 3 s for an HTT event WCN3990 never sends on key removal | `-110` timeout, ~3 s extra on every suspend/disconnect | slow, not a crash | [0028](0028-ath10k-snoc-wmi-key-ack.md) |
 
 Not patched, but must be tested (see 00-diagnose): **WoWLAN**. GN arms WoWLAN by default (`90-ath10k-wowlan.rules`, `90-wifi-wowlan.conf`, `10-wifi-wowlan`), but its own README says "WoWLAN pending" and OM never used WoWLAN. That is an untested suspend path that GN has and OM doesn't.
 
