@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Fetch and verify the ignored host inputs listed in docs/BUILD_ENVIRONMENT.md.
 #
-#   scripts/fetch_inputs.sh            fetch what is missing, verify everything
-#   scripts/fetch_inputs.sh --check    verify only; download nothing
+#   scripts/fetch_inputs.sh                      fetch what is missing, verify everything
+#   scripts/fetch_inputs.sh --check              verify only; download nothing
+#   scripts/fetch_inputs.sh --lineage-ota ZIP    also extract the stock dtbo.img/boot.img
+#                                                references from any Lineage 24 guacamole OTA
+#
+# Host prerequisites are checked first (scripts/check_prereqs.sh) and missing
+# packages are reported with the install command for this distro.
 #
 # Every download is checked against a pinned SHA-256; the pins are the same
 # ones the build scripts enforce, so a fetched file is accepted by them.
@@ -10,18 +15,28 @@
 #   mkbootimg       android.googlesource.com platform/system/tools/mkbootimg @64dc2d4
 #   avbtool.py      android.googlesource.com platform/external/avb @0cf9e8f
 #   bc              the system bc if installed, else flows/rc4/scripts/toolshim/bc
+#   DTB tools       scripts/build_host_tools.sh (system dtc + libufdt test app)
+#   dtbo.img        from --lineage-ota, accepted only if its entry 0 is the pinned one
 # No sudo, no phone access. Existing files are never overwritten: a file with
 # the wrong hash is reported, not replaced.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 CHECK=0
-case "${1:-}" in
-    --check) CHECK=1 ;;
-    "") ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
-    *) echo "unknown argument: $1" >&2; exit 2 ;;
-esac
+OTA=""
+while (($#)); do
+    case "$1" in
+        --check) CHECK=1 ;;
+        --lineage-ota) OTA="$(realpath -e -- "${2:?--lineage-ota needs a zip}")"; shift ;;
+        -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+        *) echo "unknown argument: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+echo "== prerequisites"
+bash "$REPO/scripts/check_prereqs.sh" ||
+    echo "  (continuing; steps that need the missing packages will fail later)" >&2
 
 PT_URL="https://dl.google.com/android/repository/platform-tools_r37.0.1-linux.zip"
 PT_ZIP_SHA="d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1"
@@ -109,6 +124,52 @@ else
     mkdir -p "$REPO/local/bin"
     install -m 755 "$REPO/flows/rc4/scripts/toolshim/bc" "$REPO/local/bin/bc"
     got "local/bin/bc (toolshim: kernel timeconst.bc only; install bc for the real one)"
+fi
+
+echo "== DTB host tools"
+if ((CHECK)); then
+    bash "$REPO/scripts/build_host_tools.sh" --check | sed 's/^/  /' || bad "DTB host tools incomplete"
+else
+    bash "$REPO/scripts/build_host_tools.sh" | sed 's/^/  /' || bad "DTB host tools could not be provided"
+fi
+
+echo "== Lineage stock references (dtbo.img, optional boot.img)"
+ref_dir=""
+for d in lineage-24.0-20261102 lineage-24.0-20261011 from-ota; do
+    [[ -f "$REPO/ref/lineageos/$d/dtbo.img" ]] && { ref_dir="ref/lineageos/$d"; break; }
+done
+if [[ -n "$OTA" && -z "$ref_dir" && $CHECK -eq 0 ]]; then
+    out="$REPO/ref/lineageos/from-ota"
+    mkdir -p "$out"
+    python3 -I - "$REPO/scripts" "$OTA" "$TMP" <<'PY' || bad "could not extract dtbo/boot from $OTA"
+import sys
+sys.path.insert(0, sys.argv[1])
+from extract_lineage_firmware import extract_partition
+for name in ("dtbo", "boot"):
+    extract_partition(sys.argv[2], name, f"{sys.argv[3]}/{name}.img")
+PY
+    if [[ -f "$TMP/dtbo.img" ]] && python3 - "$REPO" "$TMP" <<'PY'
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("ptd", Path(sys.argv[1]) / "scripts/prepare_temporary_dtb.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.configure_tools()
+m.select_stock_entry(Path(sys.argv[2]) / "dtbo.img", Path(sys.argv[2]))
+PY
+    then
+        install -m 644 "$TMP/dtbo.img" "$TMP/boot.img" "$out/"
+        printf '%s
+' "$(basename "$OTA")" > "$out/SOURCE"
+        got "ref/lineageos/from-ota/{dtbo,boot}.img from $(basename "$OTA") (entry 0 matches the pin)"
+        ref_dir="ref/lineageos/from-ota"
+    else
+        bad "dtbo.img in $(basename "$OTA") does not carry the pinned entry 0; not installed"
+    fi
+fi
+if [[ -n "$ref_dir" ]]; then
+    ok "$ref_dir/dtbo.img"
+else
+    bad "no stock dtbo.img: rerun with --lineage-ota <lineage-24.0-*-guacamole-signed.zip>"
 fi
 
 echo

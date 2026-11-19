@@ -61,6 +61,25 @@ use it at different stages, and the rootfs entrypoint manages an isolated copy.
 Restore these from a trusted prepared workspace or regenerate them using the
 referenced recipe/extraction instructions. Keep all checksum checks enabled.
 
+On a fresh checkout, most of them can be restored with one command, which
+first checks host prerequisites and prints the packages to install:
+
+```bash
+bash scripts/fetch_inputs.sh --lineage-ota /path/to/lineage-24.0-*-guacamole-signed.zip
+bash scripts/fetch_inputs.sh --check      # later: verify only
+```
+
+It fetches platform-tools, mkbootimg and avbtool, each verified against the
+pins below. It provides the DTB tools through `scripts/build_host_tools.sh`,
+which links the system `dtc` (1.7 or newer) and builds `ufdt_overlay_test_app`
+from AOSP libufdt, recording them in `local/TOOLS.json`. It also extracts the
+stock `dtbo.img`/`boot.img` from the OTA. The DTBO is accepted by its entry 0
+(`ENTRY_SHA256`), so any Lineage 24 build with the same entry works. The stock
+`boot.img` is only an optional cross-check of the hard-coded root identity.
+System `dtc` 1.8.1 produced a wrapper and merged trees byte-identical to the
+pinned 1.7.2 binaries. The same OTA is the input for
+`extract_lineage_firmware.py` and `prepare_sensor_bundle.py`.
+
 | Destination in this checkout | Needed for | Source / validation |
 | --- | --- | --- |
 | `$RC4_KERNEL_ROOT/kernel-state/linux-v7.0.0-sm8150.tar.gz` | kernel | Source archive (about 250 MB); its SHA-512 is pinned in the kernel APKBUILD and checked by the builder |

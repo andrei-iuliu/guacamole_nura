@@ -45,8 +45,28 @@ CHECKER = ROOT / "scripts/vendor/check-boot-dtb-quarantine.py"
 BASE_DTB_DEFAULT = ROOT / "build/custom_guacamole.dtb"
 BASE_DTS_SOURCE = ROOT / "base_guacamole_working.dts"
 BASE_DTS_BUILD = ROOT / "build/patched_guacamole.dts"
-DTBO_DEFAULT = ROOT / "ref/lineageos/lineage-24.0-20261102/dtbo.img"
-STOCK_BOOT_DEFAULT = ROOT / "ref/lineageos/lineage-24.0-20261102/boot.img"
+# Candidates in order: the two reviewed Lineage references, then an image
+# extracted from any Lineage 24 OTA by scripts/fetch_inputs.sh --lineage-ota.
+# The DTBO is accepted by its entry 0 (ENTRY_SHA256), not by whole-image hash.
+REFERENCE_DIRS = (
+    ROOT / "ref/lineageos/lineage-24.0-20261102",
+    ROOT / "ref/lineageos/lineage-24.0-20261011",
+    ROOT / "ref/lineageos/from-ota",
+)
+
+
+def first_existing(name: str) -> Path:
+    for directory in REFERENCE_DIRS:
+        if (directory / name).is_file():
+            return directory / name
+    return REFERENCE_DIRS[0] / name
+
+
+DTBO_DEFAULT = first_existing("dtbo.img")
+# The stock boot.img is an optional cross-check of SELECTION (the identity the
+# wrapper writes is hard-coded above); it is no longer a required input.
+STOCK_BOOT_DEFAULT = first_existing("boot.img")
+TOOLS_RECORD = ROOT / "local/TOOLS.json"
 OUT_DEFAULT = ROOT / "build/temporary-dtbo"
 
 QUARANTINE = "/__abl_dtbo_quarantine__"
@@ -150,13 +170,24 @@ def run(args: list[object], check: bool = True) -> subprocess.CompletedProcess[b
 
 def verify_tools() -> dict[str, str]:
     configured = {}
+    # Accepted: the original pinned binaries, or the set that
+    # scripts/build_host_tools.sh built/linked and recorded in local/TOOLS.json.
+    # The in-repo validator script is always pinned.  Either way the output
+    # checks below (libufdt vs libfdt agreement, containment) stay mandatory.
+    recorded: dict[str, str] = {}
+    if TOOLS_RECORD.is_file():
+        try:
+            recorded = {k: v["sha256"] for k, v in json.loads(TOOLS_RECORD.read_text())["files"].items()}
+        except (ValueError, KeyError, TypeError) as error:
+            raise PrepareError(f"unreadable {display_path(TOOLS_RECORD)}: {error}")
     for relative, expected in TOOL_HASHES.items():
         path = ROOT / relative
         if not path.is_file():
-            raise PrepareError(f"missing air-gapped host tool: {relative}")
+            raise PrepareError(f"missing host tool: {relative} (run scripts/fetch_inputs.sh)")
         got = sha256(path)
-        if got != expected:
-            raise PrepareError(f"host tool hash mismatch: {relative}: {got} != {expected}")
+        if got != expected and (relative.startswith("scripts/") or recorded.get(relative) != got):
+            raise PrepareError(f"host tool hash mismatch: {relative}: {got} is neither the pin "
+                               f"{expected} nor recorded in {display_path(TOOLS_RECORD)}")
         configured[relative] = got
     if not os.access(UFDT, os.X_OK):
         raise PrepareError(f"overlay test app is not executable: {display_path(UFDT)}")
@@ -531,6 +562,21 @@ def verify_reference_dtbo(path: Path, work: Path) -> dict[str, object]:
     }
 
 
+def describe_dtbo(path: Path, work: Path) -> dict[str, object]:
+    """Any DTBO image is accepted when select_stock_entry() pins entry 0."""
+    selected, inspected = select_stock_entry(path, work)
+    return {
+        **file_record(path),
+        "known_reference": sha256(path) in DTBO_HASHES.values(),
+        "entry_index": selected["entry"]["index"],
+        "entry_sha256": selected["sha256"],
+        "entry_size": selected["entry"]["size"],
+        "fixup_symbols": len(selected["fixups"]),
+        "fragments": selected["fragments"],
+        "entry_count": len(inspected),
+    }
+
+
 def verify_reference_boot(path: Path, work: Path) -> dict[str, object]:
     record = file_record(path)
     expected = STOCK_BOOT_HASHES.get(display_path(path))
@@ -550,7 +596,13 @@ def prepare(args: argparse.Namespace) -> int:
     patched_dts = Path(getattr(args, "patched_dts", str(BASE_DTS_BUILD))).resolve()
     out_dir = Path(args.out_dir).resolve()
     dtbo = Path(args.dtbo).resolve()
-    stock_boot = Path(args.stock_boot).resolve()
+    stock_boot = Path(args.stock_boot).resolve() if args.stock_boot else STOCK_BOOT_DEFAULT
+    if args.stock_boot and not stock_boot.is_file():
+        raise PrepareError(f"missing stock boot reference: {display_path(stock_boot)}")
+    use_stock_boot = stock_boot.is_file()
+    if not dtbo.is_file():
+        raise PrepareError(f"missing DTBO reference: {display_path(dtbo)}; "
+                           "extract one with scripts/fetch_inputs.sh --lineage-ota <zip>")
     if not base.is_file():
         raise PrepareError(f"missing base DTB: {display_path(base)}; run scripts/patch_dtb.py first")
     if not base_source_dts.is_file():
@@ -558,13 +610,11 @@ def prepare(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=out_dir, prefix=".work-") as temporary:
         work = Path(temporary)
-        # Reject any untrusted or changed stock reference before parsing it.
-        if sha256(dtbo) not in DTBO_HASHES.values():
-            raise PrepareError(f"DTBO image hash is not an accepted reference: {sha256(dtbo)}")
-        if sha256(stock_boot) not in STOCK_BOOT_HASHES.values():
-            raise PrepareError(f"stock boot hash is not an accepted reference: {sha256(stock_boot)}")
+        # The DTBO is trusted through its entry 0 (hash, fixups, fragments and
+        # identity pinned in select_stock_entry); the stock boot, when present,
+        # must select base 0 with the reviewed msm-id/board-id.
         selected, inspected = select_stock_entry(dtbo, work)
-        stock = parse_stock_boot(stock_boot, work)
+        stock = parse_stock_boot(stock_boot, work) if use_stock_boot else None
 
         entry = out_dir / "dtbo-entry-00.dtb"
         shutil.copy2(selected["path"], entry)
@@ -658,16 +708,17 @@ def prepare(args: argparse.Namespace) -> int:
         if not wrapper_delta_ok(q, base, wrapper):
             raise PrepareError("wrapper changed live nodes/properties outside the reviewed identity delta")
 
+        # Known references that happen to be present must still agree.
         references_dtbo = [verify_reference_dtbo(path, work) for relative, expected in DTBO_HASHES.items()
                            if (path := ROOT / relative).is_file()]
         references_boot = [verify_reference_boot(path, work) for relative, expected in STOCK_BOOT_HASHES.items()
                            if (path := ROOT / relative).is_file()]
-        if len({item["entry_sha256"] for item in references_dtbo}) != 1:
+        if len({item["entry_sha256"] for item in references_dtbo} | {selected["sha256"]}) != 1:
             raise PrepareError("supplied DTBO references disagree on entry 0")
-        if len({item["selected_base_sha256"] for item in references_boot}) != 1:
+        if len({item["selected_base_sha256"] for item in references_boot}
+               | ({stock["selected_base_sha256"]} if stock else set())) > 1:
             raise PrepareError("supplied stock boot references disagree on the selected base DTB")
-        selected_dtbo = next(item for item in references_dtbo if item["sha256"] == sha256(dtbo))
-        selected_boot = next(item for item in references_boot if item["sha256"] == sha256(stock_boot))
+        selected_dtbo = describe_dtbo(dtbo, work)
 
         checks_summary = {
             "deep_validator": report["status"],
@@ -682,7 +733,7 @@ def prepare(args: argparse.Namespace) -> int:
             "reserved_memory_no_new_conflicts": True,
             "phandle_reference_containment": phandle_ok,
             "entry_selection_exact": selected_dtbo["entry_sha256"] == ENTRY_SHA256,
-            "stock_base_selection_exact": selected_boot["selected_base_index"] == 0,
+            "stock_base_selection_exact": stock is None or stock["selected_base_index"] == 0,
             "host_tool_hashes": True,
         }
         if checks_summary["deep_validator"] != "PASS" or not all(
@@ -712,7 +763,8 @@ def prepare(args: argparse.Namespace) -> int:
                 "patched_build_dts": file_record(patched_dts) if patched_dts.is_file() else None,
                 "dtbo_image": {**file_record(dtbo), "entry_index": selected["entry"]["index"],
                                "entry_sha256": selected["sha256"]},
-                "stock_boot": {**file_record(stock_boot), **{key: value for key, value in stock.items() if key != "path"}},
+                "stock_boot": ({**file_record(stock_boot), **{key: value for key, value in stock.items() if key != "path"}}
+                               if stock else None),
             },
             "dtbo_references": references_dtbo,
             "stock_boot_references": references_boot,
@@ -766,7 +818,8 @@ def verify_manifest(args: argparse.Namespace) -> int:
     base = resolve_path(manifest["inputs"]["base_dtb"]["path"])
     base_dts = resolve_path(manifest["inputs"]["base_dts"]["path"])
     dtbo = resolve_path(manifest["inputs"]["dtbo_image"]["path"])
-    stock_boot = resolve_path(manifest["inputs"]["stock_boot"]["path"])
+    stock_record = manifest["inputs"].get("stock_boot")
+    stock_boot = resolve_path(stock_record["path"]) if stock_record else None
     wrapper = resolve_path(manifest["artifacts"]["wrapper"]["path"])
     entry = resolve_path(manifest["artifacts"]["entry"]["path"])
     merged_ufdt = resolve_path(manifest["artifacts"]["merged_ufdt"]["path"])
@@ -775,8 +828,8 @@ def verify_manifest(args: argparse.Namespace) -> int:
     # A regenerated base must be re-wrapped and the manifest refreshed.
     if sha256(base) != manifest["inputs"]["base_dtb"]["sha256"]:
         raise PrepareError("base DTB changed since prepare; rerun prepare_temporary_dtb.py")
-    if sha256(dtbo) not in DTBO_HASHES.values() or sha256(dtbo) != manifest["inputs"]["dtbo_image"]["sha256"]:
-        raise PrepareError("DTBO reference changed or is untrusted")
+    if sha256(dtbo) != manifest["inputs"]["dtbo_image"]["sha256"]:
+        raise PrepareError("DTBO reference changed since prepare")
 
     q = load_checker()
     if not wrapper_delta_ok(q, base, wrapper):
@@ -792,9 +845,10 @@ def verify_manifest(args: argparse.Namespace) -> int:
             raise PrepareError("selected stock DTBO entry changed")
         if sha256(entry) != selected["sha256"]:
             raise PrepareError("stored DTBO entry does not match the current reference")
-        stock = parse_stock_boot(stock_boot, work)
-        if stock["selected_base_index"] != 0 or stock["sha256"] != manifest["inputs"]["stock_boot"]["sha256"]:
-            raise PrepareError("stock boot base selection changed")
+        if stock_boot is not None:
+            stock = parse_stock_boot(stock_boot, work)
+            if stock["selected_base_index"] != 0 or stock["sha256"] != stock_record["sha256"]:
+                raise PrepareError("stock boot base selection changed")
 
         test_ufdt = work / "verify-merged-ufdt.dtb"
         test_libfdt = work / "verify-merged-libfdt.dtb"
@@ -836,8 +890,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="optional patched/flattened DTS recorded in the manifest")
     parser.add_argument("--dtbo", default=str(DTBO_DEFAULT),
                         help="stock Lineage guacamole dtbo.img reference")
-    parser.add_argument("--stock-boot", default=str(STOCK_BOOT_DEFAULT),
-                        help="matching stock Lineage boot.img reference")
+    parser.add_argument("--stock-boot", default=None,
+                        help="optional stock Lineage boot.img cross-check (default: a known "
+                             "reference if present, else skipped)")
     parser.add_argument("--out-dir", default=str(OUT_DEFAULT),
                         help="artifact directory (default: build/temporary-dtbo)")
     parser.add_argument("--verify", action="store_true",
