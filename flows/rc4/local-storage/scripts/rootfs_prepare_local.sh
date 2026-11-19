@@ -83,6 +83,9 @@ KERNEL_RECIPE="${NURA_KERNEL_RECIPE:-flows/rc4/device/testing/linux-postmarketos
 OUT="${NURA_ROOTFS_OUT:-$ROOT/build/local-userdata$UI_SUFFIX}"
 BOOT_INITRAMFS="$OUT/boot-initramfs"
 LOCAL_USERDATA="${NURA_LOCAL_USERDATA:-0}"
+# 1: build libcamera 0.8 and libcamera-rear from their recipes instead of
+# reusing the historical rear1 APKs (no build/rear-camera needed). Local only.
+FRESH_BASELINE="${NURA_FRESH_BASELINE:-0}"
 CANDIDATE_HOOK_VERSION="${NURA_NETBOOT_HOOK_VERSION:-4.2.1-r4}"
 LOCAL_HOOK_RECIPE="${NURA_LOCAL_HOOK_RECIPE:-}"
 LOCAL_TOOL="${NURA_LOCAL_TOOL:-$ROOT/scripts/local_storage_tool.py}"
@@ -170,6 +173,13 @@ case "$LOCAL_USERDATA" in
     0|1) ;;
     *) die "NURA_LOCAL_USERDATA must be 0 or 1" ;;
 esac
+case "$FRESH_BASELINE" in
+    0|1) ;;
+    *) die "NURA_FRESH_BASELINE must be 0 or 1" ;;
+esac
+if [[ "$FRESH_BASELINE" = 1 && "$LOCAL_USERDATA" != 1 && "$MODE" != check ]]; then
+    die "NURA_FRESH_BASELINE=1 is supported in the local-userdata profile only"
+fi
 if [[ "$NURA_UI" != plasma && "$LOCAL_USERDATA" != 1 && "$MODE" != check ]]; then
     die "NURA_UI=$NURA_UI is supported in the local-userdata profile only (local_storage_build.sh --ui $NURA_UI)"
 fi
@@ -864,7 +874,8 @@ compgen -G "$KERNEL_STATE/linux-*/Makefile" >/dev/null ||
     die "missing extracted rc4 kernel source under $KERNEL_STATE; run: bash flows/rc4/scripts/rc4.sh kernel"
 [[ -f "$KERNEL_OUT/kernel-package/boot/vmlinuz" ]] ||
     die "missing rc4 kernel package staging: $KERNEL_OUT/kernel-package"
-[[ -d "$SRC_OUT" ]] || die "missing rc2 APK baseline output: $SRC_OUT"
+[[ "$FRESH_BASELINE" = 1 || -d "$SRC_OUT" ]] ||
+    die "missing rc2 APK baseline output: $SRC_OUT (or use a fresh baseline: NURA_FRESH_BASELINE=1)"
 [[ -f "$SRC_STATE/rootfs/pmbootstrap.cfg" ]] ||
     die "missing pinned pmbootstrap config: $SRC_STATE/rootfs/pmbootstrap.cfg"
 [[ -d "$SRC_STATE/pmaports" ]] || die "missing pinned pmaports: $SRC_STATE/pmaports"
@@ -888,7 +899,11 @@ note "rc4 kernel recipe/staging and rc2 APK baseline pins: OK"
 note "rc4 kernel release: $RELEASE"
 note "rc4 kernel package: $(json_get vmlinuz_sha256)"
 note "rc4 module payload: $(json_get module_payload_sha256) ($(json_get module_count) modules)"
-note "pinned netboot hook/libcamera-rear/system libcamera APKs: OK"
+if [[ "$FRESH_BASELINE" = 1 ]]; then
+    note "fresh baseline: libcamera $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["system_libcamera"]["libcamera"]["version"])' "$TMP/source.json") and libcamera-rear will be built from recipes"
+else
+    note "pinned netboot hook/libcamera-rear/system libcamera APKs: OK"
+fi
 
 if [[ "$MODE" = check ]]; then
     boot_line="not packed yet (run --build)"
@@ -1108,6 +1123,8 @@ seed_public_keys() {
 }
 
 seed_known_apks() {
+    # A fresh baseline reuses no APK: nothing to seed, no foreign keys to trust.
+    [[ "$FRESH_BASELINE" != 1 ]] || return 0
     seed_public_keys
     [[ -L "$WORK/packages" || -L "$WORK/packages/$CHANNEL" || -L "$PKGDIR" ]] &&
         die "candidate package repository must not be a symlink: $PKGDIR"
@@ -1173,6 +1190,7 @@ clear_stale_kernel_apks() {
 }
 
 sign_system_apks() {
+    [[ "$FRESH_BASELINE" != 1 ]] || return 0
     local -a PMB=(python3 "$STATE/pmbootstrap/pmbootstrap.py"
         -c "$STATE/rootfs/pmbootstrap.cfg" -p "$STATE/pmaports" -w "$WORK")
     local inside=/home/pmos/nura-apk-signing
@@ -1411,6 +1429,22 @@ run_pmbootstrap_builds() {
             die "built netboot hook is $built_hook, expected $CANDIDATE_HOOK_VERSION"
         note "built local netboot hook: $built_hook"
     fi
+    if [[ "$FRESH_BASELINE" = 1 ]]; then
+        # Before the UI: the camera apps resolve libcamera 0.8 from these.
+        local built expected camera_pkg
+        for camera_pkg in libcamera libcamera-rear; do
+            note "fresh baseline: building $camera_pkg from its recipe"
+            "${PMB[@]}" build --arch aarch64 --ignore-depends --no-depends --force "$camera_pkg"
+        done
+        read -r expected < <(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["system_libcamera"]["libcamera"]["version"])' "$TMP/source.json")
+        built="$(package_version libcamera)"
+        [[ "$built" = "$expected" ]] || die "built libcamera is $built, expected $expected"
+        built="$(package_version libcamera-ipa)"
+        [[ "$built" = "$expected" ]] || die "built libcamera-ipa is $built, expected $expected"
+        read -r expected < <(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["apks"]["libcamera-rear"]["version"])' "$TMP/source.json")
+        built="$(package_version libcamera-rear)"
+        [[ "$built" = "$expected" ]] || die "built libcamera-rear is $built, expected $expected"
+    fi
     seed_modem_distfile
     note "building local recipes individually; dependency builds are forbidden"
     local package
@@ -1608,7 +1642,12 @@ run_export() {
 verify_installed() {
     local ui_version="$1"
     local rootfs="$WORK/chroot_rootfs_oneplus-guacamole"
-    local -a clock_args=() gmobile_args=() phoc_args=() sensor_args=()
+    local -a clock_args=() gmobile_args=() phoc_args=() sensor_args=() libcamera_args=()
+    if [[ "$FRESH_BASELINE" = 1 ]]; then
+        libcamera_args=(--built-apk-dir "$PKGDIR")
+    else
+        libcamera_args=(--known-good-rootfs "$(json_get rootfs)")
+    fi
     [[ -z "$NURA_CLOCK_VERSION" ]] || clock_args=(--nura-clock-version "$NURA_CLOCK_VERSION")
     [[ "$NURA_UI" != phosh ]] || gmobile_args=(--gmobile-version "$(package_version gmobile)")
     [[ "$NURA_UI" != phosh ]] || phoc_args=(--phoc-version "$(package_version phoc)")
@@ -1622,7 +1661,7 @@ verify_installed() {
         --kernel-dir "$KERNEL_OUT/kernel-package" \
         --rootfs "$rootfs" \
         --initramfs "$STATE/rootfs/export/initramfs" \
-        --known-good-rootfs "$(json_get rootfs)" \
+        "${libcamera_args[@]}" \
         --expected-vmlinuz-sha "$(json_get vmlinuz_sha256)" \
         --expected-dtb-sha "$(json_get dtb_sha256)" \
         --expected-module-payload-sha "$(json_get module_payload_sha256)" \

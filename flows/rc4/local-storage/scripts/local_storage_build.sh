@@ -9,9 +9,12 @@
 # touches the canonical rc4 boot image, manifest, netboot cache or rootfs.
 #
 # Default is a dry run.  --build executes the user-run/pbootstrap flow.
-# --ui plasma|phosh (or NURA_UI) selects the UI; plasma is the default and
-# keeps the existing .work/local-userdata and build/local-userdata paths.
-# Phosh uses .work/local-userdata-phosh and build/local-userdata-phosh.
+# --ui plasma|phosh (or NURA_UI) selects the UI; phosh is the default and uses
+# .work/local-userdata-phosh and build/local-userdata-phosh; plasma keeps
+# .work/local-userdata and build/local-userdata.
+# --fresh-baseline builds libcamera 0.8 and libcamera-rear from their recipes
+# instead of reusing the historical rear1 APKs, so NURA_BASELINE_ROOT only
+# needs what scripts/bootstrap_baseline.sh creates.
 #
 # --shutdown clears leftover chroots of the selected UI after a failed build
 # (pmbootstrap's own shutdown; nothing is ever force-unmounted) and is safe to
@@ -45,13 +48,14 @@ SERVED_RECORD="${NURA_SERVED_RECORD:-$SOURCE_ROOT/.work/delivery-plasma-mobile/s
 HELPER_SCRIPTS="$FLOW_DIR/scripts"
 BUILD=0
 REFRESH_KERNEL=0
+FRESH_BASELINE="${NURA_FRESH_BASELINE:-0}"
 SHUTDOWN=0
 DRY_RUN=0
 AUTHORIZED_KEY=""
 SNAP_BEFORE=""
 
 usage() {
-    sed -n '2,19p' "$0"
+    sed -n '2,22p' "$0"
 }
 
 die() {
@@ -137,6 +141,7 @@ while (( $# )); do
     case "$1" in
         --build) BUILD=1 ;;
         --refresh-kernel) REFRESH_KERNEL=1 ;;
+        --fresh-baseline) FRESH_BASELINE=1 ;;
         --shutdown) SHUTDOWN=1 ;;
         --dry-run) DRY_RUN=1 ;;
         --authorized-key)
@@ -419,6 +424,7 @@ run_rootfs() {
     NURA_KERNEL_STATE="$KERNEL_STATE" \
     NURA_KERNEL_BUILD="$KERNEL_BUILD" \
     NURA_LOCAL_USERDATA=1 \
+    NURA_FRESH_BASELINE="${FRESH_BASELINE:-0}" \
     NURA_LOCAL_HOOK_RECIPE="$HOOK_RECIPE" \
     NURA_NETBOOT_HOOK_VERSION="$HOOK_VERSION" \
     NURA_LOCAL_TOOL="$TOOL" \
@@ -470,6 +476,7 @@ if (( ! BUILD )); then
     echo "isolated output:    $LOCAL_OUT"
     echo "kernel source copy: $KERNEL_STATE (source package $KERNEL_BUILD read-only)"
     echo "guarded hook:       $HOOK_VERSION from $FLOW_HOOK_RECIPE"
+    echo "baseline:           ${NURA_BASELINE_ROOT:-$SOURCE_ROOT}$( (( FRESH_BASELINE )) && echo ' (fresh: libcamera built from recipes)')"
     echo "release:            $RELEASE"
     echo "rootfs script:      $ROOTFS_SCRIPT (local intermediate mode)"
     echo "final manifest:     $LOCAL_OUT/DELIVERY.local.json"

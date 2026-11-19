@@ -85,6 +85,35 @@ the baseline APKs and image identity expected by `check_local_candidate.py`.
 An empty directory is insufficient. The read-only preflight validates these
 inputs. Downloads used by recipes are verified separately during package builds.
 
+### Without the preserved baseline (fresh baseline)
+
+A fresh checkout can recreate the baseline from public sources instead:
+
+```bash
+bash scripts/bootstrap_baseline.sh          # .work/baseline, about 25 s
+export NURA_BASELINE_ROOT="$PWD/.work/baseline"
+```
+
+This fetches pmaports and pmbootstrap at the commits in
+`device/testing/rear-camera/SOURCE_PINS.json`, applies the netboot-port patch,
+and writes the config and APK keys. It does not recreate `build/rear-camera`.
+Build with `--fresh-baseline` so that the flow builds libcamera 0.8 (pinned
+pmaports `temp/libcamera`) and `libcamera-rear` from their recipes instead of
+reusing the rear1 APKs:
+
+```bash
+NURA_FRESH_BASELINE=1 NURA_KERNEL_STATE="$NURA_KERNEL_SOURCE_STATE" \
+  bash flows/rc4/local-storage/scripts/rootfs_prepare_local.sh --check-only
+bash flows/rc4/local-storage/scripts/local_storage_build.sh \
+  --ui "$NURA_UI" --build --fresh-baseline --authorized-key "$NURA_SSH_PUBLIC_KEY"
+```
+
+Those libraries are checked by version (`99990.8.0-r1`, `0.7.2-r0`), and the
+installed `libcamera.so` files must match the APKs just built. They are not
+the rear1 binaries that were tested on hardware, so test the cameras after the
+first fresh build. Fresh mode exists for the local-userdata profile only; the
+netboot `manifest`/`check` commands refuse it.
+
 ## Build and retry commands
 
 Build the kernel rootlessly:
