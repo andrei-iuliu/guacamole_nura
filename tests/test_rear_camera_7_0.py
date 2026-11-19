@@ -245,7 +245,10 @@ class RearInitramfs(unittest.TestCase):
 
     def test_packaging_scripts_syntax(self):
         for name in ['build_rear_camera_kernel','build_rear_camera_libcamera','rootfs_prepare_rear_camera','build_bootimg_rear_camera','serve_rear_camera','boot_rear_camera','collect_rear_camera','cam_rear']:
-            subprocess.run(['bash','-n',str(ROOT/f'scripts/{name}.sh')],check=True)
+            path=ROOT/f'scripts/{name}.sh'
+            if not path.exists():  # superseded launchers live in archive/scripts
+                path=ROOT/f'archive/scripts/{name}.sh'
+            subprocess.run(['bash','-n',str(path)],check=True)
         rootfs=(ROOT/'scripts/rootfs_prepare_rear_camera.sh').read_text()
         self.assertIn('7.0.0_p*-r0',rootfs)
         self.assertNotIn('.work/7.0',rootfs)

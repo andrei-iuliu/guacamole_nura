@@ -143,7 +143,7 @@ class InitramfsReleaseTests(unittest.TestCase):
 class BootScriptFailClosedTests(unittest.TestCase):
     def setUp(self) -> None:
         self.kernel = ROOT / "build/7.0/kernel-package"
-        self.script = ROOT / "scripts/build_bootimg_7_0.sh"
+        self.script = ROOT / "archive/scripts/build_bootimg_7_0.sh"
         if not (self.kernel / "boot/vmlinuz").is_file():
             self.skipTest("7.0 kernel staging is not present")
         self.temporary = tempfile.TemporaryDirectory(dir=ROOT / "build", prefix="test-bootimg-")
@@ -178,7 +178,7 @@ class BootScriptFailClosedTests(unittest.TestCase):
 
 class BuildScriptContractTests(unittest.TestCase):
     def test_boot_script_calls_the_helper_and_has_no_warning_fallback(self) -> None:
-        text = (ROOT / "scripts/build_bootimg_7_0.sh").read_text()
+        text = (ROOT / "archive/scripts/build_bootimg_7_0.sh").read_text()
         self.assertIn("check_initramfs_release.py", text)
         self.assertIn('--release "${KERNEL_RELEASE}"', text)
         self.assertNotIn("could not list the initramfs as a cpio archive", text)
