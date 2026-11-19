@@ -6,10 +6,21 @@
 
 This repository contains the bringup workspace, kernel patches, device tree sources, firmware packages, helper utilities, and documentation for running **postmarketOS / Nura** on the **OnePlus 7 Pro** (codename `guacamole`).
 
-The current working checkpoint is **rc4j with Phosh**, built and RAM-booted on
-2026-11-14 with its rootfs on userdata. Speakers, Bluetooth and Wi-Fi work;
-see [the success record](docs/RC4J_SUCCESS_20261114.md) for verification and known
-issues. `runtime-workspace` remains the prepared build/runtime workspace.
+> [!WARNING]
+> **Experimental. Use at your own risk.** This was developed and tested on
+> specific OnePlus 7 Pro units with the software of the time; other units,
+> variants or updates may behave differently. The procedures need an unlocked
+> bootloader and write to partitions, so they can erase your data or leave the
+> phone unbootable: back up first. Verify charging and thermal behaviour on
+> your own unit. Documents describe the state when they were written. No
+> support or warranty is provided ([GPLv3](LICENSE), sections 15–16).
+
+The current working checkpoint is **rc4n with Phosh**: its boot image is
+flashed to `boot_b`, and the rootfs (installed with rc4l on 2026-11-15) lives on
+`userdata`. Speakers, Bluetooth and Wi-Fi work; see
+[workspace status](docs/WORKSPACE_STATUS.md) and
+[the rc4j success record](docs/RC4J_SUCCESS_20261114.md) for verification and
+known issues. `runtime-workspace` remains the prepared build/runtime workspace.
 See [workspace status](docs/WORKSPACE_STATUS.md) before building: local tools,
 chroots, firmware bundles and images are not stored in Git.
 
