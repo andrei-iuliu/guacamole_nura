@@ -17,7 +17,7 @@
 > Preserve the working DTBO quarantine approach; do not zero DTBO partitions
 > based on historical procedures in this report. Confirm current layout and
 > a recoverable backup before preparing any write. The ADB probe transcript is
-> [`evidence/dualboot/adb-probe.txt`](evidence/dualboot/adb-probe.txt).
+> `adb-probe.txt` (kept locally, not published).
 
 # DUALBOOT_FEASIBILITY — Android + a local Linux installation on OnePlus 7 Pro (guacamole)
 
