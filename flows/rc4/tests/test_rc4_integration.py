@@ -208,22 +208,22 @@ class TestIsolation(unittest.TestCase):
     def test_checker_links_resolve_to_the_rc4_device_package(self):
         # prepare_state() resolves pmaports recipe links through ROOT
         # (flows/rc4/local-storage), not SOURCE_ROOT: the device package it
-        # installs must be the rc4j pkgrel 20 copy.
+        # installs must be the rc4o pkgrel 21 copy.
         checker = read(FLOW / "scripts/check_local_candidate.py")
         self.assertIn('"device/testing/device-oneplus-guacamole": '
                       '"device/testing/device-oneplus-guacamole"', checker)
         target = (FLOW / "device/testing/device-oneplus-guacamole").resolve()
         self.assertEqual(target, (RC4 / "device/testing/device-oneplus-guacamole").resolve())
-        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=20$")
+        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=21$")
         self.assertIn("guacamole-mss-release", read(target / "APKBUILD"))
 
     def test_recipe_root_selects_the_rc4_device_package(self):
-        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 20
+        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 21
         # (GPU toggle, soak helper and log-level drop-ins).
         # and never to the rc3-era flows/local-storage copy (pkgrel 14).
         farm = FLOW / "device/testing/device-oneplus-guacamole"
         self.assertTrue(farm.is_dir())
-        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=20$")
+        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=21$")
         original = REPO / "flows/local-storage/device/testing/device-oneplus-guacamole/APKBUILD"
         if original.is_file():
             self.assertRegex(read(original), r"(?m)^pkgrel=14$")
@@ -256,11 +256,14 @@ class TestBaselineUntouched(unittest.TestCase):
 
 
 class TestGates(unittest.TestCase):
-    def test_mss_unit_installed_but_disabled(self):
+    def test_mss_unit_enabled_by_its_own_preset(self):
         dev = read(DEVICE / "APKBUILD")
         self.assertIn("guacamole-mss-release", dev)
         self.assertIn('$pkgdir/usr/libexec/guacamole-mss-release', dev)
         self.assertIn('$pkgdir/usr/lib/systemd/system/guacamole-mss-release.service', dev)
+        self.assertIn('$pkgdir/usr/lib/systemd/system-preset/82-guacamole-mss-release.preset', dev)
+        own = read(DEVICE / "82-guacamole-mss-release.preset")
+        self.assertIn("enable guacamole-mss-release.service", own)
         preset = read(DEVICE / "80-guacamole.preset")
         self.assertNotIn("mss-release", preset)
         self.assertEqual(preset, read(REPO / "device/testing/device-oneplus-guacamole/80-guacamole.preset"),
