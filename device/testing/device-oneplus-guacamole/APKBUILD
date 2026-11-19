@@ -4,7 +4,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=13
+pkgrel=14
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -23,6 +23,7 @@ depends="
 	iio-sensor-proxy
 	postmarketos-base
 	msm-modem
+	nura-clock
 	rmtfs
 	tqftpserv
 "
@@ -59,6 +60,11 @@ source="
 	90-guacamole-wlanmac.rules
 	90-guacamole-sensors.rules
 	61-guacamole-accel-mount-matrix.rules
+	72-guacamole-haptics.rules
+	nura-boot-diagnostics
+	nura-boot-diagnostics.service
+	nura-boot-diagnostics.timer
+	81-nura-boot-diagnostics.preset
 	guacamole-sensors-registry
 	guacamole-sensors-registry.service
 	hexagonrpcd-sdsp-registry.conf
@@ -156,6 +162,27 @@ package() {
 		"$pkgdir/usr/lib/udev/rules.d/90-guacamole-sensors.rules"
 	install -Dm644 "$srcdir/61-guacamole-accel-mount-matrix.rules" \
 		"$pkgdir/usr/lib/udev/rules.d/61-guacamole-accel-mount-matrix.rules"
+
+	# Haptics: feedbackd only uses input devices tagged FEEDBACKD_TYPE=vibra,
+	# and stock 72-feedbackd.rules does not know the AW8697 input name.  This
+	# rule must sort before 73-seat-late.rules so TAG+="uaccess" reaches the
+	# Plasma user's session.  The alert-slider line is a name-based fallback
+	# for feedbackd's fbd-alert-slider handler.
+	install -Dm644 "$srcdir/72-guacamole-haptics.rules" \
+		"$pkgdir/usr/lib/udev/rules.d/72-guacamole-haptics.rules"
+
+	# Bounded boot-state snapshots in the persistent journal.  The helper is
+	# a byte-identical source copy of scripts/collect_boot_diagnostics.sh;
+	# keep the two in sync (tests/test_rc3_device_sources.py asserts it).
+	install -Dm755 "$srcdir/nura-boot-diagnostics" \
+		"$pkgdir/usr/bin/nura-boot-diagnostics"
+	install -Dm644 "$srcdir/nura-boot-diagnostics.service" \
+		"$pkgdir/usr/lib/systemd/system/nura-boot-diagnostics.service"
+	install -Dm644 "$srcdir/nura-boot-diagnostics.timer" \
+		"$pkgdir/usr/lib/systemd/system/nura-boot-diagnostics.timer"
+	install -Dm644 "$srcdir/81-nura-boot-diagnostics.preset" \
+		"$pkgdir/usr/lib/systemd/system-preset/81-nura-boot-diagnostics.preset"
+
 	install -Dm644 "$srcdir/iio-sensor-proxy-guacamole.conf" \
 		"$pkgdir/usr/lib/systemd/system/iio-sensor-proxy.service.d/guacamole.conf"
 }
@@ -201,6 +228,11 @@ a6a258a95f57e3c68b7d48bb019d9bfb170b5ca7617ac320652906b2998aaf8b63021cbff8900e72
 be1a5cb1c37b8ddda6b8d5cce2dd3596be44fefed67c75493abd4ad15d5041601493a0d9f2823b67825d2940f11b36274f05ebf8ce0113bd42e972aac20ad187  90-guacamole-wlanmac.rules
 722313af8488dd1e0e19ceed62e002ebb6c09315078d5b2b4730e6084c25c1165049b3a85efdb156a756d06b6387c9d31d5fda280b106bccb003bab54bba99f8  90-guacamole-sensors.rules
 d0a84b5aa02540f3187b92f5c96fac8f5af07b0c3532a32e63eb75614a76b7ad62b166bc2551c2fab68405446bff0a03b3e6f7c7ab1e2e99dafc070a628046ff  61-guacamole-accel-mount-matrix.rules
+f7dfc0748628b8cd46047e1f21cb6bf3a72dacbc5635f2f00facd97855ad8dafa1ec4c0ecc6c86f0105d52e3c00e365f1019f187e3fe7ccc8e3e44c0b306a9f4  72-guacamole-haptics.rules
+7bd9bce90d395650b08a351f2dc0db052ae7cca316021b97c79a133c9b8882aa4545092dd47d2102b65713665d8d81054a98aa955ca38dbeeba5fc3d35990e89  nura-boot-diagnostics
+cb51abec5762ffe36d0da419604d2d5ef37909669836e04cbe305bd2644aa5f286d72a73dcfb0787afb8f47c100af9ee3d53e2d223b1d1881a87d1058d7ee50b  nura-boot-diagnostics.service
+d69716f38debbb153ff91dea6764a67f2fbf3af12ad9bc77ded73e5e837e788afa2f785d0c2089385f6e59d90d9c5ec981004fbf91dafc63fc3695c7c3b9fe77  nura-boot-diagnostics.timer
+1d93085e8d73fc3c6ac80b87cfd0ce7b811f510e33adfc8c7ac98e44f2ede35115110c0dcbbe65d94badf48085aaf8ff63cbba68ac657d4e0173a9d0d58815a6  81-nura-boot-diagnostics.preset
 977d664269d5c52193a5ed4bedc15b73b7688f67fcbcd4c9f14f218ec23e7be53457e9484a74ae3bce65f8e95bc72047e3605b544099cfb5076c59adb5dc99e5  guacamole-sensors-registry
 81cf37c601c90e6b208bfcb1dac19d11ec553681958fc2a8ef7f75343a784a7f323e7fefd95780c6e14b0ec0076ac2e2d4a7f43c301d5ddbec8451e070d7504c  guacamole-sensors-registry.service
 558563eacbcf020a977f3a0993d2567b1fdb15a0e31747c2f0e59d2e196db840d6e2936ac5458feb7d0751fcf1da582479c47da0986c83947eb9043071074677  hexagonrpcd-sdsp-registry.conf

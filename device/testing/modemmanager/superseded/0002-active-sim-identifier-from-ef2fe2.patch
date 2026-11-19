@@ -1,0 +1,17 @@
+--- a/src/mm-shared-qmi.c
++++ b/src/mm-shared-qmi.c
+@@ -3455,8 +3455,13 @@ uim_get_slot_status_ready (QmiClientUim *client,
+         sim = mm_sim_qmi_new_initialized (MM_BASE_MODEM (self),
+                                           TRUE, /* consider DMS UIM deprecated if we're creating SIM slots */
+                                           i + 1, /* slot number is the array index starting at 1 */
+                                           sim_active,
+-                                          iccid,
++                                          /* The active SIM must load its identifier from
++                                           * the SIM itself (EF2FE2), which is the same
++                                           * source the SIM-swap check reads; a stable
++                                           * difference between the two sources otherwise
++                                           * reprobes the modem at every probe. */
++                                          sim_active ? NULL : iccid,
+                                           NULL,  /* imsi unknown */
+                                           eid,   /* may be NULL, which is fine */
+                                           NULL,  /* operator id unknown */

@@ -1,0 +1,51 @@
+Subject: [PATCH] power: supply: qcom_smbx: fix SMB5 overvoltage and ICL readback
+
+The SMB5 battery-overvoltage bit is in BATTERY_CHARGER_STATUS_2 (0x1007,
+bit 1). STATUS_7 (0x100D) holds the battery temperature status bits, so
+reading it for overvoltage can report a temperature limit as an overvoltage
+and miss a real one. smbx_ov_status() feeds the status property, the SMB5
+health property and the bat-ov interrupt handler, so fix the register
+selection for all three at once. SMB2 already reads STATUS_2 and keeps its
+existing mask.
+
+The SMB5 effective input-current limit after AICL is reported in
+AICL_ICL_STATUS at 0x1108, not at 0x1107. Use the generation-specific
+offset so input_current_limit and current_max report the limit that is
+actually in effect. Keep SMB2 on its existing 0x607 offset. 0x1370
+(USBIN_CURRENT_LIMIT_CFG) only echoes the programmed request; it is not a
+substitute for the effective readback.
+
+Confirmed against the OnePlus 7T Pro bring-up native3-charger.patch and the
+upstream SMB5 v4 proposal (lists.openwall.net/linux-kernel/2026/08/20/748).
+No charge-status enum, HVDCP, OTG/Type-C ownership, charge current, PDO or
+battery-data changes are included.
+---
+--- a/drivers/power/supply/qcom_smbx.c
++++ b/drivers/power/supply/qcom_smbx.c
+@@ -156,7 +156,16 @@
+ #define USBIN_CONT_AICL_THRESHOLD_CFG			0x384
+ #define USBIN_CONT_AICL_THRESHOLD_CFG_MASK		GENMASK(5, 0)
+ 
+-#define ICL_STATUS(smb)					(SMB_REG_OFFSET(smb) + 0x07)
++/*
++ * The SMB2 ICL status and the SMB5 AICL status are at different offsets.
++ * SMB5 reports the effective limit after AICL in AICL_ICL_STATUS; do not read
++ * USBIN_CURRENT_LIMIT_CFG here, as that only echoes the programmed request.
++ */
++#define SMB2_ICL_STATUS					0x607
++#define SMB5_AICL_ICL_STATUS				0x108
++#define ICL_STATUS(smb)					(smb->gen == SMB2 ? \
++							 SMB2_ICL_STATUS : \
++							 SMB5_AICL_ICL_STATUS)
+ #define INPUT_CURRENT_LIMIT_MASK			GENMASK(7, 0)
+ 
+ #define POWER_PATH_STATUS(smb)				(SMB_REG_OFFSET(smb) + 0x0B)
+@@ -377,7 +386,7 @@
+ 		mask = SMB2_CHARGER_ERROR_STATUS_BAT_OV_BIT;
+ 		break;
+ 	case SMB5:
+-		reg = BATTERY_CHARGER_STATUS_7;
++		reg = BATTERY_CHARGER_STATUS_2;
+ 		mask = SMB5_CHARGER_ERROR_STATUS_BAT_OV_BIT;
+ 		break;
+ 	}

@@ -1,0 +1,146 @@
+Subject: [PATCH] Input: s6sy761 - power on before unmasking the resume IRQ
+
+System suspend powers the controller off and disables its interrupt. The
+resume path unmasked the interrupt first and only then called
+s6sy761_power_on(). The controller announces boot completion on the same
+interrupt line, so the threaded handler could consume the event that
+power_on() was polling for. power_on() then failed with -ENODEV and the
+touchscreen stayed unconfigured.
+
+Power the controller on first, restore sensing when the input device
+remained open across sleep, and unmask the interrupt only after both
+steps succeeded.
+
+The failure paths also have to stay balanced. power_on() left the
+regulators enabled when it bailed out after enabling them, and a failed
+resume left the interrupt disabled while the PM core marked the device
+resumed. The following suspend then disabled the interrupt a second time
+(leaving it permanently masked) and disabled the regulators twice. Track
+whether the controller is powered, unwind the regulators on power_on()
+failure, keep disable_irq() in the suspend path, and power the controller
+back off when restoring sensing fails. This also stops the devm cleanup
+action from disabling an interrupt that devres has already freed.
+
+This ports the upstream resume-ordering change and its error-path
+follow-up onto the guacamole reset-GPIO and boot-complete retry variant
+from patch 0005. The interrupt is still unmasked only after a successful
+power-on and sense restore.
+
+References:
+https://lists.openwall.net/linux-kernel/2026/09/26/1067
+https://lists.openwall.net/linux-kernel/2026/09/30/440
+omarchy-mobile f702f68 devices/oneplus7pro/kernel/touch/s6sy761-resume-irq.patch
+---
+--- a/drivers/input/touchscreen/s6sy761.c
++++ b/drivers/input/touchscreen/s6sy761.c
+@@ -110,6 +110,8 @@
+ 
+ 	u16 devid;
+ 	u8 tx_channel;
++
++	bool powered_up;
+ };
+ 
+ /*
+@@ -363,24 +365,32 @@
+ 			"no boot-complete on attempt %d, retrying\n", attempt);
+ 	}
+ 	if (ret)
+-		return ret;
++		goto err_disable_regulators;
+ 
+ 	ret = i2c_smbus_read_byte_data(sdata->client, S6SY761_BOOT_STATUS);
+ 	if (ret < 0)
+-		return ret;
++		goto err_disable_regulators;
+ 
+ 	/* for some reasons the device might be stuck in the bootloader */
+-	if (ret != S6SY761_BS_APPLICATION)
+-		return -ENODEV;
++	if (ret != S6SY761_BS_APPLICATION) {
++		ret = -ENODEV;
++		goto err_disable_regulators;
++	}
+ 
+ 	/* enable touch functionality */
+ 	ret = i2c_smbus_write_word_data(sdata->client,
+ 					S6SY761_TOUCH_FUNCTION,
+ 					S6SY761_MASK_TOUCH);
+ 	if (ret)
+-		return ret;
++		goto err_disable_regulators;
+ 
++	sdata->powered_up = true;
+ 	return 0;
++
++err_disable_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sdata->regulators),
++			       sdata->regulators);
++	return ret;
+ }
+ 
+ static int s6sy761_hw_init(struct s6sy761_data *sdata,
+@@ -429,11 +439,14 @@
+ {
+ 	struct s6sy761_data *sdata = data;
+ 
+-	disable_irq(sdata->client->irq);
++	if (!sdata->powered_up)
++		return;
++
+ 	if (sdata->reset_gpio)
+ 		gpiod_set_value_cansleep(sdata->reset_gpio, 1);
+ 	regulator_bulk_disable(ARRAY_SIZE(sdata->regulators),
+-						sdata->regulators);
++			       sdata->regulators);
++	sdata->powered_up = false;
+ }
+ 
+ static int s6sy761_probe(struct i2c_client *client)
+@@ -548,18 +561,44 @@
+ {
+ 	struct s6sy761_data *sdata = dev_get_drvdata(dev);
+ 
+-	s6sy761_power_off(sdata);
++	if (sdata->powered_up) {
++		disable_irq(sdata->client->irq);
++		s6sy761_power_off(sdata);
++	}
+ 
+ 	return 0;
+ }
+ 
++static int s6sy761_restore_sense(struct s6sy761_data *sdata)
++{
++	guard(mutex)(&sdata->input->mutex);
++
++	if (!input_device_enabled(sdata->input))
++		return 0;
++
++	return i2c_smbus_write_byte(sdata->client, S6SY761_SENSE_ON);
++}
++
+ static int s6sy761_resume(struct device *dev)
+ {
+ 	struct s6sy761_data *sdata = dev_get_drvdata(dev);
++	int err;
++
++	err = s6sy761_power_on(sdata);
++	if (err)
++		return err;
++
++	err = s6sy761_restore_sense(sdata);
++	if (err)
++		goto err_power_off;
+ 
+ 	enable_irq(sdata->client->irq);
+ 
+-	return s6sy761_power_on(sdata);
++	return 0;
++
++err_power_off:
++	s6sy761_power_off(sdata);
++	return err;
+ }
+ 
+ static const struct dev_pm_ops s6sy761_pm_ops = {
