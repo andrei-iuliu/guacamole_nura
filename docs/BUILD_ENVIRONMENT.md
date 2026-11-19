@@ -155,6 +155,13 @@ bash flows/rc4/local-storage/scripts/local_storage_build.sh \
   --ui "$NURA_UI" --build --authorized-key "$NURA_SSH_PUBLIC_KEY"
 ```
 
+The build asks once, at the start, for the phone user's password (used by the
+greeter and `sudo`) and passes it to every `pmbootstrap install` run; Phosh
+needs two. For an unattended build, put the password on the first line of a
+file and set `NURA_USER_PASSWORD_FILE=/path/to/file` (`chmod 600`). pmbootstrap
+redacts it in its log, but it is visible in the local process list while
+pmbootstrap runs, so use this only on a single-user machine.
+
 If the rootfs passed and only boot-image packaging failed, restore the missing
 host inputs and retry just the host-only packer:
 
