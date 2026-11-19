@@ -32,6 +32,14 @@ MODULE_RELATIVE = 'usr/lib/modules/%s/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.
 HOOK_RELATIVE = 'usr/share/mkinitfs/hooks/netboot.sh'
 # The pre-fix module the stale served cache carried: 8920 bytes, other hash.
 PREFIX_MODULE = bytes(range(256)) * 34 + bytes(216)
+PLASMA_MARKERS = {
+    'usr/bin/startplasmamobile': b'#!/bin/sh\nexit 0\n',
+    'usr/lib/systemd/system/plasma-mobile.service': b'[Service]\nExecStart=/usr/bin/startplasmamobile\n',
+    'etc/xdg/kscreenlockerrc': b'[Daemon]\nLockOnStart=false\n',
+}
+PLASMA_SYMLINKS = {
+    'etc/systemd/system/display-manager.service': '/usr/lib/systemd/system/plasma-mobile.service',
+}
 
 
 def sha256(path):
@@ -78,7 +86,8 @@ def write_gpt(image, partitions):
         stream.write(header)
 
 
-def make_image(destination, *, boot_payloads, module_bytes, port=10001, release=RELEASE):
+def make_image(destination, *, boot_payloads, module_bytes, port=10001, release=RELEASE,
+               extra_files=None, extra_symlinks=None):
     """Build <destination>: p1 = /vmlinuz,/initramfs,/dtb, p2 = the root tree."""
     destination = Path(destination)
     staging = destination.parent / (destination.name + '.d')
@@ -96,6 +105,14 @@ def make_image(destination, *, boot_payloads, module_bytes, port=10001, release=
     hook = root_tree / HOOK_RELATIVE
     hook.parent.mkdir(parents=True)
     hook.write_text('#!/bin/sh\nNBD_PORT=%d\n' % port)
+    for relative, payload in (extra_files or {}).items():
+        extra = root_tree / relative
+        extra.parent.mkdir(parents=True, exist_ok=True)
+        extra.write_bytes(payload)
+    for relative, target in (extra_symlinks or {}).items():
+        link = root_tree / relative
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(target)
     boot_part = staging / 'p1.ext4'
     root_part = staging / 'p2.ext4'
     make_ext4(boot_tree, boot_part, BOOT_BYTES)
@@ -131,7 +148,7 @@ def write_sysfs(sysfs, interfaces):
 
 
 def build_checkout(root, *, module_bytes=None, cache='copy', release=RELEASE,
-                   port=10001, manifest=True, tools=None, interfaces=None):
+                   port=10001, manifest=True, tools=None, interfaces=None, plasma=False):
     """Create (or recreate) a fake candidate checkout at <root>."""
     root = Path(root)
     if root.exists():
@@ -139,8 +156,12 @@ def build_checkout(root, *, module_bytes=None, cache='copy', release=RELEASE,
     module_bytes = fixed_module_bytes() if module_bytes is None else module_bytes
     scripts = root / 'scripts'
     scripts.mkdir(parents=True)
-    for name in ('camera_serve.sh', 'camera_usb_net.sh'):
+    for name in ('camera_serve.sh', 'camera_usb_net.sh',
+                 'check_rear_camera_package.py', 'check_initramfs_release.py'):
         shutil.copy2(SCRIPTS / name, scripts / name)
+    for name in ('plasma_serve.sh', 'plasma_boot.sh', 'plasma_shutdown.sh', 'stop_plasma_server.py'):
+        if (SCRIPTS / name).is_file():
+            shutil.copy2(SCRIPTS / name, scripts / name)
 
     build = root / 'build/rear-camera'
     build.mkdir(parents=True)
@@ -184,7 +205,9 @@ def build_checkout(root, *, module_bytes=None, cache='copy', release=RELEASE,
         'sm8150-oneplus-guacamole.dtb': payloads['kernel-package/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb'],
     }
     make_image(source_image, boot_payloads=boot_payloads, module_bytes=module_bytes,
-               port=port, release=release)
+               port=port, release=release,
+               extra_files=PLASMA_MARKERS if plasma else None,
+               extra_symlinks=PLASMA_SYMLINKS if plasma else None)
 
     if manifest:
         entries = {}
@@ -209,7 +232,9 @@ def build_checkout(root, *, module_bytes=None, cache='copy', release=RELEASE,
         shutil.copyfile(source_image, served_image)
     elif cache == 'stale':
         make_image(served_image, boot_payloads=boot_payloads, module_bytes=PREFIX_MODULE,
-                   port=port, release=release)
+                   port=port, release=release,
+                   extra_files=PLASMA_MARKERS if plasma else None,
+                   extra_symlinks=PLASMA_SYMLINKS if plasma else None)
 
     sysfs = root / 'fake-sys'
     write_sysfs(sysfs, interfaces if interfaces is not None else {
@@ -247,7 +272,8 @@ class CheckoutTest(unittest.TestCase):
         self.tmpdir.mkdir()
         self.log = self.base / 'calls.log'
         self.log.touch()
-        self.fixture = build_checkout(self.root, cache=self.cache)
+        self.fixture = build_checkout(self.root, cache=self.cache,
+                                      plasma=getattr(self, 'plasma', False))
 
     def environment(self, **extra):
         values = {

@@ -119,6 +119,24 @@ class PhoneScriptTests(unittest.TestCase):
         log = self.run_script('boot_rear_camera.sh', status=42)
         self.assertNotIn('fastboot boot ', log)
 
-    def test_ssh_keeps_normal_host_key_checks(self):
+    def test_ssh_keeps_strict_host_key_checks_in_an_isolated_file(self):
         self.tool('ssh')
-        self.assertEqual(self.run_script('ssh_phone.sh'), 'ssh user@172.16.42.1\n')
+        log = self.run_script('ssh_phone.sh')
+        command = log.strip()
+        self.assertIn('ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=ask', command)
+        self.assertIn('UserKnownHostsFile=', command)
+        self.assertIn('.work/delivery-plasma-mobile/known_hosts', command)
+        self.assertIn('HostKeyAlias=172.16.42.1', command)
+        self.assertTrue(command.endswith('user@172.16.42.1'))
+
+    def test_ssh_pins_one_alias_per_plasma_boot(self):
+        self.tool('ssh')
+        receipt = self.root / 'build/plasma-mobile/last-boot.json'
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(
+            '{"result": "success", "worktree": "%s", '
+            '"finished_at": "2026-11-12T00:00:00Z", "device": {"serial": "ABC123"}}\n'
+            % self.root)
+        command = self.run_script('ssh_phone.sh').strip()
+        self.assertIn('HostKeyAlias=nura-plasma-', command)
+        self.assertIn('user@172.16.42.1', command)
