@@ -229,6 +229,13 @@ Battery percentage, charging and the plugged-in/unplugged state work. The charge
 - [ ] **Graphics name**: Mesa freedreno reports the GL renderer as `FD640`. It should read "Qualcomm Adreno 640". Needs a Mesa renderer-name change or a gnome-control-center `info_cleanup` rule.
 
 ### Sensors
+
+**2026-11-14 live update:** SSC streams LSM6DSM acceleration/gyro, MMC5603x
+magnetic data and fused compass heading. Light/proximity identify as STK2232,
+contradicting the older TCS3701 assumption below. Generic registry entries are
+not a fitted-hardware inventory. Physical validation remains; see
+[SENSOR_READINESS_20261114.md](SENSOR_READINESS_20261114.md).
+
 - [x] **SLPI sensor DSP and accelerometer** — Phosh auto-rotate verified 2026-10-14, right-side up with the mount-matrix rule, including across a clean boot (this boot: `hexagonrpcd-sdsp` up at 16.8 s, greetd at 17.1 s, `iio-sensor-proxy` at 25.2 s; Phosh claims the late-appearing daemon)
   - The stock device tree has no accelerometer on an AP-visible bus; the motion sensors sit behind the SLPI sensor DSP (Qualcomm SSC / SEE). The path is SLPI remoteproc → FastRPC (`/dev/fastrpc-sdsp`) → `hexagonrpcd` serving the sensor files → `iio-sensor-proxy` (libssc, QMI over QRTR to SSC service 400) → `net.hadess.SensorProxy` → Phosh. No IIO or input device exists.
   - Firmware: `slpi.mdt`/`slpi.bNN` `SLPI.HY.2.2-00083` (OxygenOS 11) from the M1DNYT3 repository, `firmware-oneplus-guacamole` r6, plus `slpir.jsn`/`slpius.jsn` from the LineageOS modem image. The phone's `modem_b` carries the same version (a different OEM build). The LineageOS OTA carries `2.2-00121`, which on the OnePlus 7T Pro never instantiated the LSM6DSM, so it is not used.
@@ -240,7 +247,7 @@ Battery percentage, charging and the plugged-in/unplugged state work. The charge
   - Mount matrix: the IMU is rotated 180° about Z, so Phosh rotated the screen upside down. `61-guacamole-accel-mount-matrix.rules` sets `ACCEL_MOUNT_MATRIX="-1, 0, 0; 0, -1, 0; 0, 0, 1"` on the FastRPC nodes (SEE's own placement matrix is reported as all zero).
   - Phosh only holds the accelerometer while the screen is on and unlocked, so `AccelerometerOrientation` reads `undefined` on an idle phone; test with the screen awake.
   - Pitfalls (from the 7T Pro notes, confirmed here where tested): the SLPI cannot be restarted hot; the sensor PD is created on the first FastRPC attach only, so never restart `hexagonrpcd` after it attached (reboot instead); `sudo` is needed for `monitor-sensor` over SSH (the D-Bus policy refuses claims from a session-less user).
-  - Still to do: gyroscope/magnetometer/compass, and the IMU temperature.
+  - Still to do: physical gyro/compass validation, application integration, and IMU temperature discovery. Gyro/magnetometer/compass streaming was confirmed on rc4j (2026-11-14).
 
 - [x] **Automatic brightness (ambient light sensor)** — verified 2026-10-14
   - The TCS3701 (light and proximity, I2C 3 at 0x39) is reached through the same SLPI path. `monitor-sensor --light` streams lux values that follow the room (about 20 lux in a dim room, 262 lux under a lamp).
