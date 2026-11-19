@@ -6,9 +6,12 @@
 
 This repository contains the bringup workspace, kernel patches, device tree sources, firmware packages, helper utilities, and documentation for running **postmarketOS / Nura** on the **OnePlus 7 Pro** (codename `guacamole`).
 
-The consolidated source workspace is `runtime-workspace`; the hardware-tested
-runtime remains in `nura-rear-cameras-7-0`. See [workspace status](docs/WORKSPACE_STATUS.md)
-before building or serving: local tools, chroots and images are not stored in Git.
+The current working checkpoint is **rc4j with Phosh**, built and RAM-booted on
+2026-11-14 with its rootfs on userdata. Speakers, Bluetooth and Wi-Fi work;
+see [the success record](docs/RC4J_SUCCESS_20261114.md) for verification and known
+issues. `runtime-workspace` remains the prepared build/runtime workspace.
+See [workspace status](docs/WORKSPACE_STATUS.md) before building: local tools,
+chroots, firmware bundles and images are not stored in Git.
 
 For the original prepared 7.0 netboot setup, run these host scripts in separate terminals
 from its prepared runtime checkout (Bash or fish; no sudo in front):
@@ -26,8 +29,8 @@ The separate [three-rear-camera candidate](docs/REAR_CAMERA_7_0_BRINGUP.md)
 uses `7.0.0-sm8150-rear1` and an isolated musl libcamera stack alongside the
 system libraries. The user confirmed all three rear cameras work in the camera
 app and video records, with choppy recording still under investigation.
-Its netboot rootfs uses port 10001. Continue usability fixes and temporary
-boot testing; internal installation is deferred until the system is ready.
+Its historical netboot rootfs uses port 10001. The current rc4j image instead
+uses local userdata; the older camera results do not establish rc4j camera health.
 
 ---
 
@@ -53,7 +56,7 @@ boot testing; internal installation is deferred until the system is ready.
 
 | Subsystem | Status | Driver / Implementation | Notes |
 | :--- | :---: | :--- | :--- |
-| **Bootloader (ABL)** | :white_check_mark: Working | Qualcomm ABL | Unlocked ABL; active slot `dtbo` zeroed to prevent downstream overlay corruption |
+| **Bootloader (ABL)** | :white_check_mark: Working | Qualcomm ABL | Current rc4j RAM boot uses the ABL-quarantine DTB wrapper and preserves stock DTBO; historical setups zeroed DTBO |
 | **Display (DRM/KMS)** | :white_check_mark: Working | `panel-samsung-oneplus-dsc` + MSM DPU/DSI | Native 3120x1440 @ 90Hz Command-Mode DSC with 2 slices/packet |
 | **Touchscreen** | :white_check_mark: Working | `samsung,s6sy761` on `&i2c17` (`0x48`) | Powered via PM8150 `ldo17` (3.0V) + GPIO 119 1.8V rail pull-up |
 | **Storage (UFS)** | :white_check_mark: Working | `ufshcd-qcom` | Capped at HS-G3 (kernel patch `0010`): HS-G4 link errors silently dropped writes; rootfs is a pmOS image on `userdata` |
