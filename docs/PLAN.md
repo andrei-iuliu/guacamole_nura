@@ -78,6 +78,8 @@ flowchart TD
 - [x] UFS write integrity at HS-G3 (kernel patch `0010`) — verified 2026-10-11
   - At HS-G4 the link took repeated data-link TCx replay (`saved_uic_err 0x4`) and PA (`0x40`) errors; each recovery completed in-flight commands with `OCS invalid` and buffered writes were lost (96 KiB runs read back as zeros). This corrupted downloads, the module index, `/etc/apk/world` and firmware files.
   - Verified with 4 × 1 GiB patterned buffered writes after `drop_caches`: HS-G4 232 bad blocks / 20 UFS error recoveries / 191 `OCS invalid`; HS-G3 0 / 0 / 0. O_DIRECT writes were always intact; RAM held a 5 GiB pattern cleanly; the reserved-memory map matches the stock union.
+- [x] UFS clock scaling on rc4 — fixed in rc4l, verified 2026-11-15: the rc4k `-110` failure was caused by NFC patch 0074's IRQ pull-up (IRQ storm on CPU0), not UFS ([RC4K_NFC_SENSORS.md](RC4K_NFC_SENSORS.md)). rc4l (GPIO47 pull-down) is installed and passes 3 × 2 GiB load with scaling on.
+  - Still to measure with scaling on: suspend/resume and battery drain.
 - [ ] Stable disk naming: LUN 0 is not always `sda` because the LUNs probe asynchronously, and GNOME Settings then reports the first LUN's size (for example 8.4 MB). Test `scsi_mod.scan=sync`.
 - [x] Configured USB Ethernet gadget networking (`cdc_ncm` / `rndis`).
 - [x] Direct SSH access operational at `ssh user@172.16.42.1`.

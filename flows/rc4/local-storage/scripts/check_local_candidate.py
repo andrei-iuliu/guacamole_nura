@@ -1428,6 +1428,7 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "xwayland": None,
         "postmarketos-base-ui-audio-backend-pulseaudio": None,
         "systemd": None,
+        "neard": None,
     }
     # Both UIs: the SSC claim fix (daemon + unit + FastRPC rule from one r100
     # APKBUILD) and its blocking-wait companion.  The device package pulls

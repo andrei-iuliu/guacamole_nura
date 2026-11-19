@@ -333,6 +333,7 @@ class WiringTest(unittest.TestCase):
         self.assertIn('"$libssc_version" = 0.4.4-r100', prepare)
         adds = shell_function(prepare, "install_add_string")
         shared = adds.split('case "$NURA_UI" in', 1)[0]
+        self.assertIn('"neard"', shared, "both UIs need nfctool for NFC trials")
         for entry in ('"libssc=$libssc_version"',
                       '"iio-sensor-proxy=$iio_sensor_proxy_version"',
                       '"iio-sensor-proxy-systemd=$iio_sensor_proxy_version"',
