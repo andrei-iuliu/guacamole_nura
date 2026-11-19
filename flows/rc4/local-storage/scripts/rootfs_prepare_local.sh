@@ -65,8 +65,9 @@ STATE="${NURA_ROOTFS_STATE:-$ROOT/.work/local-userdata$UI_SUFFIX/rootfs-state}"
 WORK="$STATE/pmbootstrap-work"
 # Read-only rc2 baseline: pinned hook/libcamera-rear/system libcamera inputs and
 # the known-good rootfs used for the libcamera ABI comparison.
-SRC_STATE="$SOURCE_ROOT/.work/rear-camera"
-SRC_OUT="$SOURCE_ROOT/build/rear-camera"
+BASELINE_ROOT="${NURA_BASELINE_ROOT:-$SOURCE_ROOT}"
+SRC_STATE="$BASELINE_ROOT/.work/rear-camera"
+SRC_OUT="$BASELINE_ROOT/build/rear-camera"
 # One recipe root for this flow.  device/testing is a link farm: the rc4 kernel
 # and device recipes resolve to flows/rc4/device/testing (device pkgrel 16), the
 # unchanged firmware/modemmanager/hexagonrpcd/iio-sensor-proxy/nura-clock/hook
@@ -1290,6 +1291,7 @@ install_add_string() {
         "postmarketos-mkinitfs-hook-netboot=$hook_version"
         "libcamera-rear=$libcamera_version"
         "$UI_PKG=$ui_version"
+        "neard"
         # Both UIs: the device package depends on iio-sensor-proxy, so both
         # images carry the local r100 daemon (SSC claim fix) and its
         # blocking-wait libssc.  The daemon's -systemd unit and -udev FastRPC

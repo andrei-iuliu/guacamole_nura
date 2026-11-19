@@ -1,5 +1,16 @@
 # rc4 integration
 
+**rc4l source fix (2026-11-15):** patch 0074 now pulls the NFC IRQ line (GPIO47)
+down instead of up. That pull-up caused the rc4k UFS clock-scaling failure. The
+rc4l kernel (pkgrel 15) and boot images are built and host-verified in
+`.work/rc4l-build` (see its README); installed as a fresh userdata image; debug and normal boot images
+passed the scaling load test on hardware (2026-11-15). See [the NFC IRQ section](../../docs/RC4K_NFC_SENSORS.md#nfc-irq-pull-up-and-the-ufs-scaling-failure-2026-11-15).
+
+**rc4k candidate (2026-11-15):** NFC DT patch 0074 and kernel pkgrel 14 built
+rootlessly in `.work/rc4k-build`; all four NFC DTB checks pass. Rootfs and boot
+image are built with a HOST-VERIFIED manifest; hardware tests remain.
+See [candidate instructions](../../docs/RC4K_NFC_SENSORS.md).
+
 **Status (2026-11-14): rc4j built and booted successfully with Phosh.**
 Speakers, Bluetooth and Wi-Fi were confirmed by the user. The original integration
 review below was rootless; current hardware evidence and remaining issues are

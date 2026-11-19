@@ -1,6 +1,20 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4j on local userdata (2026-11-14)
+## Current: rc4l installed on local userdata (2026-11-15)
+
+The rc4k UFS clock-scaling failure (`-110`, broken link) is explained. Patch
+0074 pulled the NFC IRQ line (GPIO47) up, which caused an IRQ storm on CPU0 that
+starved UFS. The rc4l source changes the pull to pull-down. Its kernel and boot
+images are built and host-verified (`.work/rc4l-build/README.md`); rc4l
+is installed as a fresh userdata image and passed the scaling load test
+with the debug and normal boot images. Suspend/battery with scaling on and
+NFC RF remain untested. The upstream UFS
+candidate `6475cfb81fc4` is rejected. See the
+[NFC IRQ root cause](RC4K_NFC_SENSORS.md#nfc-irq-pull-up-and-the-ufs-scaling-failure-2026-11-15),
+the [UFS scaling outcome](../flows/rc4/topics/ufs-scaling/README.md) and the
+[rc4 status](../flows/rc4/README.md).
+
+## Previous: rc4j on local userdata (2026-11-14)
 
 The rc4j Phosh image is built and running on the phone, with speakers,
 Bluetooth and Wi-Fi confirmed by the user. Rootfs expansion, Phosh/Stevia,
