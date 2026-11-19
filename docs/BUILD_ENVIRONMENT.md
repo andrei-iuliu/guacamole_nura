@@ -133,6 +133,32 @@ and manifest) and the rootfs path specified by `NURA_LOCAL_ROOTFS_IMAGE`.
 These commands do not flash the phone. Hardware readiness remains a separate
 check.
 
+## Installing a fresh rootfs onto the phone
+
+This **replaces** the Linux rootfs on `userdata` (`/home/user` included).
+Build the matching debug image first, then run the guarded installer:
+
+```bash
+bash flows/rc4/local-storage/scripts/local_storage_debug_bootimg.sh
+python3 flows/rc4/local-storage/scripts/install_userdata.py --dry-run
+python3 flows/rc4/local-storage/scripts/install_userdata.py
+```
+
+It re-verifies `DELIVERY.local.json`, backs up `/home/user` and
+`/etc/apk/world` into `backups/userdata-install-<time>/` when the phone is
+reachable over SSH, and checks the bootloader: one device, a guacamole
+product, unlocked, slot `b`, and a userdata partition bigger than the image.
+After you type `ERASE USERDATA` it runs `fastboot -S 64M flash userdata`. It
+then RAM-boots the debug image and runs a read-only `e2fsck` of both
+subpartitions in the initramfs shell. If that is clean it continues the boot,
+waits for SSH and checks the kernel release. It only **prints** the commands
+for RAM-booting the normal image and flashing `boot_b`. Its fastboot wrapper
+can issue only `devices`, `getvar`, `-S 64M flash userdata` and `boot`.
+
+If the bootloader's `product` is not recognised (for example `msmnile`), the
+script stops. Rerun it with `--accept-product <exact value>` after checking
+that the device really is the OnePlus 7 Pro.
+
 ## Boot image from a kernel build, without a rootfs build
 
 This packs a local-boot image from `rc4.sh kernel` output and a known-good
