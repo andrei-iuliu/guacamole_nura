@@ -15,7 +15,7 @@
 **Device:** OnePlus 7 Pro `GM1911` / `guacamole` / SM8150
 **Current Android:** LineageOS `24.0-20261011-NIGHTLY-guacamole`, Android 17 / SDK 37, `userdebug`, release-keys. Vendor blobs report an OxygenOS 12 base.
 **Current boot state:** active slot `_b`, `ro.boot.verifiedbootstate=orange` (reported unlocked), normal boot, `dtbo_idx=0`.
-**Evidence:** [`adb-probe.txt`](adb-probe.txt) (redacted commands/results), plus the host-side rootfs image inspection reproduced in Appendix B.
+**Evidence:** `adb-probe.txt` (redacted commands/results; kept locally, not published), plus the host-side rootfs image inspection reproduced in Appendix B.
 **Scope:** ADB read-only probing only. No root, `su`, remount, reboot, fastboot, recovery, mount, settings write, package install, or partition write was performed. Root-required read-only checks are proposed for the user, not executed.
 
 ---
