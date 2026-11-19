@@ -67,6 +67,9 @@ class Checkout:
     def build(self):
         (self.root / 'scripts').mkdir(parents=True)
         shutil.copy2(SCRIPT, self.script)
+        for name in ('plasma_boot.sh', 'plasma_serve.sh', 'camera_serve.sh'):
+            if (ROOT / 'scripts' / name).is_file():
+                shutil.copy2(ROOT / 'scripts' / name, self.root / 'scripts' / name)
         self.write('scripts/build_bootimg_rear_camera.sh', '#!/bin/sh\nexit 1\n', 0o755)
         (self.root / 'device/testing/rear-camera/linux-postmarketos-qcom-sm8150').mkdir(parents=True)
 

@@ -328,13 +328,100 @@ class SourceRegressionTest(unittest.TestCase):
             report = compare.build_report(compare.ReportData(
                 slot=f'Physical slot 1:\n Slot status: inactive\n ICCID: {first}\nPhysical slot 2:\n Slot status: active\n ICCID: {ICCID_A}',
                 read='Read result:\n' + bcd_low_first(ICCID_A).hex(':')), salt='salt')
-            self.assertIn('physical slot 2: len=19', report)
+            self.assertIn('physical slot 2: card=unknown slot=active', report)
+            self.assertIn('ICCID len=19', report)
             self.assertIn('active-slot ICCID == EF2FE2(MM normalization): YES', report)
         self.assertEqual(compare.parse_slot_status('ICCID: ' + ICCID_A), {})
 
     def test_multiple_active_slots_are_ambiguous(self):
         output = 'Physical slot 1:\n Slot status: active\nPhysical slot 2:\n Slot status: active\n'
         self.assertIsNone(compare.parse_slot_status_active_slot(output))
+        self.assertEqual(compare.parse_active_slots(output), [1, 2])
+
+    def test_slot_details_keep_card_status_and_logical_slot(self):
+        output = """
+[qrtr://0] 2 physical slots found:
+  Physical slot 1:
+     Card status: present
+     Slot status: active
+    Logical slot: 1
+           ICCID: 8944200053671052499
+  Physical slot 2:
+     Card status: present
+     Slot status: active
+    Logical slot: 2
+           ICCID: 89324102234690160476
+"""
+        details = compare.parse_slot_status_details(output)
+        self.assertEqual(sorted(details), [1, 2])
+        self.assertEqual(details[1].card_status, 'present')
+        self.assertEqual(details[1].slot_status, 'active')
+        self.assertEqual(details[1].logical_slot, 1)
+        self.assertEqual(details[2].logical_slot, 2)
+        self.assertEqual(compare.parse_active_slots(output), [1, 2])
+        self.assertIsNone(compare.parse_slot_status_active_slot(output))
+
+    def test_report_multiple_active_is_ambiguous_not_wrong(self):
+        dual = """  Physical slot 1:
+     Card status: present
+     Slot status: active
+    Logical slot: 1
+           ICCID: 8944200053671052499
+  Physical slot 2:
+     Card status: present
+     Slot status: active
+    Logical slot: 2
+           ICCID: 89324102234690160476
+"""
+        report = compare.build_report(compare.ReportData(
+            modem='modem.dbus-path : /m/1\nmodem.generic.sim : /s/1',
+            sim=f'sim.dbus-path : /s/1\nsim.properties.iccid : {ICCID_B}',
+            modem_after='modem.dbus-path : /m/1\nmodem.generic.sim : /s/1',
+            sim_after='sim.dbus-path : /s/1',
+            slot=dual,
+            card="Provisioning applications:\n\tPrimary GW:   slot '1', application '1'\n",
+            read='Read result:\n' + bcd_low_first(ICCID_A).hex(':')), salt='salt')
+        self.assertIn('UIM slot-status active physical slots: 1, 2 (2 active)', report)
+        self.assertIn('cached == active-slot ICCID: UNKNOWN (ambiguous: 2 active slots)', report)
+        self.assertIn('primary-GW provisioning slot is among the active slots: YES', report)
+        self.assertIn('More than one physical slot reports ACTIVE', report)
+        self.assertIn('cached == EF2FE2(MM normalization): NO', report)
+
+    def test_slot_summary_is_identifier_free(self):
+        dual = """  Physical slot 1:
+     Card status: present
+     Slot status: active
+    Logical slot: 1
+           ICCID: 8944200053671052499
+  Physical slot 2:
+     Card status: present
+     Slot status: active
+    Logical slot: 2
+           ICCID: 89324102234690160476
+"""
+        summary = compare.build_slot_summary(compare.ReportData(
+            modem='modem.generic.primary-sim-slot : 2\nmodem.generic.state : disabled',
+            slot=dual,
+            card="Provisioning applications:\n\tPrimary GW:   slot '1', application '1'\n\tSecondary GW: slot '2', application '1'\n",
+            query_status={'SLOT': 'exit=0 success', 'MODEM': 'exit=0 success'}))
+        self.assertIn('physical slot 1: card=present slot=active logical=1', summary)
+        self.assertIn('physical slot 2: card=present slot=active logical=2', summary)
+        self.assertIn('active physical slots: 1, 2 (2 active)', summary)
+        self.assertIn('modem primary sim slot: 2', summary)
+        self.assertIn('primary GW provisioning session: slot 1, application 1', summary)
+        self.assertIn('secondary GW provisioning session: slot 2, application 1', summary)
+        self.assertIn('same-instant modem primary slot vs primary-GW session: MISMATCH', summary)
+        for secret in (ICCID_A, ICCID_B, 'salted_sha256', 'len='):
+            self.assertNotIn(secret, summary)
+
+    def test_slot_summary_script_is_the_shortest_discriminator(self):
+        script = compare.slot_summary_script(False)
+        self.assertIn('--uim-get-slot-status', script)
+        self.assertIn('--uim-get-card-status', script)
+        self.assertIn('mmcli -m any --output-keyvalue', script)
+        self.assertNotIn('--uim-read-transparent', script)
+        self.assertNotIn('--dms-uim-get-iccid', script)
+        self.assertNotIn('mmcli -i any', script)
 
     def test_identity_change_and_missing_identity_block_cached_comparison(self):
         data = compare.ReportData(
@@ -346,6 +433,63 @@ class SourceRegressionTest(unittest.TestCase):
         self.assertIn('cached == EF2FE2(MM normalization): UNKNOWN', compare.build_report(data))
         data.sim_after = ''
         self.assertIn('identity before/after: UNKNOWN', compare.build_report(data))
+
+    def test_slot_summary_cli_path_is_identifier_free(self):
+        dual = (
+            "[qrtr://0] 2 physical slots found:\n"
+            "  Physical slot 1:\n"
+            "     Card status: present\n"
+            "     Slot status: active\n"
+            "    Logical slot: 1\n"
+            f"           ICCID: {ICCID_A}\n"
+            "  Physical slot 2:\n"
+            "     Card status: present\n"
+            "     Slot status: active\n"
+            "    Logical slot: 2\n"
+            f"           ICCID: {ICCID_B}\n"
+        )
+        card = (
+            "Provisioning applications:\n"
+            "\tPrimary GW:   slot '1', application '1'\n"
+            "\tSecondary GW: slot '2', application '1'\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            qmicli = Path(tmp) / 'qmicli'
+            qmicli.write_text(
+                "#!/bin/sh\n"
+                "case \"$*\" in\n"
+                "  *--uim-get-slot-status*)\n"
+                "    cat <<'SLOT'\n"
+                + dual
+                + "SLOT\n"
+                "    ;;\n"
+                "  *--uim-get-card-status*)\n"
+                "    cat <<'CARD'\n"
+                + card
+                + "CARD\n"
+                "    ;;\n"
+                "  *) exit 1 ;;\n"
+                "esac\n"
+            )
+            qmicli.chmod(0o755)
+            mmcli = Path(tmp) / 'mmcli'
+            mmcli.write_text(
+                "#!/bin/sh\n"
+                "printf 'modem.generic.primary-sim-slot : 2\\n'\n"
+                "printf 'modem.generic.state : disabled\\n'\n"
+            )
+            mmcli.chmod(0o755)
+            env = dict(os.environ, PATH=f"{tmp}:{os.environ['PATH']}")
+            result = subprocess.run(
+                [sys.executable, str(REPO_ROOT / 'scripts/cellular_iccid_compare.py'),
+                 '--local', '--no-sudo', '--slot-summary'],
+                env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('active physical slots: 1, 2 (2 active)', result.stdout)
+        self.assertIn('primary GW provisioning session: slot 1, application 1', result.stdout)
+        self.assertIn('same-instant modem primary slot vs primary-GW session: MISMATCH', result.stdout)
+        for secret in (ICCID_A, ICCID_B, 'salted_sha256', 'len='):
+            self.assertNotIn(secret, result.stdout + result.stderr)
 
     def test_error_categories_do_not_echo_private_errors(self):
         for text, code, category in (
