@@ -1895,6 +1895,9 @@ if [[ "$LOCAL_USERDATA" != 1 ]]; then
     preserve_previous_output
 fi
 prepare_work
+# One signing key across work directories (scripts/signing_key.sh): the phone
+# keeps trusting the key its rootfs was built with, so later kernel APKs install.
+bash "$SOURCE_ROOT/scripts/signing_key.sh" seed "$WORK"
 prepare_pmaports_copy
 prepare_pmbootstrap_copy
 prepare_export
@@ -1927,6 +1930,8 @@ seed_known_apks
 sign_system_apks
 build_kernel_apk
 run_pmbootstrap_builds
+# No project key yet: keep the one pmbootstrap just generated for next time.
+bash "$SOURCE_ROOT/scripts/signing_key.sh" adopt "$WORK"
 run_install
 run_export
 UI_VERSION="$(package_version "$UI_PKG")"
