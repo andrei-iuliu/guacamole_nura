@@ -1,0 +1,75 @@
+From: Nura rc4k series <rc4k@nura.invalid>
+Subject: [PATCH] arm64: dts: qcom: guacamole: enable the NQ330 NFC bus
+
+Use the project 18821 vendor DTBO wiring on QUP SE9, with the mainline
+NXP NCI binding. Keep the bus at 100 kHz and drop its disabled GPI DMA
+provider references, matching the board's other FIFO-mode I2C buses.
+GPIO42 belongs to the secure element and must remain untouched.
+
+This enables probe and ROM-mode reader experiments only. Reference-clock
+support and board-specific NCI configuration remain hardware-test gates;
+a successful probe does not establish RF operation. No firmware download
+or secure-element support is enabled.
+
+The IRQ pin is pulled down, not up as in the vendor DTBO. nxp-nci holds
+VEN low from probe and requests the level-high IRQ at once; with the chip
+off, a pull-up keeps GPIO47 asserted. That gave ~226k IRQ/s on CPU0 with
+every read NACKed (-121), starving UFS UIC completion so clock scaling
+failed with -110. The vendor nq-nci driver only enabled its IRQ after
+powering the chip, which hid the problem on Android.
+
+Nura-Category: device-dt
+Nura-Origin: guacamole stock project 18821 DTBO; docs/NFC_FEASIBILITY.md
+Upstream-Status: candidate
+---
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -675,3 +675,47 @@
+ };
+ 
+ #include "sm8150-oneplus-guacamole-displayport.dtsi"
++
++/* NQ330 NCI controller; leave the eSE power GPIO42 unclaimed. */
++&tlmm {
++	nfc_int_default: nfc-int-default-state {
++		pins = "gpio47";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-down;
++	};
++
++	nfc_enable_default: nfc-enable-default-state {
++		pins = "gpio41", "gpio48";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	nfc_clk_req_default: nfc-clk-req-default-state {
++		pins = "gpio113";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++		input-enable;
++	};
++};
++
++&i2c9 {
++	status = "okay";
++	clock-frequency = <100000>;
++	/delete-property/ dmas;
++	/delete-property/ dma-names;
++
++	nfc: nfc@28 {
++		compatible = "nxp,pn553", "nxp,nxp-nci-i2c";
++		reg = <0x28>;
++		interrupt-parent = <&tlmm>;
++		interrupts = <47 IRQ_TYPE_LEVEL_HIGH>;
++		enable-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
++		firmware-gpios = <&tlmm 48 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&nfc_int_default>, <&nfc_enable_default>,
++			    <&nfc_clk_req_default>;
++	};
++};
