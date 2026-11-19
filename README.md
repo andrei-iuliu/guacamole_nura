@@ -69,7 +69,7 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 
 | Subsystem | Status | Driver / Implementation | Notes |
 | :--- | :---: | :--- | :--- |
-| **Bootloader (ABL)** | :white_check_mark: Working | Qualcomm ABL | Current rc4j RAM boot uses the ABL-quarantine DTB wrapper and preserves stock DTBO; historical setups zeroed DTBO |
+| **Bootloader (ABL)** | :white_check_mark: Working | Qualcomm ABL | The current rc4n image is flashed to `boot_b` with the ABL-quarantine DTB wrapper and preserves stock DTBO; test images are RAM-booted first with `fastboot boot`; historical setups zeroed DTBO |
 | **Display (DRM/KMS)** | :white_check_mark: Working | `panel-samsung-oneplus-dsc` + MSM DPU/DSI | Native 3120x1440 @ 90Hz Command-Mode DSC with 2 slices/packet |
 | **Touchscreen** | :white_check_mark: Working | `samsung,s6sy761` on `&i2c17` (`0x48`) | Powered via PM8150 `ldo17` (3.0V) + GPIO 119 1.8V rail pull-up |
 | **Storage (UFS)** | :white_check_mark: Working | `ufshcd-qcom` | Capped at HS-G3 (kernel patch `0010`): HS-G4 link errors silently dropped writes; rootfs is a pmOS image on `userdata` |
@@ -78,7 +78,12 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 | **Battery & Charging** | :construction: WIP | `bq27411` gauge + PM8150B SMB5 charger + `guacamole-chgctrl` | Percentage, charging and plugged-in state work (4.35 V / 3 A, kernel patches `0011`, `0012`, `0018`, `0019`); charge policy daemon sets the input limit from the USB-PD contract, DCP 1.8 A, thermal throttling and an optional charge window, and reports the source type; DCP (5 V/1.8 A) and USB-PD 5 V/3 A (15 W) verified; 9 V PD negotiates (kernel patches `0020`–`0024`) but the board never passes 9 V to the PMIC, so 15 W is the ceiling; Warp Charge unsupported |
 | **Auto-rotate** | :white_check_mark: Working | SLPI sensor DSP (SSC) + `hexagonrpcd` + `iio-sensor-proxy` | LSM6DSM accelerometer through the sensor DSP (kernel patch `0017`, SLPI firmware, patched `hexagonrpcd`/`iio-sensor-proxy`, udev mount matrix); Phosh rotates, verified across reboots; see "Sensors" in `docs/PLAN.md` |
 | **Brightness Sensor** | :white_check_mark: Working | SLPI sensor DSP (SSC) + `iio-sensor-proxy` | Live SSC identifies STK2232 light/proximity (2026-11-14); Phosh automatic brightness works with `ambient-enabled` set to true (off by default); proximity reports but is untested |
-| **Camera** | :x: Not Working | SM8150 CAMSS / CCI | Not started; see "Camera" in `docs/PLAN.md` |
+| **Camera** | :construction: Rear working | SM8150 CAMSS / CCI + libcamera | All three rear cameras work in the camera app, including recording (choppy). The main and tele autofocus actuators bind (kernel patch `0075`); focus behaviour is untested. The pop-up front camera is disabled in the device tree; see `docs/FRONT_CAMERA_FEASIBILITY.md` |
+| **Gyroscope & Compass** | :construction: Streaming | SLPI sensor DSP (SSC) | LSM6DSM gyro, magnetometer and fused compass heading stream through SSC; axes and heading are not yet validated. See `docs/SENSOR_READINESS_20261114.md` |
+| **NFC** | :construction: Detected | NXP NQ330 (`nxp-nci_i2c`) on I2C9 | Registers `nfc0`, and `nfctool` lists the supported tag protocols (kernel patch `0074`, IRQ on GPIO47 pulled down so UFS clock scaling stays stable); reading tags is untested. See `docs/RC4K_NFC_SENSORS.md` |
+| **DisplayPort (USB-C)** | :construction: Partial | MSM DP + `qcom,pmic-typec` / TCPM | 3440x1440@60 through a powered USB-C dock and an unpowered USB-C to HDMI adapter, with USB through the dock; a self-powered dock still fails USB-PD as the source. See `docs/NURA_RC4.md` |
+| **Fingerprint** | :x: Disabled | `goodix_fp` | Driver built, but the device-tree node is disabled and the sensor cannot authenticate |
+| **Suspend** | :x: Disabled | — | Automatic suspend is off; the suspend fixes (kernel patches `0044`, `0045`) are built but not enabled |
 | **Volume Keys** | :white_check_mark: Working | `gpio-keys` (PM8150 GPIO 6/7) | Volume up/down report `KEY_VOLUMEUP`/`KEY_VOLUMEDOWN` |
 | **GPU Acceleration** | :white_check_mark: Working | Adreno 640 / Mesa Freedreno & Turnip | GMU v2.0.261 + ZAP shader loaded; native OpenGL ES 3.2 and Vulkan 1.3 |
 | **Wi-Fi** | :white_check_mark: Working | `ath10k_snoc` (WCN3990) | 2.4 and 5 GHz, DHCP and internet; OxygenOS 12-era WLAN firmware + kernel patch `0009`. Factory MAC as the interface address; NetworkManager uses a stable per-network MAC when connected. WoWLAN pending |
