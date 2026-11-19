@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# Nura for the OnePlus 7 Pro (guacamole): one entrypoint for the current flow.
+#
+#   ./nura prereqs                       check host packages (install hints per distro)
+#   ./nura fetch [--lineage-ota ZIP]     fetch/verify ignored inputs (platform-tools,
+#                [--check]               mkbootimg, avbtool, DTB tools, stock dtbo/boot)
+#   ./nura baseline [--check]            recreate the pinned pmaports/pmbootstrap baseline
+#   ./nura firmware OTA_ZIP              extract the firmware and sensor bundles from a
+#                                        Lineage OTA and compare them with the pins
+#   ./nura signing-key [status|adopt WORK|seed WORK]
+#   ./nura kernel                        build the rc4 kernel (rootless)
+#   ./nura check                         read-only recipe + rootfs preflight
+#   ./nura build [--fresh-baseline] [--authorized-key KEY] [--refresh-kernel]
+#                                        build rootfs + boot image (pmbootstrap, sudo)
+#   ./nura debug-image                   build the matching debug boot image
+#   ./nura install [--dry-run] [...]     guarded userdata install onto the phone
+#   ./nura shutdown [--dry-run]          clear leftover pmbootstrap chroot mounts
+#   ./nura env                           show the settings in use
+#
+# Global option: --ui phosh|plasma (or NURA_UI; default phosh), before or after
+# the command. Settings come from build-env.local.sh when it exists (see
+# build-env.example.sh); without it the flow defaults are used. If
+# NURA_BASELINE_ROOT is unset and .work/baseline exists (./nura baseline), it is used.
+# This runs in bash, so it works the same from fish.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd -P)"
+FLOW="$REPO/flows/rc4/local-storage"
+
+die() { echo "nura: $*" >&2; exit 1; }
+usage() { sed -n '2,24p' "$0"; }
+
+# --- global options and settings --------------------------------------------
+args=()
+while (($#)); do
+    case "$1" in
+        --ui) NURA_UI="${2:?--ui needs phosh or plasma}"; shift ;;
+        --ui=*) NURA_UI="${1#*=}" ;;
+        *) args+=("$1") ;;
+    esac
+    shift
+done
+set -- "${args[@]+"${args[@]}"}"
+
+if [[ -f "$REPO/build-env.local.sh" ]]; then
+    ui_override="${NURA_UI:-}"
+    # shellcheck source=/dev/null
+    source "$REPO/build-env.local.sh"
+    [[ -z "$ui_override" ]] || NURA_UI="$ui_override"
+fi
+export NURA_SOURCE_ROOT="${NURA_SOURCE_ROOT:-$REPO}"
+export NURA_UI="${NURA_UI:-phosh}"
+case "$NURA_UI" in phosh|plasma) ;; *) die "--ui must be phosh or plasma, got: $NURA_UI" ;; esac
+if [[ -z "${NURA_BASELINE_ROOT:-}" && -d "$REPO/.work/baseline/.work/rear-camera" ]]; then
+    export NURA_BASELINE_ROOT="$REPO/.work/baseline"
+fi
+export NURA_FASTBOOT="${NURA_FASTBOOT:-$REPO/platform-tools/fastboot}"
+
+cmd="${1:-help}"
+(($#)) && shift
+
+case "$cmd" in
+    help|-h|--help) usage ;;
+
+    env)
+        for v in NURA_UI NURA_SOURCE_ROOT NURA_BASELINE_ROOT RC4_KERNEL_ROOT NURA_KERNEL_BUILD \
+                 NURA_KERNEL_SOURCE_STATE NURA_KERNEL_DIR NURA_SSH_PUBLIC_KEY NURA_FASTBOOT \
+                 NURA_SIGNING_KEY_DIR; do
+            printf '%-26s %s\n' "$v" "${!v:-(default)}"
+        done
+        [[ -f "$REPO/build-env.local.sh" ]] && echo "settings file              build-env.local.sh" ||
+            echo "settings file              none (copy build-env.example.sh to build-env.local.sh)"
+        ;;
+
+    prereqs) exec bash "$REPO/scripts/check_prereqs.sh" "$@" ;;
+    fetch) exec bash "$REPO/scripts/fetch_inputs.sh" "$@" ;;
+    baseline) exec bash "$REPO/scripts/bootstrap_baseline.sh" "$@" ;;
+    signing-key) exec bash "$REPO/scripts/signing_key.sh" "$@" ;;
+
+    firmware)
+        ota="$(realpath -e -- "${1:?usage: ./nura firmware OTA_ZIP}")"
+        fw_dir="$REPO/flows/local-storage/device/testing/firmware-oneplus-guacamole"
+        dev_dir="$REPO/flows/rc4/device/testing/device-oneplus-guacamole"
+        tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+        bash "$REPO/scripts/check_prereqs.sh" --stage firmware --quiet || die "install the packages above first"
+        echo "== firmware bundle"
+        python3 "$REPO/scripts/extract_lineage_firmware.py" "$ota" "$tmp/fw" | tail -3
+        echo "== sensor bundle"
+        python3 -I - "$REPO/scripts" "$ota" "$tmp" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from extract_lineage_firmware import extract_partition
+for name in ("vendor", "dsp"):
+    extract_partition(sys.argv[2], name, f"{sys.argv[3]}/{name}.img")
+PY
+        mkdir -p "$tmp/sensors"
+        python3 "$REPO/scripts/prepare_sensor_bundle.py" --vendor-img "$tmp/vendor.img" \
+            --dsp-img "$tmp/dsp.img" --output "$tmp/sensors/guacamole-sensors.tar.gz" | tail -2
+        echo "== compare with the APKBUILD pins"
+        status=0
+        compare() {   # produced-file apkbuild-dir
+            local produced=$1 dir=$2 sum name
+            sum="$(sha512sum "$produced" | cut -d' ' -f1)"
+            name="$(awk -v s="$sum" '$1==s {print $2}' "$dir/APKBUILD")"
+            if [[ -n "$name" ]]; then
+                if [[ -e "$dir/$name" ]]; then echo "  ok      $name (already present, identical)"
+                else install -m 644 "$produced" "$dir/$name"; echo "  added   $dir/$name"; fi
+            else
+                echo "  DIFFERS $(basename "$produced"): not the pinned bundle (another Lineage build?)" >&2
+                echo "          kept at $produced.differs; the APKBUILD pin was not changed" >&2
+                cp "$produced" "$REPO/.work/$(basename "$produced").differs" 2>/dev/null || true
+                status=1
+            fi
+        }
+        compare "$(ls "$tmp"/fw/firmware-oneplus-guacamole-*.tar.gz)" "$fw_dir"
+        compare "$tmp/sensors/guacamole-sensors.tar.gz" "$dev_dir"
+        exit $status
+        ;;
+
+    kernel) exec bash "$REPO/flows/rc4/scripts/rc4.sh" kernel "$@" ;;
+
+    check)
+        bash "$REPO/flows/rc4/scripts/rc4.sh" check
+        NURA_KERNEL_STATE="${NURA_KERNEL_SOURCE_STATE:-$REPO/flows/rc4/build-source/kernel-state}" \
+            bash "$FLOW/scripts/rootfs_prepare_local.sh" --check-only
+        ;;
+
+    build)
+        key_args=()
+        if [[ " $* " != *" --authorized-key"* && -n "${NURA_SSH_PUBLIC_KEY:-}" ]]; then
+            key_args=(--authorized-key "$NURA_SSH_PUBLIC_KEY")
+        fi
+        exec bash "$FLOW/scripts/local_storage_build.sh" --ui "$NURA_UI" --build \
+            "${key_args[@]+"${key_args[@]}"}" "$@"
+        ;;
+
+    debug-image) exec bash "$FLOW/scripts/local_storage_debug_bootimg.sh" "$@" ;;
+    install) exec python3 "$FLOW/scripts/install_userdata.py" --fastboot "$NURA_FASTBOOT" "$@" ;;
+    shutdown) exec bash "$REPO/flows/rc4/scripts/rc4.sh" shutdown --ui "$NURA_UI" "$@" ;;
+
+    *) usage >&2; die "unknown command: $cmd" ;;
+esac
