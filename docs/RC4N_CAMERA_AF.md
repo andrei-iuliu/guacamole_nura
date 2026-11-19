@@ -6,6 +6,15 @@ The rc4n full kernel/modules build is complete (839 modules). The previously pre
 
 A phone user flashed the rc4n image and observed that hang. Userdata was not modified. A corrected rc4n local image is now built at `.work/rc4n-build/boot-local/boot.img` using the canonical `flows/rc4/local-storage/scripts/build_local_bootimg.sh NETBOOT=0`; it is host-verified and **READY FOR USER-RUN FLASH**. The known hardware-tested recovery image is the rc4l local boot image described below. Autofocus hardware remains **UNTESTED** until the user boots the corrected image, and the coordinator has not flashed or rebooted any device.
 
+**Update 2026-11-19:** the corrected image was rebuilt from the published
+repository and is now in `boot_b`. Its DTB (`6552338d…`) and initramfs
+(`7414497f…`) match the image above byte for byte; the kernel was rebuilt
+with Clang 23.1.5 and has identical config options, `Module.symvers` and
+BTF. It was RAM-booted first, then flashed; the phone boots it unaided and
+both actuators bind. Focus behaviour (the hardware check below) is still
+open. The rootfs now has the guarded netboot hook, so images generated on
+the phone no longer wait for netboot.
+
 ## What rc4n changes
 
 - Adds `0075`: main IMX586 LC898217XC lens at 72 and tele S5K3M5 lens at 74.

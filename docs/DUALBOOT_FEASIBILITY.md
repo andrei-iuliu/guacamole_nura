@@ -1,3 +1,14 @@
+> **Current state (2026-11-19): this study is historical.** The phone took
+> option 4.7, replacing Android with Linux on `userdata`. `userdata` was
+> overwritten with the Linux rootfs image (rc4j on 2026-11-14, a fresh rc4l
+> image on 2026-11-15), and `boot_b` holds the Linux boot image (rc4l from
+> 2026-11-15, rc4n since 2026-11-19). Android's `/data` no longer exists, so
+> the `userdata` and `/data` figures below describe the phone as probed on
+> 2026-11-10. LineageOS system images remain on slot `_a` (see
+> [NURA_PHOSH.md](NURA_PHOSH.md)) but have no data partition; using them
+> again would require reformatting `userdata`, which destroys the Linux
+> install. That path is untested.
+>
 > Review status: investigation only; no deployment commands below are approved
 > or validated. USB local-rootfs boot remains untested on this setup. Exact
 > inactive partition capacities and GPT free space are unverified. Normal
@@ -5,8 +16,8 @@
 > Any slot-A reuse destroys that Android slot and conflicts with OTA updates.
 > Preserve the working DTBO quarantine approach; do not zero DTBO partitions
 > based on historical procedures in this report. Confirm current layout and
-> a recoverable backup before preparing any write. Probe transcripts remain at
-> `bringup-notes/nura-stabilization-handoff-20261110/results/dualboot-investigation/`.
+> a recoverable backup before preparing any write. The ADB probe transcript is
+> [`evidence/dualboot/adb-probe.txt`](evidence/dualboot/adb-probe.txt).
 
 # DUALBOOT_FEASIBILITY — Android + a local Linux installation on OnePlus 7 Pro (guacamole)
 

@@ -1,6 +1,20 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4l installed on local userdata (2026-11-15)
+## Current: rc4n on `boot_b`, rc4l rootfs (2026-11-19)
+
+`boot_b` holds the rc4n local boot image (0075 autofocus, DT only), rebuilt
+from this repository: DTB `6552338d…` and initramfs `7414497f…` identical to
+the fork's rc4n image; the kernel has identical config options,
+`Module.symvers` and BTF. The phone boots it unaided (SSH in about 23 s,
+no failed units, NFC IRQ 0, UFS scaling on), and both LC898217XC
+actuators bind. Focus itself is not yet verified. The rootfs on
+`userdata` is the rc4l install from 2026-11-15 with its rc4l kernel
+package; the module ABI is unchanged. The guarded netboot hook
+(`postmarketos-mkinitfs-hook-netboot-4.2.1-r5`) is now installed, so the
+phone's own `/boot/initramfs` is the local one (`7414497f…`). Kernel
+upgrades keep userdata; see [BUILD_ENVIRONMENT.md](BUILD_ENVIRONMENT.md).
+
+## Previous: rc4l installed on local userdata (2026-11-15)
 
 The rc4k UFS clock-scaling failure (`-110`, broken link) is explained. Patch
 0074 pulled the NFC IRQ line (GPIO47) up, which caused an IRQ storm on CPU0 that
@@ -14,7 +28,7 @@ candidate `6475cfb81fc4` is rejected. See the
 the [UFS scaling outcome](../flows/rc4/topics/ufs-scaling/README.md) and the
 [rc4 status](../flows/rc4/README.md).
 
-## Previous: rc4j on local userdata (2026-11-14)
+## Earlier: rc4j on local userdata (2026-11-14)
 
 The rc4j Phosh image is built and running on the phone, with speakers,
 Bluetooth and Wi-Fi confirmed by the user. Rootfs expansion, Phosh/Stevia,
