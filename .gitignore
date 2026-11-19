@@ -2,6 +2,7 @@
 pmbootstrap/
 platform-tools
 local/
+build-env.local.sh
 
 # Build and chroot directories
 .work/
@@ -74,3 +75,6 @@ authorized_keys
 known_hosts*
 *.nmconnection
 *.bundle
+
+# Local notes that are not published
+notes/

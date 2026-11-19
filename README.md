@@ -13,6 +13,8 @@ issues. `runtime-workspace` remains the prepared build/runtime workspace.
 See [workspace status](docs/WORKSPACE_STATUS.md) before building: local tools,
 chroots, firmware bundles and images are not stored in Git.
 
+For a fresh pull, use the [build environment and local-input checklist](docs/BUILD_ENVIRONMENT.md)
+and copy `build-env.example.sh` to your ignored `build-env.local.sh`.
 For the original prepared 7.0 netboot setup, run these host scripts in separate terminals
 from its prepared runtime checkout (Bash or fish; no sudo in front):
 
@@ -64,7 +66,7 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 | **USB Host (OTG)** | :white_check_mark: Working | `dwc3-qcom` role switch + PM8150B Type-C / VBUS | Dual-role port managed by `qcom,pmic-typec`; a USB thumb drive enumerates at SuperSpeed and mounts in Files. USB gadget/SSH still works when attached to a PC |
 | **Battery & Charging** | :construction: WIP | `bq27411` gauge + PM8150B SMB5 charger + `guacamole-chgctrl` | Percentage, charging and plugged-in state work (4.35 V / 3 A, kernel patches `0011`, `0012`, `0018`, `0019`); charge policy daemon sets the input limit from the USB-PD contract, DCP 1.8 A, thermal throttling and an optional charge window, and reports the source type; DCP (5 V/1.8 A) and USB-PD 5 V/3 A (15 W) verified; 9 V PD negotiates (kernel patches `0020`–`0024`) but the board never passes 9 V to the PMIC, so 15 W is the ceiling; Warp Charge unsupported |
 | **Auto-rotate** | :white_check_mark: Working | SLPI sensor DSP (SSC) + `hexagonrpcd` + `iio-sensor-proxy` | LSM6DSM accelerometer through the sensor DSP (kernel patch `0017`, SLPI firmware, patched `hexagonrpcd`/`iio-sensor-proxy`, udev mount matrix); Phosh rotates, verified across reboots; see "Sensors" in `docs/PLAN.md` |
-| **Brightness Sensor** | :white_check_mark: Working | SLPI sensor DSP (SSC) + `iio-sensor-proxy` | TCS3701 light sensor; Phosh automatic brightness works with `ambient-enabled` set to true (off by default); proximity reports but is untested |
+| **Brightness Sensor** | :white_check_mark: Working | SLPI sensor DSP (SSC) + `iio-sensor-proxy` | Live SSC identifies STK2232 light/proximity (2026-11-14); Phosh automatic brightness works with `ambient-enabled` set to true (off by default); proximity reports but is untested |
 | **Camera** | :x: Not Working | SM8150 CAMSS / CCI | Not started; see "Camera" in `docs/PLAN.md` |
 | **Volume Keys** | :white_check_mark: Working | `gpio-keys` (PM8150 GPIO 6/7) | Volume up/down report `KEY_VOLUMEUP`/`KEY_VOLUMEDOWN` |
 | **GPU Acceleration** | :white_check_mark: Working | Adreno 640 / Mesa Freedreno & Turnip | GMU v2.0.261 + ZAP shader loaded; native OpenGL ES 3.2 and Vulkan 1.3 |
@@ -184,7 +186,7 @@ guacamole_nura/
   - Test WoWLAN.
   - With a SIM: validate registration, SMS, mobile data and calls via ModemManager (the modem is detected and the IPA data path is up).
 - [ ] **Firmware decompilation** (long term): reverse-engineer the proprietary blobs listed under "Proprietary Firmware (Decompilation Targets)" towards open-source replacements, starting with the WCN3990 Wi-Fi and Bluetooth firmware.
-- [ ] **Sensors** (see "Sensors" in `docs/PLAN.md`): gyroscope, magnetometer/compass, IMU temperature, and the proximity sensor for calls.
+- [ ] **Sensors**: gyro, magnetometer and compass streams verified on rc4j; validate axes/heading, proximity for calls and light response. IMU temperature remains unverified. See [live sensor evidence](docs/SENSOR_READINESS_20261114.md).
 - [ ] **Camera** (see "Camera" in `docs/PLAN.md`).
 - [ ] **Battery & Charging** (see "Battery & Charging" in `docs/PLAN.md`):
   - Remove the diagnostic kernel patch `0023`; measure charge current and temperature on PD and DCP with a partly drained battery.
