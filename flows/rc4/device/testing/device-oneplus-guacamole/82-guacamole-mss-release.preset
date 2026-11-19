@@ -1,0 +1,5 @@
+# Release the AP's vote on the modem rail (mss.lvl) once the modem is up
+# (kernel patch 0044, guacamole_mss_vote).  With the vote held at the top
+# corner the phone froze at the pm_test "platform" stage; with it released,
+# s2idle suspend and resume work.  Automatic suspend stays disabled.
+enable guacamole-mss-release.service

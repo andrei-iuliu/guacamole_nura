@@ -15,7 +15,7 @@ Covered:
   * --simulate stops after the report; --yes and the y/N prompt paths;
   * open GPU soak warning;
   * after.txt/changed.txt and the reboot reminder;
-  * device package pkgrel 20, source/sha512 order and install path;
+  * device package pkgrel 21, source/sha512 order and install path;
   * `sh -n` and BusyBox `sh -n` when available.
 
 Run: PYTHONPATH=flows/rc4/local-storage/scripts \\
@@ -305,7 +305,7 @@ class UpgradeTest(unittest.TestCase):
 class PackagingTest(unittest.TestCase):
     def test_device_package_installs_nura_upgrade(self):
         text = APKBUILD.read_text()
-        self.assertRegex(text, r"(?m)^pkgrel=20$")
+        self.assertRegex(text, r"(?m)^pkgrel=21$")
         self.assertIn("nura-upgrade", text)
         self.assertIn('"$pkgdir/usr/bin/nura-upgrade"', text)
         self.assertTrue(os.access(UPGRADE, os.X_OK))
