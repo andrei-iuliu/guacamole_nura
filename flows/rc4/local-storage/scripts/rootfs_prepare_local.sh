@@ -933,6 +933,30 @@ fi
 # ---------------------------------------------------------------------------
 
 mkdir -p "$STATE/rootfs"
+# Ask for the phone user's password once, now, instead of at each of the
+# pmbootstrap install runs (two for Phosh), and before the build log starts.
+# NURA_USER_PASSWORD_FILE (first line) allows an unattended build.
+# pmbootstrap redacts --password in its log and feeds chpasswd from a deleted
+# temp file; the argument is visible in the local process list while it runs.
+read_user_password() {
+    local file="${NURA_USER_PASSWORD_FILE:-}" confirm=""
+    if [[ -n "$file" ]]; then
+        [[ -f "$file" ]] || die "NURA_USER_PASSWORD_FILE not found: $file"
+        [[ -z "$(find "$file" -perm /077 2>/dev/null)" ]] ||
+            warn "$file is readable by other users; chmod 600 it"
+        IFS= read -r USER_PASSWORD < "$file" || true
+    elif [[ -t 0 ]]; then
+        IFS= read -rsp "Password for the phone user 'user' (greeter, sudo): " USER_PASSWORD; echo >&2
+        IFS= read -rsp "Confirm the password: " confirm; echo >&2
+        [[ "$USER_PASSWORD" == "$confirm" ]] || die "passwords did not match"
+    else
+        die "no terminal to ask for the phone user's password; set NURA_USER_PASSWORD_FILE"
+    fi
+    [[ -n "$USER_PASSWORD" ]] || die "the phone user's password must not be empty"
+}
+USER_PASSWORD=""
+read_user_password
+
 exec > >(tee -a "$LOG") 2>&1
 trap 'status=$?; echo "$UI_LABEL packaging failed at line $LINENO (exit $status). Log: $LOG" >&2; exit "$status"' ERR
 echo "Build log: $LOG"
@@ -1601,17 +1625,17 @@ run_install() {
         # --no-image is mutually exclusive with --no-split/--disk: no image
         # options are needed for this phase (the boot-size/extra-space globals
         # only keep the two install runs configured identically).
-        "${PMB[@]}" --boot-size 1024 --extra-space 4096 install --no-image --add "$add"
+        "${PMB[@]}" --boot-size 1024 --extra-space 4096 install --no-image --add "$add" --password "$USER_PASSWORD"
         note "removing the excluded default apps from the rootfs chroot: $EXCLUDED"
         remove_excluded_packages "${PMB[@]}"
         note "install (2/2): write the image from the cleaned rootfs chroot"
         "${PMB[@]}" --boot-size 1024 --extra-space 4096 install \
-            --no-split --filesystem ext4 --no-recommends --add "$add"
+            --no-split --filesystem ext4 --no-recommends --add "$add" --password "$USER_PASSWORD"
         return 0
     fi
     note "install packages: $add"
     "${PMB[@]}" --boot-size 1024 --extra-space 4096 install \
-        --no-split --filesystem ext4 --add "$add"
+        --no-split --filesystem ext4 --add "$add" --password "$USER_PASSWORD"
 }
 
 run_export() {

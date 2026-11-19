@@ -11,7 +11,9 @@
 #   ./nura kernel                        build the rc4 kernel (rootless)
 #   ./nura check                         read-only recipe + rootfs preflight
 #   ./nura build [--fresh-baseline] [--authorized-key KEY] [--refresh-kernel]
-#                                        build rootfs + boot image (pmbootstrap, sudo)
+#                                        build rootfs + boot image (pmbootstrap, sudo);
+#                                        asks once for the phone user's password, or
+#                                        reads NURA_USER_PASSWORD_FILE (first line)
 #   ./nura debug-image                   build the matching debug boot image
 #   ./nura install [--dry-run] [...]     guarded userdata install onto the phone
 #   ./nura shutdown [--dry-run]          clear leftover pmbootstrap chroot mounts
@@ -28,7 +30,7 @@ REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd -P)"
 FLOW="$REPO/flows/rc4/local-storage"
 
 die() { echo "nura: $*" >&2; exit 1; }
-usage() { sed -n '2,24p' "$0"; }
+usage() { sed -n '2,26p' "$0"; }
 
 # --- global options and settings --------------------------------------------
 args=()
