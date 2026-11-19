@@ -4,6 +4,9 @@
 #
 #   scripts/extract_sensor_files.sh [user@host] [outdir]
 #
+# Requires noninteractive sudo on the phone; otherwise use
+# prepare_sensor_bundle.py with extracted OTA images on the host.
+#
 # Reads three stock partitions read-only (vendor_b, dsp_b, persist) and packs:
 #   sensors/config/*.json, sensors/sns_reg.conf   from vendor_b /etc/sensors
 #   sdsp/*                                        from dsp_b   /sdsp
@@ -19,7 +22,7 @@ base="guacamole-sensors-$stamp"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-ssh "$host" 'set -e; P=REMOVED_PASSWORD; s(){ echo "$P" | sudo -S -p "" "$@"; }
+ssh "$host" 'set -e; s(){ sudo -n "$@"; }
 	t=$(mktemp -d); s mkdir -p /mnt/gsx
 	s mount -o ro /dev/disk/by-partlabel/vendor_b /mnt/gsx
 	s sh -c "mkdir -p $t/sensors && cp -r /mnt/gsx/etc/sensors/config $t/sensors/ && cp /mnt/gsx/etc/sensors/sns_reg_config $t/sensors/sns_reg.conf"
