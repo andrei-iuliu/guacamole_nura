@@ -53,7 +53,8 @@ export PYTHONDONTWRITEBYTECODE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 RC4_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
+# Default: the checkout that contains flows/rc4.
+SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$RC4_DIR/../.." && pwd -P)}"
 RECIPE="$RC4_DIR/device/testing/linux-postmarketos-qcom-sm8150"
 DEVICE_RECIPE="$RC4_DIR/device/testing/device-oneplus-guacamole"
 # RC4_KERNEL_ROOT exists for the rootless fake-builder fixture only: it moves

@@ -30,9 +30,12 @@ images), and the public key is usually `~/.ssh/id_ed25519.pub`. The baseline is
 read-only; it supplies the pinned pmaports, pmbootstrap and older APK inputs,
 while this checkout owns the current recipes and candidate outputs.
 
-Most scripts default `NURA_SOURCE_ROOT` to a placeholder path that does not
-exist. Always export it (the environment file does), or the entrypoints stop
-with `missing source checkout`.
+The rc4 entrypoints (`flows/rc4/scripts/rc4.sh` and
+`flows/rc4/local-storage/scripts/*`) default `NURA_SOURCE_ROOT` to the
+checkout that contains them, so it only needs exporting to point at a different
+checkout. Older scripts outside `flows/rc4` still default to a placeholder path
+and stop with `missing source checkout` unless it is exported (the environment
+file does).
 
 | Variable | Purpose |
 | --- | --- |
