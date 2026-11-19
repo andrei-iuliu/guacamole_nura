@@ -1,0 +1,49 @@
+7.0.0-sm8150-guacamole-rc4
+ 15:35:30 up 14 min,  0 users,  load average: 0.09, 0.57, 0.48
+  UNIT LOAD ACTIVE SUB DESCRIPTION
+
+0 loaded units listed.
+  UNIT LOAD ACTIVE SUB DESCRIPTION
+
+0 loaded units listed.
+Filesystem                Size      Used Available Use% Mounted on
+/dev/loop0p2            218.8G      2.0G    205.4G   1% /
+Id=mobi.phosh.OSK.service
+ActiveState=active
+NRestarts=0
+
+Id=mobi.phosh.Shell.service
+ActiveState=active
+NRestarts=0
+Id=iio-sensor-proxy.service
+ActiveState=active
+Result=success
+NRestarts=0
+ExecMainStatus=0
+CPUUsageNSec=4555901000
+
+Id=guacamole-boot-slot.service
+ActiveState=inactive
+Result=success
+NRestarts=0
+ExecMainStatus=0
+CPUUsageNSec=113239000
+
+Id=nura-gpu-crash-capture.service
+ActiveState=inactive
+Result=success
+NRestarts=0
+ExecMainStatus=0
+CPUUsageNSec=186918000
+NTPSynchronized=yes
+USB port (SDP) 5 V 0.9 A
+battery: 78% Charging, 4.25 V, +681 mA, 30.2 C
+input limit: 0.9 A
+policy: state=ok
+DropInPaths=
+Environment=
+device-oneplus-guacamole-4-r20 aarch64 {device-oneplus-guacamole} (MIT) [installed]
+iio-sensor-proxy-3.9-r100 aarch64 {iio-sensor-proxy} (GPL-2.0-or-later) [installed]
+libssc-0.4.4-r100 aarch64 {libssc} (GPL-3.0-or-later) [installed]
+linux-postmarketos-qcom-sm8150-7.0.0_p20261114153303-r0 aarch64 {linux-postmarketos-qcom-sm8150} (GPL-2.0-only) [installed]
+phoc-0.58.0-r100 aarch64 {phoc} (GPL-3.0-only) [installed]

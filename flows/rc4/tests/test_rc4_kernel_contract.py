@@ -28,6 +28,8 @@ The fake tree lives in a temporary directory inside `flows/rc4/build-source`
 the end of every test.
 """
 
+import hashlib
+import json
 import os
 import pathlib
 import shutil
@@ -315,6 +317,49 @@ class KernelContractTest(unittest.TestCase):
             self.assertIn("rc4.sh kernel", result.stderr)
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+class KernelCopyReuseTest(unittest.TestCase):
+    def test_reuse_requires_current_kernel_bytes_even_when_release_is_unchanged(self):
+        text = ENTRYPOINT.read_text()
+        start = text.index("verify_kernel_copy() {")
+        end = text.index("\n}\n", start) + 3
+        function = text[start:end]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            source, local = root / "source", root / "local"
+            images = pathlib.Path("output/arch/arm64/boot")
+            for state in (source, local):
+                (state / images).mkdir(parents=True)
+                (state / "linux-test").mkdir()
+                (state / "linux-test/Makefile").write_text("kernel source")
+                for name in ("Image", "Image.gz"):
+                    (state / images / name).write_bytes(b"current kernel")
+            relative = "linux-test/Makefile"
+            (local / ".nura-copy.json").write_text(json.dumps({
+                "source": str(source.resolve()), "release": RELEASE,
+                "source_tree": "linux-test",
+                "files": {relative: hashlib.sha256((local / relative).read_bytes()).hexdigest()},
+            }))
+            env = dict(os.environ, KERNEL_STATE=str(local), KERNEL_SOURCE_STATE=str(source),
+                       RELEASE=RELEASE, SOURCE_ROOT=str(root))
+
+            def verify():
+                return subprocess.run(["bash", "-c", function + "\nverify_kernel_copy"],
+                                      env=env, capture_output=True, text=True)
+
+            result = verify()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for name in ("Image", "Image.gz"):
+                with self.subTest(name=name):
+                    path = source / images / name
+                    path.write_bytes(b"rebuilt kernel, same release and config")
+                    self.assertNotEqual(verify().returncode, 0)
+                    (local / images / name).write_bytes(path.read_bytes())
+                    self.assertEqual(verify().returncode, 0)
+                    (local / images / name).unlink()
+                    self.assertNotEqual(verify().returncode, 0)
+                    (local / images / name).write_bytes(path.read_bytes())
 
 
 if __name__ == "__main__":

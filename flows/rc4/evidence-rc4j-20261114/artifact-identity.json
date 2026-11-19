@@ -1,0 +1,66 @@
+{
+  "git_base": "4968102082ac8cb8446aa30f8ed72c4987b66211",
+  "kernel_release": "7.0.0-sm8150-guacamole-rc4",
+  "normal_boot": {
+    "avb_footer": true,
+    "cmdline": "console=tty0 console=ttyMSM0,115200n8 earlycon ramoops.mem_address=0xa9800000 ramoops.mem_size=0x400000 ramoops.record_size=0x40000 ramoops.console_size=0x40000 ramoops.pmsg_size=0x200000 pmOS_loglevel=8 PMOS_NO_OUTPUT_REDIRECT module_blacklist=qcomtee scsi_mod.scan=sync ",
+    "dtb_offset": 50331648,
+    "dtb_sha256": "7ebbf51e3e213f0d00b9e26e519bb4c5e0f570208e3582759a7c0e4cf829bc03",
+    "header_version": 2,
+    "kernel_sha256": "baf4faa14a0ff86d613656a218450492ad096b70c2340e5469f5fde945fabfac",
+    "page_size": 4096,
+    "path": "runtime-workspace/flows/rc4/local-storage/build/local-userdata-phosh/boot/boot.img",
+    "ramdisk_sha256": "50e90c53630de8057387971113a815c50c0a0fb617f416599e540323ae4be1af",
+    "sha256": "bcffa1ec24b1d46be03fc32d39b3cf4bf246712dc810cadc57a5bab8ed3c7bc1",
+    "size": 57450496
+  },
+  "debug_boot": {
+    "avb_footer": true,
+    "cmdline": "console=tty0 console=ttyMSM0,115200n8 earlycon ramoops.mem_address=0xa9800000 ramoops.mem_size=0x400000 ramoops.record_size=0x40000 ramoops.console_size=0x40000 ramoops.pmsg_size=0x200000 pmOS_loglevel=8 PMOS_NO_OUTPUT_REDIRECT module_blacklist=qcomtee pmos.debug-shell scsi_mod.scan=sync ",
+    "dtb_offset": 50331648,
+    "dtb_sha256": "7ebbf51e3e213f0d00b9e26e519bb4c5e0f570208e3582759a7c0e4cf829bc03",
+    "header_version": 2,
+    "kernel_sha256": "baf4faa14a0ff86d613656a218450492ad096b70c2340e5469f5fde945fabfac",
+    "page_size": 4096,
+    "path": "runtime-workspace/flows/rc4/local-storage/build/local-debug-phosh/boot/boot.img",
+    "ramdisk_sha256": "50e90c53630de8057387971113a815c50c0a0fb617f416599e540323ae4be1af",
+    "sha256": "a761fe1455d6d68398df231fe9f642e07dff47e44b87f5368d4f79298931d917",
+    "size": 57450496
+  },
+  "rootfs_image": {
+    "path": "runtime-workspace/flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img",
+    "sha256": "bcc343d25aff482a6e92f6d928be07b80f131117229441e0d32156eb799ccb1d",
+    "size": 8055160832
+  },
+  "kernel_inputs": {
+    "release": "7.0.0-sm8150-guacamole-rc4",
+    "recipe": "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150",
+    "recipe_apkbuild_sha256": "1938e2ee12c3daf343d8d21f7def23e98e32299bb53107425eb5883aab48e3e7",
+    "recipe_config_sha256": "53ae8d02aac1be4b4e91b57db5dfc12025ba5a4739aac39d01706191cce61f05",
+    "kernel_build": "runtime-workspace/flows/rc4/build-source/kernel-output",
+    "kernel_state": "runtime-workspace/flows/rc4/build-source/kernel-state",
+    "image": {
+      "path": "runtime-workspace/flows/rc4/build-source/kernel-output/Image",
+      "sha256": "baf4faa14a0ff86d613656a218450492ad096b70c2340e5469f5fde945fabfac",
+      "size": 44476928
+    },
+    "vmlinuz": {
+      "path": "runtime-workspace/flows/rc4/build-source/kernel-output/kernel-package/boot/vmlinuz",
+      "sha256": "e314baf6479bb1929dda62259a5b4090c46513d53794244495c45f5a1cc21dee",
+      "size": 16988025
+    },
+    "dtb": {
+      "path": "runtime-workspace/flows/rc4/build-source/kernel-output/kernel-package/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb",
+      "sha256": "065407e10a77a8902d2822fea8a31cc441a45c9ed324727f1a0016779cd48e2a",
+      "size": 118296
+    },
+    "cci_module": {
+      "path": "runtime-workspace/flows/rc4/build-source/kernel-output/kernel-package/usr/lib/modules/7.0.0-sm8150-guacamole-rc4/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.zst",
+      "sha256": "bc250555beb37134f42a05d7a3935bcf66ea935aaa8f6143be105bcc6a6e26e2",
+      "size": 8955
+    },
+    "module_payload_sha256": "4a1c915ccb12a86448dad3248e92eb4a61b831e6623a0759ad085838dd77ced0",
+    "module_count": 839,
+    "worktree": "runtime-workspace/flows/rc4/local-storage"
+  }
+}

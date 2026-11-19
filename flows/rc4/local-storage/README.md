@@ -5,10 +5,11 @@ candidate (`7.0.0-sm8150-guacamole-rc4`). The heavy pipeline is the same code;
 the constants, the kernel inputs and every state/output path are rc4-specific,
 and all state stays inside `flows/rc4`.
 
-**Nothing here was run end-to-end by the integration work.** The read-only
-guards and the dry-run refusals are tested; the rootfs/boot steps are the user's
-first run. There is no flash, boot, mount or repartition action anywhere in this
-flow, and no automatic cleanup.
+**rc4j completed the build and booted on 2026-11-14.** The user confirmed
+speakers, Bluetooth and Wi-Fi. See `docs/RC4J_SUCCESS_20261114.md` for artifact
+identity, the successful capped userdata transfer, and remaining issues.
+The packaging flow has no phone flash/boot/repartition action; pmbootstrap
+uses host chroot mounts. Cleanup remains an explicit user-run operation.
 
 ## 1. What it builds
 
@@ -56,8 +57,8 @@ bash flows/rc4/local-storage/scripts/local_bootimg_wrapper.sh --build \
 bash flows/rc4/scripts/rc4.sh rootfs --authorized-key /absolute/path/to/key.pub
 ```
 
-`--ui plasma|phosh` (or `NURA_UI`) selects the UI; `plasma` is the default
-and keeps every path above. `phosh` writes `.work/local-userdata-phosh/`
+`--ui plasma|phosh` (or `NURA_UI`) selects the UI; `phosh` is the default.
+`plasma` keeps the unsuffixed paths above. `phosh` writes `.work/local-userdata-phosh/`
 and `build/local-userdata-phosh/`, labels the candidate `nura-phosh-rc4`, and
 also builds the patched `gmobile` (`device/testing/gmobile`, guacamole
 display panel) and `phoc` (`device/testing/phoc`, thumbnail null-texture
@@ -67,6 +68,30 @@ faults). See `docs/NURA_PHOSH.md`.
 `--authorized-key` is optional but must be an absolute path to a **public** key;
 private key material is refused by `check_local_candidate.py`. Without it the
 build adds no key.
+
+If a Phosh rootfs build stops at `ERROR: Passwords did not match!` during
+pmbootstrap install, this is a phone-user password confirmation failure, not a
+package compilation failure. Retry in an interactive terminal:
+
+```bash
+bash flows/rc4/scripts/rc4.sh shutdown --ui phosh
+bash flows/rc4/scripts/rc4.sh rootfs --ui phosh --authorized-key /path/to/phone-authorized_keys
+```
+
+Replace the path with an absolute path to a public authorized-key file. Enter
+the same nonempty phone-user password at the choose and confirm prompts; input
+is invisible. The two install phases can each ask for a password and
+confirmation. Any sudo prompt is separate. The retry forces local package
+rebuilds before install; notices about multiple APKs and the selected APK are
+expected. Host image creation does not require changing the phone's mode, so a
+phone already in fastboot can stay there. A failed build does not establish a
+completed image.
+
+After rebuilding the canonical kernel, use `--refresh-kernel` on the rootfs
+command. Reuse now compares the isolated `Image` and `Image.gz` with the
+canonical output, even when release/config are unchanged, and refuses a stale
+copy before packaging. This avoids reaching the installed-vmlinuz identity
+failure after a full package rebuild.
 
 ## 3. Constant map (rc3 → rc4)
 
