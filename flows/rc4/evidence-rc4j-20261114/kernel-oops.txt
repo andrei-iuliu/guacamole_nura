@@ -1,0 +1,91 @@
+[  191.781581] guacamole kernel: Unable to handle kernel NULL pointer dereference at virtual address 0000000000000178
+[  191.781608] guacamole kernel: Mem abort info:
+[  191.781632] guacamole kernel:   ESR = 0x0000000096000004
+[  191.781657] guacamole : rmdir: '/sys/kernel/config/usb_gadget/g1/functions/mass_storage.0': No such file or directory
+[  191.781682] guacamole kernel:   EC = 0x25: DABT (current EL), IL = 32 bits
+[  191.781706] guacamole kernel:   SET = 0, FnV = 0
+[  191.781729] guacamole kernel:   EA = 0, S1PTW = 0
+[  191.781752] guacamole kernel:   FSC = 0x04: level 0 translation fault
+[  191.781781] guacamole kernel: Data abort info:
+[  191.781804] guacamole kernel:   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+[  191.781827] guacamole kernel:   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[  191.781850] guacamole kernel:   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[  191.781873] guacamole kernel: user pgtable: 4k pages, 48-bit VAs, pgdp=00000001100d2000
+[  191.781898] guacamole kernel: [0000000000000178] pgd=0000000000000000, p4d=0000000000000000
+[  191.781921] guacamole kernel: Internal error: Oops: 0000000096000004 [#1]  SMP
+[  191.781944] guacamole kernel: Modules linked in: uinput evdev
+[  191.781968] guacamole kernel: CPU: 6 UID: 0 PID: 1270 Comm: getty Not tainted 7.0.0-sm8150-guacamole-rc4 #2 PREEMPT 
+[  191.781996] guacamole kernel: Hardware name: Qualcomm Technologies, Inc. SM8150 MTP 18821 (DT)
+[  191.782027] guacamole kernel: pstate: 604000c5 (nZCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[  191.782064] guacamole kernel: pc : _raw_spin_lock_irq+0x2c/0x6c
+[  191.782087] guacamole kernel: lr : gs_close+0x30/0x22c
+[  191.782111] guacamole kernel: sp : ffff8000814639c0
+[  191.782134] guacamole kernel: x29: ffff8000814639c0 x28: ffffccb5c8942000 x27: 0000000000020802
+[  191.782157] guacamole kernel: x26: ffffccb5c781afb0 x25: 00000000ffffffed x24: ffff0000802cb400
+[  191.782180] guacamole kernel: x23: ffffccb5c95b5140 x22: 0000000000000000 x21: 0000000000000000
+[  191.782210] guacamole kernel: x20: 0000000000000000 x19: ffff0000802cb400 x18: 0000008000000000
+[  191.782233] guacamole kernel: x17: 0000000000000001 x16: 0040000000000001 x15: 0000000000000001
+[  191.782256] guacamole kernel: x14: 00e8000000000f03 x13: 0040000000000001 x12: 0000000000000007
+[  191.782278] guacamole kernel: x11: 0000000000000000 x10: 0000000000000000 x9 : 0000000000000001
+[  191.782315] guacamole kernel: x8 : 0000000000000001 x7 : 0000000000000000 x6 : 0000000000000000
+[  191.782338] guacamole kernel: x5 : 0000000000000040 x4 : 0000000000000001 x3 : ffff0000802cb5e8
+[  191.782361] guacamole kernel: x2 : 0000000000000000 x1 : 0000000000000000 x0 : 0000000000000178
+[  191.782383] guacamole kernel: Call trace:
+[  191.782405] guacamole kernel:  _raw_spin_lock_irq+0x2c/0x6c (P)
+[  191.782433] guacamole kernel:  gs_close+0x30/0x22c
+[  191.782455] guacamole kernel:  tty_release+0x100/0x4e8
+[  191.782477] guacamole kernel:  tty_open+0x2f8/0x5d8
+[  191.782500] guacamole kernel:  chrdev_open+0x16c/0x200
+[  191.782527] guacamole kernel:  do_dentry_open+0x144/0x4b4
+[  191.782551] guacamole kernel:  vfs_open+0x30/0xec
+[  191.782573] guacamole kernel:  path_openat+0x9f4/0xcc0
+[  191.782595] guacamole kernel:  do_file_open+0xd0/0x188
+[  191.782625] guacamole kernel:  do_sys_openat2+0x7c/0xf8
+[  191.782653] guacamole kernel:  __arm64_sys_openat+0x70/0x9c
+[  191.782675] guacamole kernel:  invoke_syscall+0x40/0xcc
+[  191.782697] guacamole kernel:  el0_svc_common+0x8c/0xd4
+[  191.782719] guacamole kernel:  do_el0_svc+0x1c/0x28
+[  191.782741] guacamole kernel:  el0_svc+0x38/0xa4
+[  191.782764] guacamole kernel:  el0t_64_sync_handler+0x68/0xdc
+[  191.782791] guacamole kernel:  el0t_64_sync+0x198/0x19c
+[  191.782814] guacamole kernel: Code: b9000909 d503201f 2a1f03e1 52800028 (88e17c08) 
+[  191.782842] guacamole kernel: ---[ end trace 0000000000000000 ]---
+[  191.782866] guacamole kernel: note: getty[1270] exited with irqs disabled
+[  191.782889] guacamole kernel: note: getty[1270] exited with preempt_count 1
+[  191.782913] guacamole : Segmentation fault
+[  191.782937] guacamole : Trying to mount subpartitions for 10 seconds...
+[  191.782960] guacamole : Mount subpartitions of /dev/sda19
+[  191.782984] guacamole kernel: loop0: detected capacity change from 0 to 475706264
+[  191.783023] guacamole kernel: GPT:Primary header thinks Alt. header is not at the end of the disk.
+[  191.783047] guacamole kernel: GPT:1966591 != 59463282
+[  191.783075] guacamole kernel: GPT:Alternate GPT header not at the end of the disk.
+[  191.783097] guacamole kernel: GPT:1966591 != 59463282
+[  191.783120] guacamole kernel: GPT: Use GNU Parted to correct GPT errors.
+[  191.783142] guacamole kernel:  loop0: p1 p2
+[  191.783167] guacamole : Warning: Not all of the space available to /dev/loop0 appears to be used, you can fix the GPT to use all of the space (an extra 57496691 blocks) or continue with the current setting? 
+[  191.783190] guacamole : Resize root partition (/dev/loop0p2)
+[  191.783215] guacamole : Warning: Not all of the space available to /dev/loop0 appears to be used, you can fix the GPT to use all of the space (an extra 57496691 blocks) or continue with the current setting? 
+[  191.783238] guacamole : Fixing, due to --fix
+[  191.783261] guacamole : Auto-repair and check 'ext' filesystem (/dev/loop0p2)
+[  191.783295] guacamole : pmOS_root: clean, 33557/858176 files, 601146/1716224 blocks
+[  191.783318] guacamole : Resize 'ext4' root filesystem (/dev/loop0p2)
+[  191.783342] guacamole : resize2fs 1.47.4 (6-Mar-2025)
+[  191.783366] guacamole : Resizing the filesystem on /dev/loop0p2 to 59213166 (4k) blocks.
+[  191.783390] guacamole : The filesystem on /dev/loop0p2 is now 59213166 (4k) blocks long.
+[  191.783414] guacamole : Mount root partition (/dev/loop0p2) to /sysroot (read-write) with options 
+[  191.783437] guacamole kernel: EXT4-fs (loop0p2): mounted filesystem REDACTED_FS_UUID r/w with ordered data mode. Quota mode: none.
+[  191.783467] guacamole : Switching root
+[  191.783495] guacamole unknown: syslogd exiting
+[  191.783519] guacamole systemd[1]: Setting '/proc/sys/kernel/printk_devkmsg' to 'on'
+[  191.783546] guacamole systemd[1]: Smack is not enabled in the kernel.
+[  191.783571] guacamole systemd[1]: Skipping AppArmor initialization: not supported by the kernel, disabled, or libapparmor not installed.
+[  191.783595] guacamole systemd[1]: IMA support is disabled in the kernel, ignoring: No such file or directory
+[  191.783626] guacamole systemd[1]: IPE support is disabled in the kernel, ignoring: No such file or directory
+[  191.783651] guacamole systemd[1]: System time advanced to timestamp on /usr/lib/clock-epoch: Sat 2026-11-14 14:40:26 UTC
+[  191.783680] guacamole systemd[1]: Your kernel apparently lacks built-in ipv6 support. Might be a good idea to compile it in. We'll now try to work around this by loading the module...
+[  191.783710] guacamole systemd[1]: Loaded shared library 'libkmod.so.2' via dlopen().
+[  191.783733] guacamole systemd[1]: Loading module: ipv6
+[  191.783756] guacamole kernel: NET: Registered PF_INET6 protocol family
+[  191.783779] guacamole kernel: Segment Routing with IPv6
+[  191.783801] guacamole kernel: In-situ OAM (IOAM) with IPv6
+[  191.783824] guacamole systemd[1]: Inserted module 'ipv6'

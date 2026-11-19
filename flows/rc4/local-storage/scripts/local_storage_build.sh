@@ -301,6 +301,14 @@ for relative, expected in data.get("files", {}).items():
     path = state / relative
     if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
         raise SystemExit(1)
+# The release/config can stay identical across kernel patch rebuilds.
+for name in ("Image", "Image.gz"):
+    relative = Path("output/arch/arm64/boot") / name
+    local_image, source_image = state / relative, source / relative
+    if not local_image.is_file() or not source_image.is_file():
+        raise SystemExit(1)
+    if hashlib.sha256(local_image.read_bytes()).digest() != hashlib.sha256(source_image.read_bytes()).digest():
+        raise SystemExit(1)
 link = state / "output/source"
 if link.is_symlink() and os.path.isabs(os.readlink(link)):
     raise SystemExit(1)
@@ -333,7 +341,7 @@ copy_kernel_state() {
             note "source kernel package (read-only): $KERNEL_BUILD"
             return 0
         else
-            die "local kernel copy is not verified (incomplete/corrupt): $KERNEL_STATE; re-run with --refresh-kernel"
+            die "local kernel copy is stale, incomplete or corrupt: $KERNEL_STATE; re-run with --refresh-kernel"
         fi
     fi
     mkdir -p -- "$KERNEL_STATE/$source_name"

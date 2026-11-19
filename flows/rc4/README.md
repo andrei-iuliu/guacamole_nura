@@ -1,9 +1,10 @@
-# rc4 integration: complete source candidate
+# rc4 integration
 
-**Status: source candidate only.** The kernel recipe, device package, local-storage
-flow and tests are assembled and verified rootlessly; no kernel package, rootfs,
-boot image or APK was built, nothing was booted, and no phone was touched. The
-release notes are `docs/NURA_RC4.md`; the review record is
+**Status (2026-11-14): rc4j built and booted successfully with Phosh.**
+Speakers, Bluetooth and Wi-Fi were confirmed by the user. The original integration
+review below was rootless; current hardware evidence and remaining issues are
+recorded in `docs/RC4J_SUCCESS_20261114.md`. The release notes are
+`docs/NURA_RC4.md`; the original review record is
 `flows/rc4/REVIEW.md`; the supplied-file ledger is `flows/rc4/INVENTORY.json`.
 
 ## 1. What is where

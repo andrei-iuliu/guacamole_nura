@@ -1,0 +1,38 @@
+{
+  "retained_kernel_generations": [
+    "rc4i",
+    "rc4j"
+  ],
+  "retained_boot_images": [
+    "local-userdata-phosh/boot/boot.img",
+    "local-debug-phosh/boot/boot.img"
+  ],
+  "removed_build_paths": [
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4-original",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4b",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4c",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4d",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4e",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4f",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4g",
+    "runtime-workspace/flows/rc4/build-source/kernel-output.rc4h",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4-original",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4b",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4c",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4d",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4e",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4f",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4g",
+    "runtime-workspace/flows/rc4/build-source/kernel-trees-archive/linux-v7.0.0-sm8150.rc4h",
+    "runtime-workspace/flows/rc4/local-storage/build/local-userdata-phosh/rootfs-diagnostic.ext4",
+    "guacamole_nura-workspace/rc4i-gpu/flows/rc4/build-source/gpu-rc4i",
+    "guacamole_nura-workspace/rc4j-kernel/.work/rc4j-0073",
+    "guacamole_nura-workspace/rc4j-kernel/.work/rc4j-mesa"
+  ],
+  "removed_worktrees": [
+    "guacamole_nura-workspace/rc4i-gpu",
+    "guacamole_nura-workspace/rc4j-kernel",
+    "guacamole_nura-workspace/worktree-phosh",
+    "guacamole_nura-workspace/worktree-plasma-corners"
+  ]
+}

@@ -1,0 +1,7 @@
+[  191.682072] guacamole kernel: ramoops: using module parameters
+[  191.682237] guacamole kernel: ramoops: using 0x400000@0xa9800000, ecc: 0
+[  191.682497] guacamole kernel: ramoops: already initialized
+[  191.682845] guacamole kernel: ramoops: already initialized
+[  191.683545] guacamole kernel: ramoops a9800000.ramoops: probe with driver ramoops failed with error -22
+[  191.721994] guacamole kernel: ufshcd-qcom 1d84000.ufshc: limiting HS gear to G3 (was G4)
+[  191.781921] guacamole kernel: Internal error: Oops: 0000000096000004 [#1]  SMP
