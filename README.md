@@ -173,15 +173,16 @@ guacamole_nura/
 ├── firmware/                       # Firmware documentation and extraction tools
 │   └── README.md                   # OTA payload firmware dumping guide
 │
-├── scripts/                        # Automated development utilities
-│   ├── envsetup.sh                 # Environment setup and aliases
+├── nura                            # Entrypoint for the current flow (./nura help)
+├── flows/rc4/                      # Current kernel recipe, local-userdata build flow, tests
+├── scripts/                        # Helpers used by ./nura and the flow (see scripts/README.md)
+│   ├── check_prereqs.sh            # Host packages per stage, with install hints
+│   ├── fetch_inputs.sh             # Fetch/verify platform-tools, mkbootimg, avbtool, DTB tools
+│   ├── prepare_temporary_dtb.py    # ABL DTBO-quarantine wrapper DTB
+│   ├── fastboot_boot.sh            # fastboot boot with the ABL stall recovery
 │   ├── extract_dtb.sh              # ADB tool to extract & decompile live DTB
-│   ├── build_kernel.sh             # Compiles kernel using envkernel.sh
-│   ├── build_bootimg_7_0.sh        # Packs the v7.0.0-sm8150 boot image (host-only)
-│   ├── check_boot_envelope.py      # Rejects kernel/DTB load-address overlap
-│   ├── check_initramfs_release.py  # Rejects wrong/mixed initramfs module releases
-│   ├── flash_boot.sh               # Non-destructive fastboot testing helper
 │   └── ramoops.sh                  # Dumps pstore logs following kernel panic
+├── archive/                        # Superseded 6.17/7.0 build and boot scripts (see archive/README.md)
 │
 └── docs/                           # Detailed technical documentation
     ├── PLAN.md                     # Bringup roadmap and status

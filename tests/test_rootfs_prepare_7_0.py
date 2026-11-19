@@ -29,7 +29,7 @@ class RootfsBuildScriptTests(unittest.TestCase):
             root = Path(directory) / "checkout with spaces"
             script = root / "scripts/rootfs_prepare_7_0.sh"
             script.parent.mkdir(parents=True)
-            shutil.copy2(ROOT / "scripts/rootfs_prepare_7_0.sh", script)
+            shutil.copy2(ROOT / "archive/scripts/rootfs_prepare_7_0.sh", script)
             recipe = root / "device/testing/7.0/postmarketos-mkinitfs-hook-netboot"
             recipe.mkdir(parents=True)
             (recipe / "netboot.sh").write_text("NBD_PORT=10000\n")

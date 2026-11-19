@@ -18,7 +18,10 @@ class PhoneScriptTests(unittest.TestCase):
         (self.root / 'scripts').mkdir(parents=True)
         (self.root / 'platform-tools').mkdir()
         for name in ('boot_7_0.sh', 'boot_rear_camera.sh', 'serve_7_0.sh', 'serve_rear_camera.sh', 'ssh_phone.sh'):
-            shutil.copy2(ROOT / 'scripts' / name, self.root / 'scripts' / name)
+            source = ROOT / 'scripts' / name
+            if not source.exists():   # superseded launchers live in archive/scripts
+                source = ROOT / 'archive/scripts' / name
+            shutil.copy2(source, self.root / 'scripts' / name)
         image = self.root / 'build/7.0/boot.img'
         image.parent.mkdir(parents=True)
         image.touch()

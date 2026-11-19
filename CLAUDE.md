@@ -1,8 +1,11 @@
 # CLAUDE.md
 
-For the current 7.0 rear-camera work, read `docs/WORKSPACE_STATUS.md` and
+The current flow (rc4, rootfs on `userdata`) runs through `./nura`
+(`./nura help`); see `docs/BUILD_ENVIRONMENT.md` and `scripts/README.md`. For
+the 7.0 rear-camera work, read `docs/WORKSPACE_STATUS.md` and
 `docs/DELIVERY_LIFECYCLE.md` first. The older workflow below describes the
-6.17 baseline; current source and mocked tests also live under `tests/`.
+6.17 baseline; its build/flash scripts moved to `archive/scripts/` (see
+`archive/README.md`). Current source and mocked tests also live under `tests/`.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -12,26 +15,30 @@ A bringup workspace for running postmarketOS / Nura on the OnePlus 7 Pro (`onepl
 
 ## Boot image pipeline (actual dev loop)
 
+> 6.17 history. These commands ran from `scripts/`; the scripts now live in
+> `archive/scripts/` and do not run from there as-is (`archive/README.md`
+> explains how to run one from git history). Current work uses `./nura`.
+
 Device-tree work does **not** go through the upstream `dts/*.dts` sources. The loop is:
 
 1. Edit **`base_guacamole_working.dts`**. This is a *flattened, decompiled* DTS (from `dtc -I dtb -O dts`): no `#include`s, no labels for most nodes, and every cross-reference is a raw numeric phandle (`<0xde>`). When you add a node that others reference, give it a `phandle = <0x...>;` that is unused (grep the file for the current maximum) and reference it numerically.
 2. `python3 scripts/patch_dtb.py` applies fix-ups by **exact string replacement** (tab-indented text blocks): it corrects reserved-memory regions, adds the ramoops/bootloader_log/cdsp_sec/param/mtp carve-outs, and injects `qcom,msm-id` / `qcom,board-id` so ABL accepts the DTB. It writes `build/patched_guacamole.dts` and compiles `build/custom_guacamole.dtb`. The `assert` fails if the `rmtfs-mem` block it anchors on is reformatted, so keep that block's exact formatting.
-3. `scripts/build_bootimg.sh` runs step 2. It then packs `build/boot.img` (mkbootimg header v2, offsets matching `deviceinfo`, cmdline with ramoops and `PMOS_NO_OUTPUT_REDIRECT`) and adds an AVB hash footer. The kernel comes from `$KERNEL_DIR/boot/vmlinuz` (default `build/kernel_r6`), or failing that from the pmbootstrap chroot at `~/.local/var/pmbootstrap/chroot_rootfs_oneplus-guacamole`. The initramfs comes from `$INITRAMFS` if set, else `/tmp/device_initramfs_r4` or that same chroot.
-4. `scripts/fastboot_boot.sh [boot.img]` runs `fastboot boot` with the recovery the ABL needs (non-destructive; prefer this). Test every image this way first; only then flash it, and only to `boot_b` (`fastboot flash boot_b <img>`). Never flash `boot_a`, and never flash `userdata` unless you are deliberately reinstalling the rootfs. The ABL often stalls at `Sending 'boot.img'` or answers `Load Error` while the device still enumerates; the script then resets the USB device from the host (`USBDEVFS_RESET`), runs `fastboot reboot bootloader` and retries, which clears it without touching the phone. `scripts/flash_boot.sh test` is the plain version; wrap it in `timeout 10`. Reboot into the bootloader with `ssh user@172.16.42.1 'sudo reboot bootloader'` (SSH key auth works; `sudo` needs the test password).
+3. `archive/scripts/build_bootimg.sh` runs step 2. It then packs `build/boot.img` (mkbootimg header v2, offsets matching `deviceinfo`, cmdline with ramoops and `PMOS_NO_OUTPUT_REDIRECT`) and adds an AVB hash footer. The kernel comes from `$KERNEL_DIR/boot/vmlinuz` (default `build/kernel_r6`), or failing that from the pmbootstrap chroot at `~/.local/var/pmbootstrap/chroot_rootfs_oneplus-guacamole`. The initramfs comes from `$INITRAMFS` if set, else `/tmp/device_initramfs_r4` or that same chroot.
+4. `scripts/fastboot_boot.sh [boot.img]` runs `fastboot boot` with the recovery the ABL needs (non-destructive; prefer this). Test every image this way first; only then flash it, and only to `boot_b` (`fastboot flash boot_b <img>`). Never flash `boot_a`, and never flash `userdata` unless you are deliberately reinstalling the rootfs. The ABL often stalls at `Sending 'boot.img'` or answers `Load Error` while the device still enumerates; the script then resets the USB device from the host (`USBDEVFS_RESET`), runs `fastboot reboot bootloader` and retries, which clears it without touching the phone. `archive/scripts/flash_boot.sh test` is the plain version; wrap it in `timeout 10`. Reboot into the bootloader with `ssh user@172.16.42.1 'sudo reboot bootloader'` (SSH key auth works; `sudo` needs the test password).
 5. After a panic, reboot into TWRP and run `scripts/ramoops.sh` to pull pstore logs into `logs/ramoops_<timestamp>/`.
 
 ```bash
-./scripts/build_bootimg.sh
+./archive/scripts/build_bootimg.sh
 ```
 
 With a new kernel package, the modules in `/lib/modules` on the phone must match the kernel you boot. Install the APK on the phone first (`apk add /tmp/linux-...apk`; this only regenerates `/boot`, it never flashes), extract the same APK into `build/kernel_rN/`, copy the phone's new `/boot/initramfs` next to it, and then run:
 
 ```bash
-KERNEL_DIR=$PWD/build/kernel_r8 INITRAMFS=$PWD/build/kernel_r8/initramfs ./scripts/build_bootimg.sh
+KERNEL_DIR=$PWD/build/kernel_r8 INITRAMFS=$PWD/build/kernel_r8/initramfs ./archive/scripts/build_bootimg.sh
 ```
 
 ```bash
-./scripts/flash_boot.sh test
+./archive/scripts/flash_boot.sh test
 ```
 
 Needs on the host: `dtc`, `mkbootimg`, `avbtool`, `fastboot`/`adb` (or `pmbootstrap flasher` as a fallback).
@@ -41,7 +48,7 @@ Needs on the host: `dtc`, `mkbootimg`, `avbtool`, `fastboot`/`adb` (or `pmbootst
 ## Kernel and packages
 
 - `device/testing/*` are pmaports packages. pmbootstrap builds from `~/.local/var/pmbootstrap/cache_git/pmaports/device/testing/`. The device and firmware packages there are symlinks to this repo, but `linux-postmarketos-qcom-sm8150` is a **separate copy**. After editing the repo copy, copy the files there and run `pmbootstrap checksum`; then make sure both directories are identical (`diff -rq`). Never run two pmbootstrap commands at once: `checksum`/`build` wipe the shared build dir (`chroot_native/home/pmos/build`), which kills a build already in progress. Packages: `device-oneplus-guacamole` (deviceinfo, the charging daemon `guacamole-chgctrl`, the MPSS init script, WoWLAN configs), `firmware-oneplus-guacamole`, and `linux-postmarketos-qcom-sm8150`. The kernel is the `v6.17.0-sm8150` tag from gitlab.com/sm8150-mainline/linux, built with `LLVM=1` and carrying the local `000N-*.patch` files.
-- `scripts/build_kernel.sh /path/to/linux` builds a kernel tree via pmbootstrap `envkernel.sh` and then runs `pmbootstrap build --envkernel`. Source `scripts/envsetup.sh` for the `pmb` / `pmb-guacamole` / `envkernel` helpers.
+- `archive/scripts/build_kernel.sh /path/to/linux` builds a kernel tree via pmbootstrap `envkernel.sh` and then runs `pmbootstrap build --envkernel`. Source `archive/scripts/envsetup.sh` for the `pmb` / `pmb-guacamole` / `envkernel` helpers.
 - `pmbootstrap/` is a gitignored clone of pmbootstrap. The pmbootstrap work dir is `~/.local/var/pmbootstrap`.
 - Kernel patches: `0004` DSC panel + MSM DSI 2-slices-per-packet, `0005` s6sy761 reset GPIO, `0006` geni I2C FIFO mode, `0007` TFA9874 speaker amp driver (ported from hotdog), `0008` SM8150 `QUATERNARY_MI2S_RX` speaker backend + per-SLIMbus-link channel maps, `0009` ath10k quiet-mode skip, `0010` UFS HS-G3 cap, `0011`/`0012` charger and gauge fixes, `0013`–`0016` IPA v4.1 (SM8150) support for the modem data path (from hotdog 0144/0145/0156), `0017` FastRPC sensors-PD message buffers from the reserved pool (hotdog 0148), `0018`/`0019` SMB5 USB3 SDP current and the writable `input_current_limit` property (hotdog 0151/0152), `0020`–`0024` USB-PD on PM8150B: input window override, Type-C sink exit on CC only, charger following the TCPM contract (current, standby, voltage window), VBUS diagnostics. The board never passes a 9 V PD supply to the PMIC (USBIN reads 0 V under a 9 V contract), so the connector sinks 5 V/3 A only; do not re-add the 9 V/12 V PDOs without new evidence.
 

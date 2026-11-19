@@ -28,7 +28,7 @@ KERNEL_RELEASE = "7.0.0-sm8150"
 DTB = KERNEL_PACKAGE / "boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb"
 DTC = ROOT / "local/bin/dtc"
 FDTGET = ROOT / "local/bin/fdtget"
-BOOT_SCRIPT = ROOT / "scripts/build_bootimg_7_0.sh"
+BOOT_SCRIPT = ROOT / "archive/scripts/build_bootimg_7_0.sh"
 
 
 def sha512(path: Path) -> str:
