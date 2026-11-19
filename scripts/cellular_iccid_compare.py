@@ -15,8 +15,14 @@ SHA-256 equality.
 
 It never prints ICCID, IMSI, PIN, phone number or raw QMI output. It uses only
 read-only public interfaces (mmcli and qmicli UIM get-slot-status,
-get-card-status, DMS get-iccid and read-transparent). It does not stop/start ModemManager, the modem, QRTR or
-provisioning sessions, and it does not change the SIM slot.
+get-card-status, DMS get-iccid and read-transparent). It does not stop/start
+ModemManager, the modem, QRTR or provisioning sessions, and it does not change
+the SIM slot.
+
+`--slot-summary` runs only the slot-status, card-status and modem-property
+queries and prints no identifier at all (not even a hash). Use it as the
+shortest discriminator when the question is which physical slot is ACTIVE, its
+logical slot, and which provisioning session EF2FE2 follows.
 
 The USER runs it; a worker must not run live device commands.
 """
@@ -107,18 +113,66 @@ def _clean_iccid(value: str) -> str | None:
     return value
 
 
-def parse_slot_status(output: str) -> dict[int, str | None]:
-    slots: dict[int, str | None] = {}
-    current = None
+@dataclass
+class SlotStatus:
+    number: int
+    card_status: str | None = None
+    slot_status: str | None = None
+    logical_slot: int | None = None
+    iccid: str | None = None
+
+
+def parse_slot_status_details(output: str) -> dict[int, SlotStatus]:
+    """Parse qmicli's slot-status print, keeping status and logical-slot fields.
+
+    qmicli prints, per physical slot: Card status, Slot status, an optional
+    Logical slot (only for ACTIVE slots) and an optional ICCID.
+    """
+    slots: dict[int, SlotStatus] = {}
+    current: SlotStatus | None = None
     for line in output.splitlines():
         header = re.match(r"^\s*Physical slot (\d+):", line)
         if header:
-            current = int(header.group(1))
-            slots[current] = None
+            current = SlotStatus(number=int(header.group(1)))
+            slots[current.number] = current
+            continue
+        if current is None:
+            continue
+        match = re.match(r"^\s*Card status:\s*(\S+)\s*$", line)
+        if match:
+            current.card_status = match.group(1).lower()
+            continue
+        match = re.match(r"^\s*Slot status:\s*(\S+)\s*$", line)
+        if match:
+            current.slot_status = match.group(1).lower()
+            continue
+        match = re.match(r"^\s*Logical slot:\s*(\d+)\s*$", line)
+        if match:
+            current.logical_slot = int(match.group(1))
+            continue
         match = SLOT_ICCID_RE.match(line)
-        if match and current is not None:
-            slots[current] = _clean_iccid(match.group(1))
+        if match:
+            current.iccid = _clean_iccid(match.group(1))
     return slots
+
+
+def parse_slot_status(output: str) -> dict[int, str | None]:
+    return {
+        number: slot.iccid for number, slot in parse_slot_status_details(output).items()
+    }
+
+
+def parse_active_slots(output: str) -> list[int]:
+    return [
+        number
+        for number, slot in parse_slot_status_details(output).items()
+        if (slot.slot_status or "") == "active"
+    ]
+
+
+def parse_slot_status_active_slot(output: str) -> int | None:
+    active = parse_active_slots(output)
+    return active[0] if len(active) == 1 else None
 
 
 def parse_dms_iccid(output: str) -> str | None:
@@ -127,19 +181,6 @@ def parse_dms_iccid(output: str) -> str | None:
         if match:
             return _clean_iccid(match.group(1))
     return None
-
-
-def parse_slot_status_active_slot(output: str) -> int | None:
-    current: int | None = None
-    active: list[int] = []
-    for line in output.splitlines():
-        match = re.match(r"^\s*Physical slot (\d+):", line)
-        if match:
-            current = int(match.group(1))
-            continue
-        if current is not None and re.match(r"^\s*Slot status:\s*active\s*$", line):
-            active.append(current)
-    return active[0] if len(active) == 1 else None
 
 
 def parse_primary_gw_slot(output: str) -> int | None:
@@ -262,15 +303,36 @@ def build_report(data: ReportData, salt: str | None = None) -> str:
 
     cached = parse_keyvalue(data.sim, MM_ICCID_KEY)
     lines.append(f"cached mmcli SIM identifier: {describe(cached, salt)}")
-    slots = parse_slot_status(data.slot)
-    for number, value in slots.items():
-        lines.append(f"  physical slot {number}: {describe(value, salt)}")
-    if not slots:
-        lines.append("UIM slot-status ICCIDs: unavailable")
-    active_slot = parse_slot_status_active_slot(data.slot)
-    active = slots.get(active_slot)
-    lines.append(f"UIM slot-status active physical slot: {active_slot or 'unavailable'}")
-    lines.append("Slot ICCIDs are qmicli decoded strings, possibly truncated at A-F; no raw slot bytes were captured.")
+    details = parse_slot_status_details(data.slot)
+    active_slots = [
+        number for number, slot in details.items() if slot.slot_status == "active"
+    ]
+    if not details:
+        lines.append("UIM slot-status: unavailable")
+    for number, slot in details.items():
+        logical = "none" if slot.logical_slot is None else str(slot.logical_slot)
+        lines.append(
+            f"  physical slot {number}: card={slot.card_status or 'unknown'} "
+            f"slot={slot.slot_status or 'unknown'} logical={logical} "
+            f"ICCID {describe(slot.iccid, salt)}"
+        )
+    if active_slots:
+        lines.append(
+            "UIM slot-status active physical slots: "
+            + ", ".join(str(number) for number in active_slots)
+            + f" ({len(active_slots)} active)"
+        )
+    else:
+        lines.append(
+            "UIM slot-status active physical slots: none parsed "
+            "(check the query status / slot-status schema)"
+        )
+    active_slot = active_slots[0] if len(active_slots) == 1 else None
+    active = details[active_slot].iccid if active_slot is not None else None
+    lines.append(
+        "Slot ICCIDs are qmicli decoded strings, possibly truncated at A-F; "
+        "no raw slot bytes were captured."
+    )
     primary = parse_primary_gw_slot(data.card)
     for session in ("Primary", "Secondary"):
         match = re.search(rf"^\s*{session} GW:\s+slot '(\d+)', application '(\d+)'", data.card, re.MULTILINE)
@@ -304,15 +366,36 @@ def build_report(data: ReportData, salt: str | None = None) -> str:
         lines.append(f"  {label}: {result}")
 
     lines.append("comparisons (observed values; YES means equal):")
-    compare("cached == active-slot ICCID", cached, active, True)
+    if len(active_slots) > 1:
+        ambiguous = f"UNKNOWN (ambiguous: {len(active_slots)} active slots)"
+        lines.append(f"  cached == active-slot ICCID: {ambiguous}")
+        lines.append(f"  active-slot ICCID == EF2FE2(MM normalization): {ambiguous}")
+        lines.append(f"  active-slot ICCID == EF2FE2(qmicli decode): {ambiguous}")
+    else:
+        compare("cached == active-slot ICCID", cached, active, True)
+        compare("active-slot ICCID == EF2FE2(MM normalization)", active, mm_value)
+        compare("active-slot ICCID == EF2FE2(qmicli decode)", active, low_value)
     compare("cached == EF2FE2(MM normalization)", cached, mm_value, True)
     compare("cached == DMS Get ICCID", cached, dms, True)
-    compare("active-slot ICCID == EF2FE2(MM normalization)", active, mm_value)
-    compare("active-slot ICCID == EF2FE2(qmicli decode)", active, low_value)
     compare("DMS Get ICCID == EF2FE2(MM normalization)", dms, mm_value)
-    compare("slot-status active slot == primary-GW provisioning slot",
-            str(active_slot) if active_slot is not None else None,
-            str(primary) if primary is not None else None)
+    if len(active_slots) == 1:
+        compare("slot-status active slot == primary-GW provisioning slot",
+                str(active_slot),
+                str(primary) if primary is not None else None)
+    elif active_slots:
+        if primary is None:
+            membership = "UNKNOWN (primary-GW session unavailable)"
+        else:
+            membership = "YES" if primary in active_slots else "NO"
+        lines.append(
+            "  primary-GW provisioning slot is among the active slots: "
+            + membership
+        )
+    else:
+        lines.append(
+            "  slot-status active slot == primary-GW provisioning slot: "
+            "UNKNOWN (no active slot parsed)"
+        )
     lines.append("interpretation hints (hypotheses, not hardware proof):")
     if cached == "":
         lines.append("  - The cached identifier is EMPTY in the exposed property.")
@@ -327,6 +410,94 @@ def build_report(data: ReportData, salt: str | None = None) -> str:
             lines.append("  - All three agree at this sample; a transient mismatch remains possible.")
     if active_slot is not None and primary is not None and active_slot != primary:
         lines.append("  - The active slot differs from the primary-GW session slot; EF2FE2 may select another SIM.")
+    if len(active_slots) > 1:
+        lines.append(
+            "  - More than one physical slot reports ACTIVE. ModemManager's "
+            "uim_get_slot_status_ready() keeps the LAST active physical slot as the "
+            "primary SIM, while EF2FE2 Read Transparent follows the PRIMARY-GW "
+            "provisioning session. Compare the same-instant modem primary slot with "
+            "these active slots before changing any code."
+        )
+    if primary is not None and active_slots and primary not in active_slots:
+        lines.append(
+            "  - The primary-GW session slot is not among the slots reported ACTIVE; "
+            "EF2FE2 may select another SIM."
+        )
+    return "\n".join(lines)
+
+
+def build_slot_summary(data: ReportData) -> str:
+    """Identifier-free slot/session discriminator (no ICCID, IMSI or hash)."""
+    details = parse_slot_status_details(data.slot)
+    active_slots = [
+        number for number, slot in details.items() if slot.slot_status == "active"
+    ]
+    lines = [
+        "Nura cellular slot/session discriminator",
+        "read-only; identifiers are not printed, not even hashed",
+    ]
+    for name, status in data.query_status.items():
+        lines.append(f"query {name}: {status}")
+    if not details:
+        lines.append("UIM slot-status: unavailable")
+    for number, slot in details.items():
+        logical = "none" if slot.logical_slot is None else str(slot.logical_slot)
+        lines.append(
+            f"physical slot {number}: card={slot.card_status or 'unknown'} "
+            f"slot={slot.slot_status or 'unknown'} logical={logical}"
+        )
+    if active_slots:
+        lines.append(
+            "active physical slots: "
+            + ", ".join(str(number) for number in active_slots)
+            + f" ({len(active_slots)} active)"
+        )
+    else:
+        lines.append("active physical slots: none parsed (check the query status)")
+    modem_primary = parse_keyvalue(data.modem, "modem.generic.primary-sim-slot")
+    lines.append(f"modem primary sim slot: {modem_primary or 'unavailable'}")
+    lines.append(
+        "modem state: "
+        + (parse_keyvalue(data.modem, "modem.generic.state") or "unavailable")
+    )
+    primary = parse_primary_gw_slot(data.card)
+    for label in ("Primary", "Secondary"):
+        match = re.search(
+            rf"^\s*{label} GW:\s+slot '(\d+)', application '(\d+)'",
+            data.card,
+            re.MULTILINE,
+        )
+        if match:
+            lines.append(
+                f"{label.lower()} GW provisioning session: "
+                f"slot {int(match[1])}, application {int(match[2])}"
+            )
+        else:
+            absent = re.search(
+                rf"^\s*{label} GW:\s+session doesn't exist",
+                data.card,
+                re.MULTILINE,
+            )
+            lines.append(
+                f"{label.lower()} GW provisioning session: "
+                + ("absent" if absent else "unavailable")
+            )
+    if len(active_slots) > 1:
+        lines.append(
+            "note: more than one ACTIVE physical slot; ModemManager keeps the last "
+            "active physical slot as primary (uim_get_slot_status_ready), qmicli's "
+            "switch-slot helper takes the first, and Read Transparent follows the "
+            "primary-GW session."
+        )
+    if modem_primary is not None and primary is not None:
+        try:
+            same_slot = int(modem_primary) == primary
+        except ValueError:
+            same_slot = False
+        lines.append(
+            "same-instant modem primary slot vs primary-GW session: "
+            + ("MATCH" if same_slot else "MISMATCH")
+        )
     return "\n".join(lines)
 
 
@@ -374,17 +545,34 @@ def remote_script(use_sudo: bool) -> str:
     return "; ".join(lines)
 
 
-def run_ssh(host: str, use_sudo: bool) -> str:
+def slot_summary_script(use_sudo: bool) -> str:
+    """Shortest read-only discriminator: slot status, card status, modem slot."""
+    prefix = "sudo " if use_sudo else ""
+    lines: list[str] = []
+    if use_sudo:
+        lines.append("if ! sudo -v; then echo '@@NO-SUDO@@'; exit 0; fi")
+    queries = [
+        ("MODEM", "mmcli -m any --output-keyvalue"),
+        ("SLOT", "qmicli --silent -pd qrtr://0 --uim-get-slot-status"),
+        ("CARD", "qmicli --silent -pd qrtr://0 --uim-get-card-status"),
+    ]
+    for name, command in queries:
+        lines.extend([f"echo '@@{name}@@'", f"{prefix}{command} 2>&1", "printf '\n@@EXIT@@ %s\n' \"$?\""])
+
+    return "; ".join(lines)
+
+
+def run_ssh(host: str, use_sudo: bool, script: str) -> str:
     command = [
         "ssh",
         "-o",
         "BatchMode=no",
         "-t" if use_sudo else "-T",
         host,
-        remote_script(use_sudo),
+        script,
     ]
     result = subprocess.run(command, text=True, capture_output=True, timeout=180)
-    if result.returncode != 0 and "@@READ@@" not in result.stdout:
+    if result.returncode != 0 and "@@SLOT@@" not in result.stdout:
         raise RuntimeError(
             f"ssh command failed (exit {result.returncode}); no raw output was printed"
         )
@@ -400,19 +588,30 @@ def main() -> int:
         action="store_true",
         help="do not prefix remote commands with sudo (qmicli may fail)",
     )
+    parser.add_argument(
+        "--slot-summary",
+        action="store_true",
+        help="shortest read-only discriminator: slot/logical/GW sessions, no identifiers",
+    )
     args = parser.parse_args()
+    script = (
+        slot_summary_script(not args.no_sudo)
+        if args.slot_summary
+        else remote_script(not args.no_sudo)
+    )
 
     try:
         if args.local:
             if not args.no_sudo:
                 subprocess.run(["sudo", "-v"], check=True)
-            print("Reading modem/SIM information; this may take a minute...", file=sys.stderr, flush=True)
+            what = "slot/session" if args.slot_summary else "modem/SIM"
+            print(f"Reading {what} information...", file=sys.stderr, flush=True)
             output = subprocess.run(
-                ["sh", "-c", remote_script(not args.no_sudo)],
+                ["sh", "-c", script],
                 text=True, capture_output=True, timeout=180,
             ).stdout
         else:
-            output = run_ssh(args.host, not args.no_sudo)
+            output = run_ssh(args.host, not args.no_sudo, script)
     except subprocess.TimeoutExpired:
         print("error: modem queries timed out; no raw output was printed", file=sys.stderr)
         return 2
@@ -434,6 +633,23 @@ def main() -> int:
     statuses = {}
     for name, output in sections.items():
         sections[name], statuses[name.strip("@")] = query_result(output)
+
+    if args.slot_summary:
+        print(
+            build_slot_summary(
+                ReportData(
+                    modem=sections.get("@@MODEM@@", ""),
+                    slot=sections.get("@@SLOT@@", ""),
+                    card=sections.get("@@CARD@@", ""),
+                    query_status={
+                        name: status
+                        for name, status in statuses.items()
+                        if name in {"MODEM", "SLOT", "CARD"}
+                    },
+                )
+            )
+        )
+        return 0
 
     report = build_report(
         ReportData(

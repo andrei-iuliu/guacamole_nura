@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Pin genuine rear1 initramfs/rootfs inputs before rootless boot-image packing."""
+"""Pin genuine kernel/initramfs/rootfs inputs before rootless boot-image packing.
+
+``RELEASE`` defaults to the historical rear1 uname so the original rear-camera
+flow is unchanged.  A future candidate with a different kernel release passes
+``--release`` (or exports ``NURA_KERNEL_RELEASE``); every module-tree, vermagic
+and initramfs comparison uses that one value.
+"""
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -14,6 +21,15 @@ from check_initramfs_release import (GZIP_MAGIC, XZ_MAGIC, ZSTD_MAGIC,
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE = '7.0.0-sm8150-rear1'
 MANIFEST = ROOT / 'build/rear-camera/packaging-inputs.json'
+
+
+def release_name(value=None):
+    """Return an explicit release or the historical rear1 default."""
+    if value is None:
+        value = os.environ.get('NURA_KERNEL_RELEASE', RELEASE)
+    if not isinstance(value, str) or not re.fullmatch(r'[0-9A-Za-z._+-]+', value):
+        raise ValueError(f'invalid kernel release name: {value!r}')
+    return value
 
 # Every module file in the APK staging tree must be present byte-for-byte in
 # the installed rootfs.  Building both from the same release string is not
@@ -29,8 +45,8 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def check_initramfs(path):
-    check_release(path, RELEASE)
+def check_initramfs(path, release=None):
+    check_release(path, release_name(release))
     entries = [name for name in list_archive(path) if name.endswith('/netboot.sh')]
     if len(entries) != 1:
         raise ValueError('initramfs must contain exactly one netboot.sh hook')
@@ -95,9 +111,9 @@ def _module_digest(path, modules_root, decompress=False):
     return hashlib.sha256(data).hexdigest()
 
 
-def module_payload(kernel_dir):
+def module_payload(kernel_dir, release=None):
     """Identity of the complete staged module payload, not just selected names."""
-    modules_root = Path(kernel_dir) / 'usr/lib/modules' / RELEASE
+    modules_root = Path(kernel_dir) / 'usr/lib/modules' / release_name(release)
     entries = _module_entries(modules_root)
     identity = hashlib.sha256()
     for key in sorted(entries):
@@ -114,15 +130,16 @@ def _rootfs_modules(rootfs):
     raise ValueError('rootfs has no module tree')
 
 
-def check_module_payload(kernel_dir, rootfs):
+def check_module_payload(kernel_dir, rootfs, release=None):
     """Compare every staged module file with the installed rootfs module tree."""
-    staged_root = Path(kernel_dir) / 'usr/lib/modules' / RELEASE
+    release = release_name(release)
+    staged_root = Path(kernel_dir) / 'usr/lib/modules' / release
     staged = _module_entries(staged_root)
     modules_root = _rootfs_modules(rootfs)
     releases = sorted(path.name for path in modules_root.iterdir() if path.is_dir())
-    if releases != [RELEASE]:
-        raise ValueError(f'rootfs must contain only {RELEASE} modules, found {releases}')
-    installed_root = modules_root / RELEASE
+    if releases != [release]:
+        raise ValueError(f'rootfs must contain only {release} modules, found {releases}')
+    installed_root = modules_root / release
     installed = _module_entries(installed_root)
     missing = sorted(set(staged) - set(installed))
     extra = sorted(set(installed) - set(staged))
@@ -147,22 +164,26 @@ def check_module_payload(kernel_dir, rootfs):
                 f'rootfs module payload differs: {key} '
                 f'(staged {staged_path.relative_to(staged_root)}, '
                 f'rootfs {installed_path.relative_to(installed_root)})')
-    return {'count': len(staged), 'sha256': module_payload(kernel_dir)['sha256']}
+    return {'count': len(staged), 'sha256': module_payload(kernel_dir, release)['sha256']}
 
 
-def check_inputs(initramfs, kernel_dir, rootfs=None):
-    check_initramfs(initramfs)
-    release = kernel_dir / 'usr/share/kernel/postmarketos-qcom-sm8150/kernel.release'
-    if release.read_text().strip() != RELEASE:
+def check_inputs(initramfs, kernel_dir, rootfs=None, release=None, manifest=None,
+                 check_recorded=True):
+    release = release_name(release)
+    check_initramfs(initramfs, release)
+    release_file = kernel_dir / 'usr/share/kernel/postmarketos-qcom-sm8150/kernel.release'
+    if release_file.read_text().strip() != release:
         raise ValueError('staged kernel release mismatch')
-    payload = module_payload(kernel_dir)
-    identity = {'release': RELEASE, 'nbd_port': 10001,
+    payload = module_payload(kernel_dir, release)
+    identity = {'release': release, 'nbd_port': 10001,
                 'initramfs_sha256': digest(initramfs),
                 'vmlinuz_sha256': digest(kernel_dir / 'boot/vmlinuz'),
                 'module_payload_sha256': payload['sha256'],
                 'module_count': payload['count']}
     if rootfs is None:
-        recorded = json.loads(MANIFEST.read_text())
+        if not check_recorded:
+            return identity
+        recorded = json.loads(Path(manifest or MANIFEST).read_text())
         changed = [key for key, value in identity.items() if recorded.get(key) != value]
         if changed:
             raise ValueError('inputs differ from the verified candidate rootfs: '
@@ -170,19 +191,19 @@ def check_inputs(initramfs, kernel_dir, rootfs=None):
         return identity
     if digest(rootfs / 'boot/vmlinuz') != identity['vmlinuz_sha256']:
         raise ValueError('rootfs kernel differs from staging')
-    if (rootfs / 'usr/share/kernel/postmarketos-qcom-sm8150/kernel.release').read_text().strip() != RELEASE:
+    if (rootfs / 'usr/share/kernel/postmarketos-qcom-sm8150/kernel.release').read_text().strip() != release:
         raise ValueError('rootfs release mismatch')
     dtb = Path('boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb')
     if digest(rootfs / dtb) != digest(kernel_dir / dtb):
         raise ValueError('rootfs DTB differs from staging')
-    check_module_payload(kernel_dir, rootfs)
-    modules = _rootfs_modules(rootfs) / RELEASE
+    check_module_payload(kernel_dir, rootfs, release)
+    modules = _rootfs_modules(rootfs) / release
     for name in CAMERA_MODULES:
         matches = list(modules.rglob(name + '.ko*'))
         if len(matches) != 1:
             raise ValueError(f'rootfs needs exactly one {name} module')
         magic = subprocess.check_output(['modinfo', '-F', 'vermagic', str(matches[0])], text=True)
-        if magic.split()[0] != RELEASE:
+        if magic.split()[0] != release:
             raise ValueError(f'wrong vermagic: {matches[0]}')
     hook = rootfs / 'usr/share/mkinitfs/hooks/netboot.sh'
     if not re.search(r'^NBD_PORT=10001$', hook.read_text(), re.M):
@@ -197,8 +218,15 @@ def main():
     parser.add_argument('--initramfs', type=Path, required=True)
     parser.add_argument('--kernel-dir', type=Path, default=ROOT / 'build/rear-camera/kernel-package')
     parser.add_argument('--record-rootfs', type=Path)
+    parser.add_argument('--release', help='kernel uname; default 7.0.0-sm8150-rear1')
+    parser.add_argument('--manifest', type=Path,
+                        help='recorded packaging-inputs.json for the no-rootfs comparison')
+    parser.add_argument('--no-recorded-inputs', action='store_true',
+                        help='do not compare against a previous packaging-inputs.json')
     args = parser.parse_args()
-    print(json.dumps(check_inputs(args.initramfs, args.kernel_dir, args.record_rootfs), indent=2))
+    print(json.dumps(check_inputs(
+        args.initramfs, args.kernel_dir, args.record_rootfs, args.release,
+        args.manifest, not args.no_recorded_inputs), indent=2))
 
 
 if __name__ == '__main__':

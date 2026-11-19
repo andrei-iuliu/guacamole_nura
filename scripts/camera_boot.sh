@@ -20,7 +20,10 @@
 # OnePlus ABL USB-reset recovery), CLAUDE.md (never flash the boot partition).
 set -Eeuo pipefail
 
-readonly RELEASE='7.0.0-sm8150-rear1'
+readonly BASELINE_RELEASE='7.0.0-sm8150-rear1'
+# rear-camera keeps the historical release; plasma reads kernel_release from
+# its own manifest (rc3 = 7.0.0-sm8150-rc3, restored rc2 = rear1).
+RELEASE=$BASELINE_RELEASE
 readonly NBD_PORT=10001
 # Expected CCI identity is read from DELIVERY.json for this build.  The env
 # overrides exist only as a host-testing seam and are never a built-in hash.
@@ -32,24 +35,33 @@ readonly -a BASELINE_BOOT_SHA256=(
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 ROOT_REAL="$(readlink -m -- "$ROOT")"
-SERVED_RECORD="${NURA_STATE_DIR:-$ROOT/.work/delivery}/served-image.json"
 
-MANIFEST="$ROOT/build/rear-camera/DELIVERY.json"
-PACKAGING_INPUTS="$ROOT/build/rear-camera/packaging-inputs.json"
-BOOT_IMG="$ROOT/build/rear-camera/boot.img"
-KERNEL_DIR="$ROOT/build/rear-camera/kernel-package"
-KERNEL_RELEASE_FILE="$KERNEL_DIR/usr/share/kernel/postmarketos-qcom-sm8150/kernel.release"
-BASE_DTB="$KERNEL_DIR/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb"
-WRAPPER_DTB="$ROOT/build/rear-camera/temporary-dtbo/custom_guacamole-abl-quarantine.dtb"
-WRAPPER_MANIFEST="$ROOT/build/rear-camera/temporary-dtbo/manifest.json"
-KERNEL_IMAGE="$ROOT/build/rear-camera/Image"
-VMLINUZ="$KERNEL_DIR/boot/vmlinuz"
-CCI_MODULE="$KERNEL_DIR/usr/lib/modules/$RELEASE/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.zst"
-SERVED_IMAGE="$ROOT/.work/rear-camera/pmbootstrap-work/images_netboot/oneplus-guacamole.img"
-SOURCE_IMAGE="$ROOT/.work/rear-camera/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img"
-EXPORT_INITRAMFS="$ROOT/.work/rear-camera/rootfs/export/initramfs"
-LOG_DIR="$ROOT/build/rear-camera/logs"
-LAST_BOOT="$ROOT/build/rear-camera/last-boot.json"
+# Profile selection is explicit; the default remains the working rear-camera
+# candidate.  Plasma gets its own state, build output and delivery receipts.
+PROFILE=${NURA_PROFILE:-rear-camera}
+STATE_ROOT=
+BUILD_ROOT=
+DELIVERY_DIR=
+SERVED_RECORD=
+MANIFEST=
+PACKAGING_INPUTS=
+BOOT_IMG=
+KERNEL_DIR=
+KERNEL_RELEASE_FILE=
+BASE_DTB=
+WRAPPER_DTB=
+WRAPPER_MANIFEST=
+KERNEL_IMAGE=
+VMLINUZ=
+CCI_MODULE=
+SERVED_IMAGE=
+SOURCE_IMAGE=
+EXPORT_INITRAMFS=
+LOG_DIR=
+LAST_BOOT=
+SERVE_ENTRY=
+VERIFY_ENTRY=
+KNOWN_GOOD_MANIFEST=$ROOT/build/rear-camera/DELIVERY.json
 
 SUBCOMMAND=boot
 DRY_RUN=0
@@ -98,13 +110,65 @@ fail_check() { printf 'FAIL  %s\n' "$*" >&2; PROBLEMS+=("$*"); }
 die()  { local code=$1; shift; printf 'ERROR: %s\n' "$*" >&2; exit "$code"; }
 state() { printf '      %s\n' "$*" >&2; }
 
+# Resolve every profile-dependent path once, after argument parsing.  The
+# rear-camera mapping is the historical one; plasma-mobile never shares state,
+# build output, receipts, logs or known_hosts with the working Phosh path.
+configure_profile() {
+    local state build delivery
+    case $PROFILE in
+        rear-camera) state=rear-camera; build=rear-camera; delivery=delivery ;;
+        plasma-mobile) state=plasma-mobile; build=plasma-mobile; delivery=delivery-plasma-mobile ;;
+        *) die 2 "unknown profile '$PROFILE' (use rear-camera or plasma-mobile)" ;;
+    esac
+    STATE_ROOT=$ROOT/.work/$state
+    BUILD_ROOT=$ROOT/build/$build
+    DELIVERY_DIR=${NURA_STATE_DIR:-$ROOT/.work/$delivery}
+    SERVED_RECORD=$DELIVERY_DIR/served-image.json
+    MANIFEST=$BUILD_ROOT/DELIVERY.json
+    PACKAGING_INPUTS=$BUILD_ROOT/packaging-inputs.json
+    BOOT_IMG=$BUILD_ROOT/boot.img
+    KERNEL_DIR=$BUILD_ROOT/kernel-package
+    KERNEL_RELEASE_FILE=$KERNEL_DIR/usr/share/kernel/postmarketos-qcom-sm8150/kernel.release
+    BASE_DTB=$KERNEL_DIR/boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb
+    WRAPPER_DTB=$BUILD_ROOT/temporary-dtbo/custom_guacamole-abl-quarantine.dtb
+    WRAPPER_MANIFEST=$BUILD_ROOT/temporary-dtbo/manifest.json
+    KERNEL_IMAGE=$BUILD_ROOT/Image
+    VMLINUZ=$KERNEL_DIR/boot/vmlinuz
+    # CCI_MODULE depends on the release, resolved after the manifest is loaded.
+    CCI_MODULE=
+    SERVED_IMAGE=$STATE_ROOT/pmbootstrap-work/images_netboot/oneplus-guacamole.img
+    SOURCE_IMAGE=$STATE_ROOT/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img
+    EXPORT_INITRAMFS=$STATE_ROOT/rootfs/export/initramfs
+    LOG_DIR=$BUILD_ROOT/logs
+    LAST_BOOT=$BUILD_ROOT/last-boot.json
+    SERVE_ENTRY=$ROOT/scripts/camera_serve.sh
+    VERIFY_ENTRY=$ROOT/scripts/camera_verify.sh
+    if [[ $PROFILE == plasma-mobile ]]; then
+        SERVE_ENTRY=$ROOT/scripts/plasma_serve.sh
+        VERIFY_ENTRY=''
+        [[ $(readlink -m -- "$STATE_ROOT") == "$ROOT/.work/plasma-mobile" ]] \
+            || die 3 "plasma-mobile state resolves outside $ROOT/.work/plasma-mobile: $STATE_ROOT"
+        [[ $(readlink -m -- "$BUILD_ROOT") == "$ROOT/build/plasma-mobile" ]] \
+            || die 3 "plasma-mobile build output resolves outside $ROOT/build/plasma-mobile: $BUILD_ROOT"
+        [[ $(readlink -m -- "$SERVED_IMAGE") == "$ROOT/.work/plasma-mobile/pmbootstrap-work/images_netboot/oneplus-guacamole.img" ]] \
+            || die 3 "plasma-mobile served cache resolves outside its own state: $SERVED_IMAGE"
+        [[ $(readlink -m -- "$SOURCE_IMAGE") == "$ROOT/.work/plasma-mobile/pmbootstrap-work/chroot_native/home/pmos/rootfs/oneplus-guacamole.img" ]] \
+            || die 3 "plasma-mobile source image resolves outside its own state: $SOURCE_IMAGE"
+        case "$(readlink -m -- "$DELIVERY_DIR")/" in
+            "$ROOT/.work/delivery/"*|"$ROOT/.work/rear-camera/"*|"$ROOT/build/rear-camera/"*)
+                die 3 "plasma-mobile must not use Phosh delivery state: $DELIVERY_DIR" ;;
+        esac
+    fi
+}
+
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [SUBCOMMAND] [OPTIONS]
 
-Proof-of-identity launcher for the Nura rear-camera candidate in this
-checkout.  It temporarily boots build/rear-camera/boot.img only; it never
-flashes, erases, formats or writes a partition, DTBO or vbmeta.
+Proof-of-identity launcher for the selected Nura candidate in this checkout
+(default: rear-camera).  It temporarily boots the profile's boot.img only; it
+never flashes, erases, formats or writes a partition, DTBO or vbmeta.
+Use scripts/plasma_boot.sh for the Plasma Mobile trial.
 
 Subcommands:
   boot            Temporary boot of the candidate (default).
@@ -117,6 +181,8 @@ Options:
   --dry-run            Run every read-only check, query the device lists, and
                        print the exact adb/fastboot commands without running
                        them.  No log, last-boot.json or device change.
+  --profile NAME       candidate profile: rear-camera (default) or
+                       plasma-mobile; the wrapper scripts pass this for you.
   --yes, -y            Continue when the device identity is unavailable or
                        unexpected.  Never overrides hashes, releases or paths.
   --serial SERIAL      Use this device when several are attached.
@@ -277,8 +343,10 @@ def artifact(name, aliases=()):
 release = text('release')
 if release is not None:
     rows.append(('release', release))
-for name in ('worktree', 'created_at'):
-    value = text(name)
+for name in ('worktree', 'created_at', 'ui', 'profile', 'release_candidate',
+             'kernel_release', 'kernel_build', 'kernel_inputs_sha256',
+             'copied_from', 'source_boot_sha256'):
+    value = text(name, required=False)
     if value is not None:
         rows.append((name, value))
 value = text('git_head', required=False)
@@ -487,12 +555,50 @@ check_root_markers() {
     if baseline_component "$ROOT_REAL"; then
         die 3 "refusing to run from the baseline tree: $ROOT_REAL"
     fi
+    if [[ $PROFILE == plasma-mobile ]]; then
+        case $ROOT_REAL in
+            *nura-rear-cameras-7-0*) die 3 "refusing to launch the Plasma candidate from the working Phosh checkout: $ROOT_REAL" ;;
+        esac
+        [[ -f "$ROOT/scripts/build_bootimg_rear_camera.sh" ]] ||
+            die 3 "not the canonical guacamole checkout (missing scripts/build_bootimg_rear_camera.sh): $ROOT_REAL"
+        [[ -d "$BUILD_ROOT" ]] ||
+            die 3 "missing Plasma candidate build directory: $BUILD_ROOT"
+        return 0
+    fi
     [[ -d "$ROOT/device/testing/rear-camera" ]] ||
         die 3 "not a rear-camera candidate checkout (missing device/testing/rear-camera): $ROOT_REAL"
     [[ -f "$ROOT/scripts/build_bootimg_rear_camera.sh" ]] ||
         die 3 "not a rear-camera candidate checkout (missing scripts/build_bootimg_rear_camera.sh): $ROOT_REAL"
-    [[ -d "$ROOT/build/rear-camera" ]] ||
-        die 3 "missing candidate build directory: $ROOT/build/rear-camera"
+    [[ -d "$BUILD_ROOT" ]] ||
+        die 3 "missing candidate build directory: $BUILD_ROOT"
+}
+
+resolve_release() {
+    # The manifest's kernel_release is authored by the build pipeline and is
+    # cross-checked here against kernel.release and every module path.  It is
+    # not an override seam: the value must match the accepted release pattern,
+    # the manifest release, and the staged kernel.
+    local candidate=''
+    if (( MAN_LOADED )); then
+        candidate="${MAN[kernel_release]:-${MAN[release]:-}}"
+        if [[ -n "${MAN[kernel_release]:-}" && -n "${MAN[release]:-}" && "${MAN[kernel_release]}" != "${MAN[release]}" ]]; then
+            fail_check "manifest kernel_release '${MAN[kernel_release]}' != manifest release '${MAN[release]}'"
+            return 1
+        fi
+    elif [[ -f "$KERNEL_RELEASE_FILE" ]]; then
+        candidate="$(tr -d '[:space:]' <"$KERNEL_RELEASE_FILE")"
+        warn "no pinned manifest: kernel release comes from $KERNEL_RELEASE_FILE ($candidate)"
+    else
+        candidate=$BASELINE_RELEASE
+    fi
+    if [[ ! "$candidate" =~ ^7\.0\.0-sm8150-(rc|rear)[0-9]+$ ]]; then
+        fail_check "manifest kernel release '${candidate:-<missing>}' is not an accepted 7.0.0-sm8150 candidate release"
+        return 1
+    fi
+    RELEASE=$candidate
+    CCI_MODULE=$KERNEL_DIR/usr/lib/modules/$RELEASE/kernel/drivers/i2c/busses/i2c-qcom-cci.ko.zst
+    pass_check "kernel release $RELEASE (manifest-pinned)"
+    return 0
 }
 
 check_release() {
@@ -517,6 +623,32 @@ check_manifest_identity() {
         ok=1
     else
         pass_check "manifest release $RELEASE"
+    fi
+    local field declared
+    for field in profile ui; do
+        declared=${MAN[$field]:-}
+        if [[ -n $declared && $declared != "$PROFILE" ]]; then
+            fail_check "manifest $field '$declared' != '$PROFILE'; use the matching launch entrypoint"
+            ok=1
+        fi
+    done
+    if [[ $PROFILE != rear-camera && -z ${MAN[profile]:-}${MAN[ui]:-} ]]; then
+        fail_check "manifest does not record profile/ui '$PROFILE'; refusing to treat it as the Plasma candidate"
+        ok=1
+    fi
+    if [[ $PROFILE == rear-camera && -n ${MAN[profile]:-}${MAN[ui]:-} ]]; then
+        pass_check "manifest does not claim another UI profile"
+    elif [[ $PROFILE != rear-camera ]]; then
+        pass_check "manifest identifies profile $PROFILE"
+    fi
+    if [[ $PROFILE != rear-camera ]]; then
+        local label="${MAN[release_candidate]:-}"
+        if [[ ! "$label" =~ ^nura-plasma-rc[0-9]+$ ]]; then
+            fail_check "manifest release_candidate '${label:-<missing>}' is not a nura-plasma-rc label"
+            ok=1
+        else
+            pass_check "manifest release candidate $label"
+        fi
     fi
     local manifest_worktree
     manifest_worktree="$(repo_path "${MAN[worktree]:-}")"
@@ -575,6 +707,142 @@ check_boot_image() {
         if ! compare_pin "boot image ($BOOT_IMG)" "$BOOT_SHA" "$BOOT_SIZE" \
             "${MAN[boot_img.sha256]:-}" "${MAN[boot_img.size]:-}"; then
             return 1
+        fi
+    fi
+    if [[ $PROFILE == plasma-mobile ]]; then
+        if [[ $RELEASE == "$BASELINE_RELEASE" ]]; then
+            local known_good_sha known_good_size
+            if [[ ! -f $KNOWN_GOOD_MANIFEST ]]; then
+                fail_check "known-good Phosh manifest missing: $KNOWN_GOOD_MANIFEST; cannot prove the restored rc2 boot was copied from it"
+                return 1
+            fi
+            known_good_sha="$(python3 - "$KNOWN_GOOD_MANIFEST" "$ROOT_REAL" "$RELEASE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+manifest, root, release = sys.argv[1:4]
+try:
+    doc = json.load(open(manifest, encoding='utf-8'))
+except (OSError, ValueError) as error:
+    sys.stderr.write(f'unreadable known-good manifest: {error}\n')
+    raise SystemExit(1)
+if doc.get('release') != release:
+    sys.stderr.write('known-good manifest release does not match this checkout\n')
+    raise SystemExit(1)
+worktree = doc.get('worktree')
+if not isinstance(worktree, str) or Path(worktree).resolve() != Path(root).resolve():
+    sys.stderr.write('known-good manifest belongs to another worktree\n')
+    raise SystemExit(1)
+entry = doc.get('boot_img') or {}
+sha = entry.get('sha256')
+size = entry.get('size')
+if not isinstance(sha, str) or len(sha) != 64 or set(sha) - set('0123456789abcdef'):
+    sys.stderr.write('known-good manifest has no valid boot_img.sha256\n')
+    raise SystemExit(1)
+print(sha, size if isinstance(size, int) else '')
+PY
+)" || {
+                fail_check "cannot read the known-good boot pin from $KNOWN_GOOD_MANIFEST"
+                return 1
+            }
+            known_good_size=${known_good_sha#* }
+            known_good_sha=${known_good_sha%% *}
+            if [[ $BOOT_SHA != "$known_good_sha" ]]; then
+                fail_check "restored rc2 boot image $BOOT_SHA is not the known-good temporary boot $known_good_sha from $KNOWN_GOOD_MANIFEST"
+                return 1
+            fi
+            if [[ -n $known_good_size && $BOOT_SIZE != "$known_good_size" ]]; then
+                fail_check "restored rc2 boot image size $BOOT_SIZE != known-good $known_good_size"
+                return 1
+            fi
+            pass_check "boot image matches the known-good temporary boot $known_good_sha"
+        else
+            local kernel_build kernel_manifest
+            kernel_build="$(repo_path "${MAN[kernel_build]:-}")"
+            if [[ -z "${MAN[kernel_build]:-}" || ! -d "$kernel_build" ]]; then
+                fail_check "manifest has no usable kernel_build directory: ${MAN[kernel_build]:-<missing>}"
+                return 1
+            fi
+            if ! inside_root "$kernel_build"; then
+                fail_check "manifest kernel_build escapes this checkout: $kernel_build"
+                return 1
+            fi
+            kernel_manifest="$kernel_build/DELIVERY.json"
+            if [[ ! -f "$kernel_manifest" ]]; then
+                fail_check "rc3 kernel delivery manifest missing: $kernel_manifest"
+                return 1
+            fi
+            if ! python3 - "$kernel_manifest" "$ROOT_REAL" "$RELEASE" "$BOOT_SHA" "$BOOT_SIZE" \
+                    "${MAN[initramfs.sha256]:-}" "${MAN[dtb.sha256]:-}" "${MAN[kernel_package.sha256]:-}" \
+                    "$(readlink -m -- "$kernel_build/boot.img")" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+(manifest, root, release, boot_sha, boot_size, init_sha, dtb_sha,
+ vmlinuz_sha, expected_boot) = sys.argv[1:10]
+try:
+    doc = json.load(open(manifest, encoding='utf-8'))
+except (OSError, ValueError) as error:
+    sys.stderr.write(f'unreadable rc3 kernel manifest: {error}\n')
+    raise SystemExit(1)
+if doc.get('release') != release:
+    sys.stderr.write('rc3 kernel manifest release does not match the candidate\n')
+    raise SystemExit(1)
+worktree = doc.get('worktree')
+if not isinstance(worktree, str) or Path(worktree).resolve() != Path(root).resolve():
+    sys.stderr.write('rc3 kernel manifest belongs to another worktree\n')
+    raise SystemExit(1)
+if not doc.get('kernel_inputs_sha256'):
+    sys.stderr.write('rc3 kernel manifest has no kernel_inputs_sha256\n')
+    raise SystemExit(1)
+boot = doc.get('boot_img') or {}
+if boot.get('sha256') != boot_sha:
+    sys.stderr.write('candidate boot image is not the rc3 kernel build boot image\n')
+    raise SystemExit(1)
+if str(boot.get('size')) != str(boot_size):
+    sys.stderr.write('candidate boot image size differs from the rc3 kernel build\n')
+    raise SystemExit(1)
+if Path(boot.get('path', '')).resolve() != Path(expected_boot).resolve():
+    sys.stderr.write('rc3 kernel build boot image path changed\n')
+    raise SystemExit(1)
+for key, want in (('initramfs', init_sha), ('dtb', dtb_sha), ('kernel_package', vmlinuz_sha)):
+    entry = doc.get(key) or {}
+    if entry.get('sha256') != want:
+        sys.stderr.write(f'rc3 kernel build {key} differs from the candidate manifest\n')
+        raise SystemExit(1)
+PY
+            then
+                fail_check "candidate boot image is not traceable to the rc3 kernel build in $kernel_build"
+                return 1
+            fi
+            pass_check "boot image is the rc3 kernel build's packed boot image ($BOOT_SHA)"
+        fi
+        if [[ -n ${MAN[copied_from]:-} ]]; then
+            local copied_path copied_sha
+            copied_path="$(repo_path "${MAN[copied_from]}")"
+            if [[ ! -f $copied_path ]]; then
+                fail_check "manifest copied_from does not exist: $copied_path"
+                return 1
+            fi
+            if ! inside_root "$copied_path"; then
+                fail_check "manifest copied_from escapes this checkout: $copied_path"
+                return 1
+            fi
+            copied_sha="$(file_sha256 "$copied_path")"
+            if [[ $copied_sha != "$BOOT_SHA" ]]; then
+                fail_check "manifest copied_from $copied_path is $copied_sha, not the candidate boot $BOOT_SHA"
+                return 1
+            fi
+            pass_check "boot image copied byte-for-byte from $copied_path"
+        fi
+        if [[ -n ${MAN[source_boot_sha256]:-} && ${MAN[source_boot_sha256]} != "$BOOT_SHA" ]]; then
+            fail_check "manifest source_boot_sha256 ${MAN[source_boot_sha256]} != boot image $BOOT_SHA"
+            return 1
+        fi
+        if [[ $RELEASE != "$BASELINE_RELEASE" ]]; then
+            pass_check "boot image provenance is the rc3 kernel build, not the rear1 baseline"
         fi
     fi
     pass_check "boot image sha256 $BOOT_SHA size $BOOT_SIZE -> $BOOT_IMG"
@@ -647,7 +915,23 @@ check_initramfs() {
         want_sha="${MAN[initramfs.sha256]:-}"
         want_size="${MAN[initramfs.size]:-}"
     elif [[ -f "$PACKAGING_INPUTS" ]]; then
-        INITRAMFS_PATH="$(readlink -m -- "$EXPORT_INITRAMFS")"
+        # Plasma packaging materializes the known-good boot initramfs separately
+        # from the candidate rootfs export.  Prefer that explicit path; older
+        # inputs files only have the hash and fall back to the export symlink.
+        INITRAMFS_PATH="$(python3 - "$PACKAGING_INPUTS" <<'PY'
+import json
+import sys
+try:
+    print(json.load(open(sys.argv[1], encoding='utf-8')).get('initramfs', ''))
+except Exception:
+    sys.exit(1)
+PY
+)" || INITRAMFS_PATH=''
+        if [[ -n "$INITRAMFS_PATH" ]]; then
+            INITRAMFS_PATH="$(repo_path "$INITRAMFS_PATH")"
+        else
+            INITRAMFS_PATH="$(readlink -m -- "$EXPORT_INITRAMFS")"
+        fi
         want_sha="$(python3 - "$PACKAGING_INPUTS" <<'PY'
 import json
 import sys
@@ -766,6 +1050,10 @@ check_rootfs_pin() {
         if ! check_pin_file "rootfs image" "$rootfs_path" "$ROOTFS_PIN_SHA" "$ROOTFS_PIN_SIZE"; then
             return 1
         fi
+        if [[ $PROFILE == plasma-mobile && "$rootfs_path" != "$(readlink -m -- "$SOURCE_IMAGE")" ]]; then
+            fail_check "manifest rootfs_image '$rootfs_path' is not the Plasma chroot image $SOURCE_IMAGE"
+            return 1
+        fi
         return 0
     fi
     if [[ -f "$PACKAGING_INPUTS" ]]; then
@@ -796,6 +1084,7 @@ print_identity() {
     say ''
     say '== candidate identity =='
     printf '  %-12s %s\n' worktree "$ROOT_REAL"
+    printf '  %-12s %s\n' profile "$PROFILE"
     printf '  %-12s %s\n' release "$RELEASE"
     printf '  %-12s %s (dirty files: %s)\n' git_head "$head" "$dirty"
     if (( MAN_LOADED )); then
@@ -837,12 +1126,12 @@ collect_listener_check() {
         return 0
     fi
     if [[ "$mode" == pre-boot ]]; then
-        warn "port $NBD_PORT is not listening yet (expected: camera_serve.sh waits for the USB gadget and starts nbd-server while the phone boots)"
-        state "leave the serve terminal running: bash $(printf '%q' "$ROOT/scripts/camera_serve.sh")"
+        warn "port $NBD_PORT is not listening yet (expected: $(basename "$SERVE_ENTRY") waits for the USB gadget and starts nbd-server while the phone boots)"
+        state "leave the serve terminal running: bash $(printf '%q' "$SERVE_ENTRY")"
         return 0
     fi
     fail_check "nothing is listening on port $NBD_PORT (a temporary boot without NBD cannot reach userspace)"
-    state "start it in another terminal: bash $(printf '%q' "$ROOT/scripts/camera_serve.sh")"
+    state "start it in another terminal: bash $(printf '%q' "$SERVE_ENTRY")"
     return 1
 }
 
@@ -857,7 +1146,7 @@ collect_served_status_identity() {
     fi
     if [[ ! -f "$SERVED_RECORD" ]]; then
         warn "no pre-exposure identity record ($SERVED_RECORD); not hashing a possibly booted, mutable image"
-        state "run camera_serve.sh to refresh and record the next served image"
+        state "run $(basename "$SERVE_ENTRY") to refresh and record the next served image"
         return 0
     fi
     recorded="$(python3 - "$SERVED_RECORD" "$SERVED_IMAGE" "$ROOTFS_PIN_SHA" <<'PY'
@@ -900,7 +1189,7 @@ collect_served_image_checks() {
     local mode=${1:-pre-boot}
     local problems_before=${#PROBLEMS[@]}
     local serve_command
-    serve_command="bash $(printf '%q' "$ROOT/scripts/camera_serve.sh")"
+    serve_command="bash $(printf '%q' "$SERVE_ENTRY")"
     if [[ "$mode" == status ]]; then
         collect_served_status_identity
         if [[ ! -f "$CCI_MODULE" ]]; then
@@ -1305,7 +1594,11 @@ dry_run_boot() {
         "$BOOT_ATTEMPT_TIMEOUT" "$FASTBOOT" "${TARGET_SERIAL:-<serial>}" "$BOOT_IMG"
     printf '[dry-run]   log would be written to %s\n' "$log"
     printf '[dry-run]   result would be written to %s\n' "$LAST_BOOT"
-    printf '[dry-run]   on success: bash %q ; %s\n' "$ROOT/scripts/camera_verify.sh" "$SSH_HINT"
+    if [[ -n $VERIFY_ENTRY ]]; then
+        printf '[dry-run]   on success: bash %q ; %s\n' "$VERIFY_ENTRY" "$SSH_HINT"
+    else
+        printf '[dry-run]   on success: %s (Plasma post-boot session check is manual)\n' "$SSH_HINT"
+    fi
     return 0
 }
 
@@ -1313,7 +1606,7 @@ cmd_boot() {
     report_identity || die 3 'candidate identity checks failed; nothing was sent to the phone'
     print_identity
     collect_listener_check pre-boot || true
-    collect_served_image_checks || die 3 "the netboot cache is not the pinned candidate rootfs image; nothing was sent to the phone (run: bash $(printf '%q' "$ROOT/scripts/camera_serve.sh"))"
+    collect_served_image_checks || die 3 "the netboot cache is not the pinned candidate rootfs image; nothing was sent to the phone (run: bash $(printf '%q' "$SERVE_ENTRY"))"
     select_target || exit 4
     print_target
 
@@ -1367,7 +1660,11 @@ cmd_boot() {
             say ''
             say 'next steps:'
             say "  1. wait for userspace, then: $SSH_HINT"
-            printf '  2. prove the fixed CCI module is running: bash %q\n' "$ROOT/scripts/camera_verify.sh"
+            if [[ -n $VERIFY_ENTRY ]]; then
+                printf '  2. prove the fixed CCI module is running: bash %q\n' "$VERIFY_ENTRY"
+            else
+                say '  2. prove the Plasma session and i2c-qcom-cci module over SSH; post-boot Plasma verification is manual in this trial'
+            fi
             say '  3. photograph the phone screen before ANY reboot/panic recovery; the kernel is temporary and the rootfs comes from this host'
             say '  4. rollback: leave boot mode with fastboot reboot, and stop only the candidate port-10001 server'
             say "     log: $log"
@@ -1493,8 +1790,9 @@ report_identity() {
     local with_rootfs=${1:-1}
     PROBLEMS=()
     check_root_markers
-    check_release || true
     load_manifest || true
+    resolve_release || true
+    check_release || true
     if (( MAN_LOADED )); then
         check_manifest_identity || true
     fi
@@ -1529,6 +1827,10 @@ main() {
         case "$1" in
             --help|-h) usage; exit 0 ;;
             --dry-run) DRY_RUN=1 ;;
+            --profile)
+                (( $# >= 2 )) || usage_die '--profile needs a value'
+                PROFILE="$2"; shift ;;
+            --profile=*) PROFILE="${1#*=}" ;;
             --yes|-y) ASSUME_YES=1 ;;
             --no-server-check) SERVER_CHECK=0 ;;
             --accept-current) ACCEPT_CURRENT=1 ;;
@@ -1563,7 +1865,11 @@ main() {
     if [[ -n "$EXPECTED_CCI_SIZE" && ! "$EXPECTED_CCI_SIZE" =~ ^[1-9][0-9]*$ ]]; then
         usage_die 'CAMERA_BOOT_CCI_SIZE must be a positive integer'
     fi
-    SSH_HINT="ssh -4 -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$(printf '%q' "$ROOT/.work/delivery/known_hosts") user@172.16.42.1"
+    configure_profile
+    SSH_HINT="ssh -4 -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$(printf '%q' "$DELIVERY_DIR/known_hosts") user@172.16.42.1"
+    if [[ $PROFILE == plasma-mobile ]]; then
+        SSH_HINT="bash $(printf '%q' "$ROOT/scripts/ssh_phone.sh")"
+    fi
 
     case "$SUBCOMMAND" in
         boot|bootloader|android) require_tools ;;
