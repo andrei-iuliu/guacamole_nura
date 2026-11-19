@@ -68,7 +68,7 @@ Upstream-Status: not in mainline v7.2 (device policy module)
  obj-$(CONFIG_QCOM_PD_MAPPER)	+= qcom_pd_mapper.o
 --- /dev/null
 +++ b/drivers/soc/qcom/guacamole_mss_vote.c
-@@ -0,0 +1,216 @@
+@@ -0,0 +1,237 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Set the application processor's active-only RPMh vote on the modem rail
@@ -229,13 +229,34 @@ Upstream-Status: not in mainline v7.2 (device policy module)
 +	return ret;
 +}
 +
++/*
++ * The ABL-quarantine boot wrapper presents the stock "qcom,sm8150-mtp" root
++ * identity, so also recognise the board by its own panel node.
++ */
++static bool mss_vote_is_guacamole(void)
++{
++	struct device_node *panel;
++	bool found;
++
++	if (of_machine_is_compatible("oneplus,guacamole"))
++		return true;
++	if (!of_machine_is_compatible("qcom,sm8150-mtp"))
++		return false;
++	panel = of_find_compatible_node(NULL, NULL, "samsung,oneplus-dsc");
++	found = panel;
++	of_node_put(panel);
++	return found;
++}
++
 +static int __init mss_vote_init(void)
 +{
 +	struct device_node *np;
 +	int ret;
 +
-+	if (!of_machine_is_compatible("oneplus,guacamole"))
++	if (!mss_vote_is_guacamole()) {
++		pr_info("mss_vote: not a OnePlus 7 Pro (guacamole), not loading\n");
 +		return -ENODEV;
++	}
 +
 +	mss_addr = cmd_db_read_addr("mss.lvl");
 +	if (!mss_addr) {

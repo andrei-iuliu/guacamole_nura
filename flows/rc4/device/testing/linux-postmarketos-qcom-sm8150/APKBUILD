@@ -37,6 +37,10 @@
 #   0075 guacamole rear autofocus: bind and enable the main/tele LC898217XC
 #        actuators with a 0-400 focus range (shortcut, on-unit calibration
 #        pending). DT only; kernel code and config unchanged.
+# rc4o (pkgrel 17) changes:
+#   0044 guacamole_mss_vote also recognises the board through the
+#        ABL-quarantine wrapper (root "qcom,sm8150-mtp" plus the
+#        samsung,oneplus-dsc panel node); before, it never loaded.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -44,7 +48,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=16
+pkgrel=17
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -229,7 +233,7 @@ c0b251412809f3823316a2e6fe64ab9aecc11655b64597202128357a9fd9887443804bed8847d937
 522f2184afd6d70bd533f83c75fada2108e20b258b6bb05d8908ef91b71339e94eb86293f0efc9dc24cc461684ebea01b6266ad65ceb1de1f3bf534afa67f6db  0039-input-aw8697-kconfig-makefile.patch
 19e4902f012da15e7f36eed2961532755ee853c5f6a6256d6bacc9f21330532da37cba96d6e95592adf1b374cf575a7725c0bcfa4c4ebaaf369f3895dbfead6d  0040-input-aw8697-haptics.patch
 89cd2459206c6e9909482f816270c3e4d303d8e9a2db46215a94e77b73a390777eedd79001402ffeea09af63408fd562b71c23f9c5fd41973df1a17c4a80090c  0041-arm64-dts-guacamole-haptics-alert-slider.patch
-a8f97f15f80893bcb773da0d6b64b985b7d2e917e5dd855b21bb715e8df4899cd222bf20845f87509431bd5b6ba5bf9ef0d846e0b0a58299e739889d974c4742  0044-soc-qcom-guacamole-mss-vote.patch
+3e50155a152c5f0f16ee2eb14d8ed02336c2a1fafc43d4f6f55c35f8d42d59c551817f2f32d68333f6926427d1bfb65818b7958f2eec35ef00230eea2a170ce8  0044-soc-qcom-guacamole-mss-vote.patch
 805dcdc4a4cbd802549e01545a554ad1277d9052e60b10b9eb6d48f37592d1c851173676816ef55d9c40946f5ddfe432351f0798c6f77867b960a3b4dd8754cc  0045-ath10k-snoc-wmi-key-ack.patch
 9fd051b0dfb831f56d977fcbf6d83169dea8ebcce055fefe3e34a8b5690a64c3bf9ca8291a6bc86d1dce4a09858958617bf6ea480f0c11d4cced5d8bf9b8db5b  0046-asoc-q6afe-dai-displayport-rx-input-widget.patch
 e7a9b91779e2785ebbd9f6c76bffb334407039b30fd685864c22b79bc1aff43be71c88e53663a6a1c5c82b7df72abcefc62c1ca246e7d533ad4cf4e48648fd23  0047-asoc-sm8150-accept-displayport-backend.patch
