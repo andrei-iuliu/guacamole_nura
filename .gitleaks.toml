@@ -1,0 +1,14 @@
+title = "Nura secret checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "shell-password-assignment"
+description = "Literal shell passwords, including short numeric phone passwords"
+regex = '''\b(?:P|PASSWORD|PASSWD|SUDO_PASSWORD)\s*=\s*["']?([A-Za-z0-9][A-Za-z0-9_!@#$%^&*+.-]{3,})'''
+secretGroup = 1
+
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['^REMOVED_PASSWORD$']
