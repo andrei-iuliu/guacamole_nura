@@ -1,6 +1,14 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4n on `boot_b`, rc4l rootfs (2026-11-19)
+## Current: rc4o packages on the rc4l rootfs, rc4n image on `boot_b` (2026-11-19)
+
+The rc4o kernel package (fixed 0044) and `device-oneplus-guacamole-4-r21`
+are installed. The modem-rail vote is released at every boot, and manual
+suspend works with RTC and Power-button wake; automatic suspend stays off.
+See [the suspend results](../flows/rc4/topics/suspend-fixes/README.md). One
+warm reboot hung before the rootfs (black screen); a cold boot recovered.
+
+### Before that: rc4n on `boot_b`, rc4l rootfs
 
 `boot_b` holds the rc4n local boot image (0075 autofocus, DT only), rebuilt
 from this repository: DTB `6552338d…` and initramfs `7414497f…` identical to
