@@ -180,8 +180,15 @@ LOCK_ON_START = False
 KERNEL_RECIPE = "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"
 KERNEL_STATE = SOURCE_ROOT / "flows/rc4/build-source/kernel-state"
 KERNEL_BUILD = SOURCE_ROOT / "flows/rc4/build-source/kernel-output"
-BASELINE_STATE = SOURCE_ROOT / ".work/rear-camera"
-BASELINE_BUILD = SOURCE_ROOT / "build/rear-camera"
+BASELINE_ROOT = Path(os.environ.get("NURA_BASELINE_ROOT", str(SOURCE_ROOT))).resolve()
+BASELINE_STATE = BASELINE_ROOT / ".work/rear-camera"
+BASELINE_BUILD = BASELINE_ROOT / "build/rear-camera"
+# Fresh baseline (local-userdata only): build libcamera 0.8 (pinned pmaports
+# temp/libcamera) and libcamera-rear from their recipes instead of reusing the
+# historical rear1 APKs, and pin them by version/ABI.  The rear1 records under
+# BASELINE_BUILD are then not needed.  See scripts/bootstrap_baseline.sh.
+FRESH_BASELINE = os.environ.get("NURA_FRESH_BASELINE") == "1"
+LIBCAMERA_REAR_RECIPE = "device/testing/rear-camera/libcamera-rear"
 CLOCK_EPOCH = "usr/lib/clock-epoch"
 LIBCAMERA_ABI = "99990.8.0-r1"
 CAMERA_APP = UI_PROFILE["camera_app"]
@@ -644,8 +651,60 @@ def kernel_delivery_contract(build: Path, state: Path, recipe: str) -> dict:
     return base
 
 
+def apkbuild_version(apkbuild: Path) -> str:
+    """pkgver-rpkgrel of a simple APKBUILD (resolves one $_var in pkgver)."""
+    if not apkbuild.is_file():
+        die(f"missing recipe: {apkbuild}")
+    text = apkbuild.read_text(encoding="utf-8")
+    values = dict(re.findall(r"^(_?[a-z_]+)=([^\s\"'$]*(?:\$_?[a-z_]+)?[^\s\"']*)$", text, re.M))
+    pkgver = values.get("pkgver", "")
+    for var in re.findall(r"\$(_?[a-z_]+)", pkgver):
+        pkgver = pkgver.replace(f"${var}", values.get(var, ""))
+    if not re.fullmatch(r"[0-9][0-9a-z._]*", pkgver) or not values.get("pkgrel", "").isdigit():
+        die(f"cannot read pkgver/pkgrel from {apkbuild}")
+    return f"{pkgver}-r{values['pkgrel']}"
+
+
+def fresh_baseline_pins(state: Path) -> dict:
+    """Fresh baseline: the recipes that will be built must carry the pinned versions."""
+    state = Path(state).resolve()
+    system = apkbuild_version(state / "pmaports/temp/libcamera/APKBUILD")
+    if system != LIBCAMERA_ABI:
+        die(f"pinned pmaports temp/libcamera is {system}, expected {LIBCAMERA_ABI}")
+    rear = apkbuild_version(ROOT / LIBCAMERA_REAR_RECIPE / "APKBUILD")
+    if rear != LIBRARY_REAR:
+        die(f"{LIBCAMERA_REAR_RECIPE} is {rear}, expected {LIBRARY_REAR}")
+    return {
+        "fresh": True,
+        "baseline_build": None,
+        "baseline_state": str(state),
+        "rootfs": None,
+        "system_libcamera": {name: {"version": LIBCAMERA_ABI, "built": True}
+                             for name in SYSTEM_LIBCAMERA_APKS},
+        "system_libcamera_libs": {},
+        "apks": {"libcamera-rear": {"version": LIBRARY_REAR, "built": True}},
+    }
+
+
+def apk_file_digest(path: Path, relative: str) -> str | None:
+    """sha256 of one regular file in an APK's data member, or None."""
+    members = apk_members(Path(path).read_bytes())
+    with tarfile.open(fileobj=io.BytesIO(members[-1][1])) as archive:
+        try:
+            member = archive.getmember(relative)
+        except KeyError:
+            return None
+        if not member.isfile():
+            return None
+        return hashlib.sha256(archive.extractfile(member).read()).hexdigest()
+
+
 def baseline_pins(build: Path, state: Path) -> dict:
     """Read-only rc2/rear1 pins: hook, private libcamera, system libcamera 0.8."""
+    if FRESH_BASELINE:
+        # Netboot-only consumers (manifest, check) refuse a fresh baseline
+        # themselves; rootfs_prepare_local.sh refuses a fresh netboot build.
+        return fresh_baseline_pins(state)
     build = Path(build).resolve()
     state = Path(state).resolve()
     delivery_path = build / "DELIVERY.json"
@@ -1376,16 +1435,32 @@ def verify_installed(args: argparse.Namespace) -> dict:
         die(f"installed rootfs has no boot initramfs: {rootfs_initramfs}")
     if digest(rootfs_initramfs) != digest(initramfs):
         die("installed rootfs boot initramfs differs from the exported candidate initramfs")
-    known_good_rootfs = Path(args.known_good_rootfs).resolve()
-    if not known_good_rootfs.is_dir():
-        die(f"missing known-good rootfs tree: {known_good_rootfs}")
-    for relative in SYSTEM_LIBCAMERA_LIBS:
-        installed = rootfs / relative
-        known = known_good_rootfs / relative
-        if not installed.is_file() or not known.is_file():
-            die(f"missing system libcamera library: {relative}")
-        if digest(installed) != digest(known):
-            die(f"installed {relative} differs from the known-good system libcamera")
+    if getattr(args, "built_apk_dir", None):
+        # Fresh baseline: the installed libraries must be the ones just built.
+        matches = sorted(Path(args.built_apk_dir).glob("libcamera-[0-9]*.apk"))
+        if len(matches) != 1:
+            die(f"expected exactly one built libcamera APK in {args.built_apk_dir}, found {len(matches)}")
+        if parse_apk(matches[0], "libcamera") != LIBCAMERA_ABI:
+            die(f"built libcamera APK is not {LIBCAMERA_ABI}: {matches[0]}")
+        for relative in SYSTEM_LIBCAMERA_LIBS:
+            installed = rootfs / relative
+            if not installed.is_file():
+                die(f"missing system libcamera library: {relative}")
+            if digest(installed) != apk_file_digest(matches[0], relative):
+                die(f"installed {relative} differs from the built {matches[0].name}")
+    else:
+        if not getattr(args, "known_good_rootfs", None):
+            die("verify needs --known-good-rootfs (or --built-apk-dir with a fresh baseline)")
+        known_good_rootfs = Path(args.known_good_rootfs).resolve()
+        if not known_good_rootfs.is_dir():
+            die(f"missing known-good rootfs tree: {known_good_rootfs}")
+        for relative in SYSTEM_LIBCAMERA_LIBS:
+            installed = rootfs / relative
+            known = known_good_rootfs / relative
+            if not installed.is_file() or not known.is_file():
+                die(f"missing system libcamera library: {relative}")
+            if digest(installed) != digest(known):
+                die(f"installed {relative} differs from the known-good system libcamera")
     if digest(rootfs / "boot/vmlinuz") != args.expected_vmlinuz_sha:
         die("installed vmlinuz differs from the staged kernel package")
     if digest(rootfs / "boot/dtbs/qcom/sm8150-oneplus-guacamole.dtb") != args.expected_dtb_sha:
@@ -1563,6 +1638,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
 
 
 def manifest(args: argparse.Namespace) -> dict:
+    if FRESH_BASELINE:
+        die("the netboot manifest compares against the rear1 APKs; not available with a fresh baseline")
     source = source_contract(
         Path(args.source_build), Path(args.source_state), KERNEL_RECIPE,
         Path(args.baseline_build), Path(args.baseline_state), require_boot=True,
@@ -2082,6 +2159,8 @@ def check_candidate(args: argparse.Namespace) -> dict:
         die("candidate manifest belongs to another worktree")
     if not delivery.get("kernel_build"):
         die("candidate manifest does not record the rc4 kernel build directory")
+    if FRESH_BASELINE:
+        die("the netboot candidate check compares against the rear1 APKs; not available with a fresh baseline")
     source = source_contract(
         Path(delivery["kernel_build"]), Path(args.kernel_state), KERNEL_RECIPE,
         BASELINE_BUILD, BASELINE_STATE, require_boot=True,
@@ -2408,7 +2487,10 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--kernel-dir", type=Path, required=True)
     verify.add_argument("--rootfs", type=Path, required=True)
     verify.add_argument("--initramfs", type=Path, required=True)
-    verify.add_argument("--known-good-rootfs", type=Path, required=True)
+    verify_libs = verify.add_mutually_exclusive_group(required=True)
+    verify_libs.add_argument("--known-good-rootfs", type=Path)
+    verify_libs.add_argument("--built-apk-dir", type=Path,
+                             help="fresh baseline: compare system libcamera with the built APK")
     verify.add_argument("--expected-vmlinuz-sha", required=True)
     verify.add_argument("--expected-dtb-sha", required=True)
     verify.add_argument("--expected-module-payload-sha", required=True)
