@@ -41,7 +41,7 @@ import time
 from pathlib import Path
 
 FLOW = Path(__file__).resolve().parents[1]           # flows/rc4/local-storage
-REPO = FLOW.parents[1]
+REPO = FLOW.parents[2]                             # the checkout
 TOOL = Path(os.environ.get("NURA_LOCAL_STORAGE_TOOL", FLOW / "scripts/local_storage_tool.py"))
 CONFIRM_PHRASE = "ERASE USERDATA"
 GUACAMOLE_PRODUCT = re.compile(r"guacamole|oneplus 7 pro|gm191[0-9]", re.I)
@@ -296,6 +296,112 @@ def confirm(prompt: str, phrase: str) -> None:
         die("not confirmed; nothing was written")
 
 
+BATTERY_LOW_MV = 3700
+
+
+def battery_note(fb: Fastboot) -> tuple[str, str]:
+    """(status, detail) from the ABL's battery getvars; unknown when unsupported."""
+    soc_ok = fb.getvar("battery-soc-ok").lower()
+    voltage = fb.getvar("battery-voltage")
+    millivolts = int(voltage) if voltage.isdigit() else None
+    detail = f"battery-voltage={voltage or '?'} battery-soc-ok={soc_ok or '?'}"
+    if soc_ok == "no":
+        return "FAIL", detail + " (charge the phone before flashing)"
+    if millivolts is not None and millivolts < BATTERY_LOW_MV:
+        return "warn", detail + f" (below {BATTERY_LOW_MV} mV; charge first)"
+    if millivolts is None and not soc_ok:
+        return "warn", "the bootloader does not report the battery; make sure it is charged"
+    return "ok", detail
+
+
+def preflight(args) -> int:
+    """Read-only checklist of everything the install needs; reports all items."""
+    rows: list[tuple[str, str, str]] = []
+
+    def add(status: str, label: str, detail: str = "") -> None:
+        rows.append((status, label, detail))
+
+    prereq = subprocess.run(["bash", str(REPO / "scripts/check_prereqs.sh"), "--stage", "core",
+                             "--stage", "phone", "--quiet"], capture_output=True, text=True)
+    add("ok" if prereq.returncode == 0 else "FAIL", "host packages (core, phone)",
+        prereq.stderr.strip().splitlines()[0] if prereq.returncode else "")
+
+    manifest = None
+    try:
+        manifest = load_manifest(args.manifest)
+        add("ok", "build manifest re-verified", f"{manifest['release']}, image {manifest['image_size']} B")
+    except InstallError as e:
+        add("FAIL", "build manifest", str(e))
+    if manifest:
+        try:
+            check_debug_image(manifest["boot"], args.debug_boot)
+            add("ok", "debug image matches the build", str(args.debug_boot))
+        except InstallError as e:
+            add("FAIL", "debug image", str(e))
+    else:
+        add("skip", "debug image", "needs the build manifest")
+
+    key_dir = Path(os.environ.get("NURA_SIGNING_KEY_DIR", Path.home() / ".config/nura-guacamole/abuild"))
+    keys = sorted(key_dir.glob("*.rsa")) if key_dir.is_dir() else []
+    add("ok" if keys else "warn", "project signing key",
+        keys[0].stem if keys else "none yet: later kernel APKs will need their key copied to the phone "
+        "(scripts/signing_key.sh adopt)")
+
+    if not args.fastboot.is_file():
+        add("FAIL", "fastboot", f"missing {args.fastboot} (./nura fetch)")
+        devices = []
+    else:
+        fb = Fastboot(args.fastboot, dry_run=True)
+        devices = fb.devices()
+    if not devices:
+        if ssh_ok(args):
+            add("ok", "phone reachable over SSH", "the install backs up /home/user, then reboots to fastboot")
+        else:
+            add("skip", "phone", "not in fastboot and not on SSH: connect it to check the bootloader")
+    elif len(devices) > 1:
+        add("FAIL", "fastboot devices", f"{len(devices)} connected; keep only the phone")
+    else:
+        fb.serial = devices[0]
+        get = fb.getvar
+        product = get("product")
+        known = GUACAMOLE_PRODUCT.search(product) or (args.accept_product and product == args.accept_product)
+        add("ok" if known else "FAIL", "bootloader product",
+            product + ("" if known else f" (not recognised; --accept-product {product} if this is the OnePlus 7 Pro)"))
+        unlocked = get("unlocked").lower()
+        add("ok" if unlocked == "yes" else "FAIL", "bootloader unlocked", unlocked or "?")
+        slot = get("current-slot").lstrip("_")
+        add("ok" if slot == "b" else "FAIL", "current slot is b (Linux)", slot or "?")
+        if get("slot-unbootable:b").lower() == "yes":
+            add("warn", "slot b", "marked unbootable; the install RAM-boots, but check before flashing boot_b")
+        a_unbootable, a_ok = get("slot-unbootable:a").lower(), get("slot-successful:a").lower()
+        if a_unbootable == "yes":
+            add("warn", "slot a (LineageOS)", "marked unbootable: the Android fallback is not usable")
+        else:
+            add("ok", "slot a (LineageOS)", f"unbootable={a_unbootable or '?'} successful={a_ok or '?'}")
+        size = get("partition-size:userdata")
+        try:
+            size_bytes = int(size, 0)
+            if manifest:
+                fits = size_bytes > manifest["image_size"]
+                add("ok" if fits else "FAIL", "userdata larger than the image",
+                    f"{size_bytes} B vs {manifest['image_size']} B")
+            else:
+                add("ok", "userdata partition", f"{size_bytes} B")
+        except ValueError:
+            add("FAIL", "userdata partition size", f"unreadable: {size!r}")
+        battery_status, battery_detail = battery_note(fb)
+        add(battery_status, "battery", battery_detail)
+
+    width = max(len(label) for _, label, _ in rows)
+    print("\nPre-install checklist (read-only)")
+    for status, label, detail in rows:
+        print(f"  {status:<5} {label:<{width}}  {detail}")
+    failed = [r for r in rows if r[0] == "FAIL"]
+    print("\n" + ("not ready: fix the FAIL items above" if failed else
+                  "ready to install (warn items are worth a look)"))
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ui_suffix = "" if os.environ.get("NURA_UI", "phosh") == "plasma" else "-phosh"
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -313,7 +419,11 @@ def main(argv: list[str] | None = None) -> int:
                    help="stop in the debug shell after the filesystem check")
     p.add_argument("--dry-run", action="store_true",
                    help="host checks and read-only getvars only; no reboot, flash or boot")
+    p.add_argument("--preflight", action="store_true",
+                   help="read-only checklist of everything the install needs (reports all items)")
     args = p.parse_args(argv)
+    if args.preflight:
+        return preflight(args)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     logdir = args.backup_dir or REPO / f"backups/userdata-install-{stamp}"
 
