@@ -62,3 +62,15 @@ Module.symvers
 
 # Personal experiments outside the project scope
 fetch_arm64_steam.py
+
+# Local credentials and private history backups
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+authorized_keys
+known_hosts*
+*.nmconnection
+*.bundle
