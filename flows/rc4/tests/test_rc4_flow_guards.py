@@ -41,13 +41,17 @@ class TestEntrypointGuards(unittest.TestCase):
     def test_missing_checkout_is_refused_before_writing(self):
         with tempfile.TemporaryDirectory() as tmp:
             missing = pathlib.Path(tmp) / "no-checkout"
+
+            def snapshot():
+                # flow state from earlier real builds may exist; it must not change
+                return sorted(str(p.relative_to(FLOW)) for top in (FLOW / ".work", FLOW / "build")
+                              if top.exists() for p in [top, *top.glob("*"), *top.glob("*/*")])
+            before = snapshot()
             result = run(["bash", str(ENTRY)], env={
                 "PATH": "/usr/bin:/bin", "NURA_SOURCE_ROOT": str(missing)})
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("missing source checkout", result.stderr)
-            # nothing was created next to the flow
-            self.assertFalse((FLOW / ".work").exists(),
-                             "a refused run must not create flow state")
+            self.assertEqual(snapshot(), before, "a refused run must not create flow state")
 
     def test_missing_rc4_kernel_build_is_named(self):
         # The real checkout has no built kernel yet in a fresh tree; the
@@ -110,9 +114,10 @@ class TestCheckerUnits(unittest.TestCase):
         self.assertIn("AutoSuspendAction=0", text)
 
     def test_candidate_label_is_rc4(self):
+        # Phosh is the default UI since 2026-11-14
         result = run([sys.executable, str(CHECKER), "release-candidate"])
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), "nura-plasma-rc4")
+        self.assertEqual(result.stdout.strip(), "nura-phosh-rc4")
 
 
 class TestKernelBuildIdentity(unittest.TestCase):

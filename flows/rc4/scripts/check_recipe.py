@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Read-only structural checks of the rc4 recipe and flow.  No writes, no build.
 
-52 checks: recipe sources/checksums, retained rc3 bytes, the reviewed 0044-0058
+Checks: recipe sources/checksums, retained rc3 bytes, the reviewed 0044-0058
+and later 0059-0075
 set and order, the config gates, the kernel tarball hash, the device package
 gates, the local-storage flow constants/guards and the rc4 wrapper.
 
@@ -51,6 +52,42 @@ NEW_PATCHES = {
     "0057-arm64-dts-guacamole-displayport-video.patch": "displayport",
     "0058-arm64-dts-guacamole-displayport-audio-link.patch": "displayport",
 }
+
+# Added after the rc4 review, one candidate at a time (rc4b-rc4o); each is
+# recorded in its commit and in docs/KERNEL_PATCHES.md.
+LATER_PATCHES = {
+    "0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch": "rc4b",
+    "0060-usb-typec-qcom-pmic-typec-pdphy-always-return-rx-buffer.patch": "rc4d",
+    "0061-usb-typec-qcom-pmic-typec-vsafe0v-fallback-only-as-sink.patch": "rc4d",
+    "0062-usb-typec-tcpm-reset-hard-reset-budget-on-unattach.patch": "rc4h",
+    "0063-usb-typec-qcom-pmic-typec-reread-vbus-leaving-sink.patch": "rc4h",
+    "0064-drm-msm-dp-use-the-real-pixel-rate-for-link-bandwidth.patch": "rc4h",
+    "0065-usb-typec-qcom-pmic-typec-hide-reattach-during-power-role-swap.patch": "rc4h",
+    "0066-usb-typec-tcpm-tolerate-one-data-role-mismatch-per-attach.patch": "rc4h",
+    "0067-drm-msm-dp-reapply-and-reread-edid-in-get-modes.patch": "rc4h",
+    "0068-drm-msm-forbid-mem-reclaim-from-reset.patch": "rc4i",
+    "0069-drm-msm-always-recover-the-gpu.patch": "rc4i",
+    "0070-drm-msm-recover-hw-before-retire-hung-submit.patch": "rc4i",
+    "0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch": "rc4i",
+    "0072-arm64-dts-guacamole-pon-reboot-modes.patch": "rc4i",
+    "0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch": "rc4j",
+    "0074-arm64-dts-guacamole-nfc.patch": "rc4k",
+    "0075-arm64-dts-guacamole-rear-autofocus.patch": "rc4n",
+}
+
+# rc3 patches deliberately dropped (file kept under flows/rc4-reverted/).
+REVERTED_RC3 = {"0036-dsi-phy-pm.patch": "rc4b: hard hang on screen unblank"}
+
+# a140ea1 added classification trailers (and, where a patch had no commit
+# message, one blank separator line) to every patch header.  Nothing else.
+TRAILER = re.compile(rb"^(?:Nura-Category|Nura-Origin|Upstream-Status): .*\n", re.M)
+
+
+def strip_trailers(data):
+    """Patch lines without the a140ea1 trailers; only empty lines are ignored
+    (a diff context line is never empty: it starts with a space)."""
+    return [line for line in TRAILER.sub(b"", data).split(b"\n") if line]
+
 
 GATES_CONFIG = {
     'CONFIG_LOCALVERSION': '"-sm8150-guacamole-rc4"',
@@ -148,24 +185,32 @@ def main():
     check(not bad, "recipe: sha512sums match the files on disk", ", ".join(bad[:4]))
 
     patches = sorted(p.name for p in recipe.glob("0*.patch"))
-    check(len(patches) == 52, "recipe: 0001-0041 plus 0044-0058 present",
-          "%d patch files" % len(patches))
+    rc3_patches = sorted(p.name for p in rc3.glob("0*.patch"))
+    retained = [p for p in rc3_patches if p < "0042" and p not in REVERTED_RC3]
+    expected = sorted(retained + list(NEW_PATCHES) + list(LATER_PATCHES))
+    check(patches == expected,
+          "recipe: rc3 0001-0041 (minus reverted 0036) plus 0044-0058 and 0059-0075",
+          "%d patch files, expected %d; extra %s missing %s" % (
+              len(patches), len(expected), sorted(set(patches) - set(expected))[:3],
+              sorted(set(expected) - set(patches))[:3]))
+    check(not any((recipe / p).exists() for p in REVERTED_RC3),
+          "recipe: reverted rc3 patches stay out", ", ".join(REVERTED_RC3))
     check(all(f"name = '{args.release}'" in f"name = '{args.release}'" for _ in [0]) and
           re.search(r'^pkgver=7\.0\.0$', text, re.M) is not None and
           re.search(r'^_flavor="postmarketos-qcom-sm8150"$', text, re.M) is not None,
           "recipe: pkgver/flavor unchanged")
-    check(re.search(r'^pkgrel=5$', text, re.M) is not None,
-          "recipe: pkgrel bumped from the rc3 pkgrel=4")
+    pkgrel = re.search(r'^pkgrel=(\d+)$', text, re.M)
+    check(pkgrel is not None and int(pkgrel.group(1)) > 4,
+          "recipe: pkgrel bumped from the rc3 pkgrel=4",
+          "pkgrel=%s" % (pkgrel.group(1) if pkgrel else "?"))
     check(re.search(r'^prepare\(\) \{\n\tdefault_prepare\n\tcp "\$srcdir/config-\$_flavor\.\$arch" \.config',
                     text, re.M) is not None,
           "recipe: prepare() still default_prepare + config copy")
 
-    rc3_patches = sorted(p.name for p in rc3.glob("0*.patch"))
-    retained = [p for p in rc3_patches if p < "0042"]
     differing = [p for p in retained
                  if not (recipe / p).is_file() or
-                 (recipe / p).read_bytes() != (rc3 / p).read_bytes()]
-    check(not differing, "recipe: 0001-0041 patch bytes identical to rc3",
+                 strip_trailers((recipe / p).read_bytes()) != strip_trailers((rc3 / p).read_bytes())]
+    check(not differing, "recipe: 0001-0041 patch bytes identical to rc3 (classification trailers aside)",
           ", ".join(differing[:4]))
     check(all(p in patches for p in NEW_PATCHES),
           "recipe: every reviewed topic patch is present under its assigned name",
@@ -173,7 +218,8 @@ def main():
 
     # ordering: numeric order must be the reviewed apply order
     ordered = [p for p in patches if p >= "0044"]
-    check(ordered == sorted(NEW_PATCHES), "recipe: new patch order is 0044-0058",
+    check(ordered == sorted(list(NEW_PATCHES) + list(LATER_PATCHES)),
+          "recipe: new patch order is 0044-0058 then 0059-0075",
           ",".join(p[:4] for p in ordered))
 
     # tarball: the builder verifies this before applying anything.  It is not
@@ -267,9 +313,9 @@ def main():
     check(re.search(r"^pkgrel=100$", iio_apk, re.M) is not None and
           "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch" in iio_apk,
           "flow: link farm carries the patched iio-sensor-proxy (async SSC claims)")
-    krn_apk = read(farm / "linux-postmarketos-qcom-sm8150/APKBUILD")
-    check(re.search(r"^pkgrel=5$", krn_apk, re.M) is not None,
-          "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 pkgrel 5")
+    check((farm / "linux-postmarketos-qcom-sm8150").resolve() == recipe.resolve(),
+          "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 recipe",
+          str((farm / "linux-postmarketos-qcom-sm8150").resolve()))
     check("module_blacklist=qcomtee" in packer_txt,
           "flow: boot cmdline blacklists qcomtee at the kernel level")
     check("/dev/nbd" in prepare_txt,
@@ -288,8 +334,8 @@ def main():
     checker_txt = read(flow / "scripts/check_local_candidate.py")
     check('"series": "nura-plasma"' in checker_txt and '"series": "nura-phosh"' in checker_txt
           and 'RELEASE_CANDIDATE = f"{RELEASE_SERIES}-rc4"' in checker_txt
-          and 'UI = os.environ.get("NURA_UI", "plasma")' in checker_txt,
-          "flow: candidate label is nura-plasma-rc4 (nura-phosh-rc4 with NURA_UI=phosh)")
+          and 'UI = os.environ.get("NURA_UI", "phosh")' in checker_txt,
+          "flow: candidate label is nura-phosh-rc4 (nura-plasma-rc4 with NURA_UI=plasma)")
 
     # wrapper
     wrapper = REPO / "flows/rc4/scripts/rc4.sh"
