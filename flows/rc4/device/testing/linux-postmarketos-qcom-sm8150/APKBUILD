@@ -28,6 +28,11 @@
 #        the maintainer).  Experimental candidate for the A640 CCU translation
 #        faults: it changes the Image and its BTF, the release string does not
 #        change, so reinstall the module tree with it.
+# rc4k (pkgrel 14) adds:
+#   0074 guacamole NFC on I2C9; ROM-mode reader bring-up, RF unverified.
+# rc4l (pkgrel 15) changes:
+#   0074 NFC IRQ (GPIO47) bias-pull-down; the pull-up caused an IRQ storm
+#        that broke UFS clock scaling (-110). DT only; Image unchanged.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -35,7 +40,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=13
+pkgrel=15
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -133,6 +138,7 @@ source="
 	0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
 	0072-arm64-dts-guacamole-pon-reboot-modes.patch
 	0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
+	0074-arm64-dts-guacamole-nfc.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -248,4 +254,5 @@ a4b7404c9af760dd953bd62122c8f6547524380db66826306e5f15424317c5d836f75d8b7b7aa791
 56a7ba1f51b476ea39818362ec32fb84b74a074bfa894935acb794b1834587ea99fceb0ec0c93d39f5a3587349a19b42460fc7d1c3b1221d231e0864df03274e  0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch
 92cd2c06ab6d1581f254009d1f0763e8d3d647503540ed3bbea93aa2caa279f50830866dfa2fc7dcbf652387999477665cbbb48b5e1312388cefe617c1d78cb2  0072-arm64-dts-guacamole-pon-reboot-modes.patch
 bb5f97f86bf375c1eeb206a7c7d09ddf9d3718f7a1d352db7148c53b3d30a72aecd22a7f0d6a452dd74534439129d98c9e2c54295495f23098d278f6e355ad89  0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
+a2a2aef2301f0abae65ab0346a68dc8e69c4d6cf356619de9e96ca38d9e1cc0fe5fd41d8c90b11c9ec173b2bd2e0a47c0f574d269cde91193ad155cc17e4063a  0074-arm64-dts-guacamole-nfc.patch
 "
