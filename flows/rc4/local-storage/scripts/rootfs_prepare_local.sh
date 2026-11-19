@@ -37,7 +37,8 @@ if (( EUID == 0 )); then
 fi
 
 FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
+# Default: the checkout that contains this flow (flows/rc4/local-storage).
+SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$FLOW_DIR/../../.." && pwd -P)}"
 ROOT="$FLOW_DIR"
 cd "$ROOT"
 NURA_UI="${NURA_UI:-phosh}"

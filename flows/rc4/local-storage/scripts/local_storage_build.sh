@@ -25,7 +25,8 @@ FLOW_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 # The wrapper that owns the user-facing action names (rc4.sh shutdown ...);
 # the active-mount error prints it so the command can be copied verbatim.
 RC4_WRAPPER="$(cd "$FLOW_DIR/.." && pwd -P)/scripts/rc4.sh"
-SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
+# Default: the checkout that contains this flow (flows/rc4/local-storage).
+SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$FLOW_DIR/../../.." && pwd -P)}"
 NURA_UI="${NURA_UI:-phosh}"
 # The rc4 kernel build is produced by flows/rc4/scripts/rc4.sh kernel; this
 # entrypoint never builds the kernel itself and copies only its state.

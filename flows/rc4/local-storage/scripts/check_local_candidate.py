@@ -48,9 +48,10 @@ from check_rear_camera_package import (check_module_payload, module_payload,
                                        check_initramfs, digest as module_digest)
 
 ROOT = Path(__file__).resolve().parents[1]
+# Default: the checkout that contains this flow (flows/rc4/local-storage).
 SOURCE_ROOT = Path(os.environ.get(
     "NURA_SOURCE_ROOT",
-    "runtime-workspace",
+    str(ROOT.parents[2]),
 )).resolve()
 RELEASE = "7.0.0-sm8150-guacamole-rc4"
 # The kernel uname for this candidate is 7.0.0-sm8150-guacamole-rc4.  It must match the

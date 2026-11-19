@@ -25,7 +25,8 @@
 set -euo pipefail
 
 FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
+# Default: the checkout that contains this flow (flows/rc4/local-storage).
+SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$FLOW_DIR/../../.." && pwd -P)}"
 [[ -d "$SOURCE_ROOT" ]] || { echo "ERROR: missing source checkout: $SOURCE_ROOT" >&2; exit 1; }
 OUTPUT_DIR="${OUTPUT_DIR:-${FLOW_DIR}/build/local-userdata/boot}"
 RELEASE="${RELEASE:-7.0.0-sm8150-guacamole-rc4}"

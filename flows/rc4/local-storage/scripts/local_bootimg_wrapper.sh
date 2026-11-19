@@ -13,7 +13,8 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 FLOW_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-SOURCE_ROOT="${NURA_SOURCE_ROOT:-runtime-workspace}"
+# Default: the checkout that contains this flow (flows/rc4/local-storage).
+SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$FLOW_DIR/../../.." && pwd -P)}"
 TOOL="$FLOW_DIR/scripts/local_storage_tool.py"
 RELEASE="${NURA_KERNEL_RELEASE:-7.0.0-sm8150-guacamole-rc4}"
 KERNEL_DIR="${NURA_KERNEL_DIR:-$SOURCE_ROOT/flows/rc4/build-source/kernel-output/kernel-package}"
