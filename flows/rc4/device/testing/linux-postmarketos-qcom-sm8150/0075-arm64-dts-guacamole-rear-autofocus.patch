@@ -1,0 +1,64 @@
+Rear camera autofocus for the OnePlus 7 Pro (guacamole).
+
+Provenance: phone camera-idea HANDOFF.md dated 2026-11-16.
+The 0-400 focus range is adapted from hotdog; hardware validation pending.
+
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-rear.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-rear.dtsi
+@@ -1,7 +1,6 @@
+ // SPDX-License-Identifier: BSD-3-Clause
+ /* Rear-only static board integration, rebased from Cube-Oakley f702f688.
+- * Main/tele actuator suppliers are UNVERIFIED on this unit; no lens binding
+- * until identified. Ultrawide vendor variants both specify AK7374.
++ * Ultrawide vendor variants both specify AK7374.
+  */
+ #ifndef CAMERA_ISOLATE
+ #define CAMERA_MAIN
+@@ -288,10 +287,12 @@
+ 			#size-cells = <0>;
+ #ifdef CAMERA_TELE
+ 			s5k3m5_vcm: lens@74 {
+-				/* Supplier unverified: do not power or move this actuator. */
+-				status = "disabled";
++				/* shortcut: hotdog 0-400 range, adjust after on-unit focus sweeps. */
++				status = "okay";
+ 				compatible = "onnn,lc898217xc";
+ 				reg = <0x74>;
++				onnn,max-focus-position = <400>;
++				onnn,default-focus-position = <400>;
+ 				vdd-supply = <&vreg_cam1_vaf>;
+ 				vio-supply = <&vreg_l1c_1p8>;
+ 			};
+@@ -314,7 +315,7 @@
+ 				vddio-supply = <&vreg_l1c_1p8>;
+ 
+ 				reset-gpios = <&tlmm 28 GPIO_ACTIVE_LOW>;
+-				/* lens-focus awaits this unit's actuator identification. */
++				lens-focus = <&s5k3m5_vcm>;
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&cam_mclk0_default>, <&cam1_reset_default>;
+ 
+@@ -338,10 +339,12 @@
+ 			#size-cells = <0>;
+ #ifdef CAMERA_MAIN
+ 			imx586_vcm: lens@72 {
+-				/* Supplier unverified: do not power or move this actuator. */
+-				status = "disabled";
++				/* shortcut: hotdog 0-400 range, adjust after on-unit focus sweeps. */
++				status = "okay";
+ 				compatible = "onnn,lc898217xc";
+ 				reg = <0x72>;
++				onnn,max-focus-position = <400>;
++				onnn,default-focus-position = <400>;
+ 				vdd-supply = <&vreg_cam0_vaf>;
+ 				vio-supply = <&vreg_l1c_1p8>;
+ 			};
+@@ -365,7 +368,7 @@
+ 				vana-enable-gpios = <&tlmm 11 GPIO_ACTIVE_HIGH>;
+ 				custom1-gpios = <&tlmm 29 GPIO_ACTIVE_HIGH>;
+ 				custom2-gpios = <&pm8150l_gpios 1 GPIO_ACTIVE_HIGH>;
+-				/* lens-focus awaits this unit's actuator identification. */
++				lens-focus = <&imx586_vcm>;
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&cam_mclk1_default>, <&cam0_vana_default>,
+ 					    <&cam0_custom1_default>, <&cam0_custom2_default>,

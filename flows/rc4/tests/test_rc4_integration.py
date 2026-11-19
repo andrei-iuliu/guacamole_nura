@@ -82,6 +82,8 @@ NEW_PATCHES = [
     "0071-drm-msm-fix-task-struct-reference-leak-in-recover-worker.patch",
     "0072-arm64-dts-guacamole-pon-reboot-modes.patch",
     "0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch",
+    "0074-arm64-dts-guacamole-nfc.patch",
+    "0075-arm64-dts-guacamole-rear-autofocus.patch",
 ]
 
 
