@@ -285,9 +285,22 @@ The new modules must be installed on the phone together with the new kernel.
 
    The APK is
    `flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state/pmbootstrap-work/packages/edge/aarch64/linux-postmarketos-qcom-sm8150-*.apk`.
-   It is signed with that pmbootstrap work directory's key. The phone trusts
-   the key under `/etc/apk/keys/` that was installed with the rootfs; a new work
-   directory has a new key, which must be copied to the phone first.
+   It is signed with the project signing key (`scripts/signing_key.sh`). The
+   phone trusts the key under `/etc/apk/keys/` that was installed with the
+   rootfs. The rootfs pipeline seeds every new work directory with the project
+   key in `~/.config/nura-guacamole/abuild/` (or `NURA_SIGNING_KEY_DIR`), and
+   saves the first generated key there when none exists. Back that directory up.
+   To keep the key the current phone already trusts, adopt it once from the
+   work directory that built the installed rootfs:
+
+   ```bash
+   bash scripts/signing_key.sh adopt \
+     flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state/pmbootstrap-work
+   ssh user@172.16.42.1 'ls /etc/apk/keys/ | grep pmos@local'   # should list the same name
+   ```
+
+   A work directory that already signs with a different key is refused; with
+   such a key, packages would not install on the phone without copying the key over.
 2. Keep the currently installed kernel APK as the rollback package.
 3. Install it on the phone and sync:
 
