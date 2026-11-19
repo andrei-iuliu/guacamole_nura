@@ -1,17 +1,52 @@
 # rc4 topic: suspend-fixes
 
 Source-ready integration of `bringup-notes/Patches/suspend-fixes`
-for the nura **rc4** kernel.  **Nothing here has been built as a kernel package,
-booted, or measured on a phone.**  The only evidence is source review, a
+for the nura **rc4** kernel.  Sections 1-11 record the source review, a
 no-fuzz apply against the actual rc3-patched 7.0 tree, a clang syntax check of
 the touched objects against that tree's configured build, and rootless unit
-tests of the userspace helper.
+tests of the userspace helper.  The first hardware results are in section 0.
 
 Two of the four supplied patches are **already in rc3** (0034, 0035); the two
 that are new are renumbered **0044** (MSS rail vote) and **0045** (ath10k key
 ack).  System suspend stays disabled: installing these does not enable it.
 
 ---
+
+## 0. Hardware results (2026-11-19)
+
+Setup: rc4n image on `boot_b`, rc4l rootfs, USB connected and charging,
+WoWLAN armed, remoteproc recovery enabled. The 0044 module was loaded from
+`/tmp` for the test, without installing it:
+`GUACAMOLE_MSS_MODPROBE=insmod GUACAMOLE_MSS_MODULE=/tmp/guacamole_mss_vote.ko /usr/libexec/guacamole-mss-release`.
+
+* **0044 as first integrated never loaded.** Its
+  `of_machine_is_compatible("oneplus,guacamole")` check fails because the
+  ABL-quarantine wrapper presents the root compatible `qcom,sm8150-mtp`.
+  rc4o (`pkgrel=17`) also accepts that root when the board's
+  `samsung,oneplus-dsc` panel node is present.
+* **`pm_test` freezer:** pass.
+* **`pm_test` devices:** pass, and no ath10k `-110` key-removal timeout
+  (0045 not needed so far). On resume both CCI controllers failed to enable
+  `camnoc_axi` (`cam_cc_camnoc_axi_clk status stuck at 'off'`, `-16`, from
+  `cci_resume()`). Not seen in later cycles; the camera after a resume is
+  untested.
+* **Without the release,** the modem crashed once on its own at about
+  1230 s of uptime (watchdog, SFR `Init: wdog or kernel error suspected`),
+  a few seconds after the screen woke and Bluetooth was set up again. SSR
+  recovered the modem and Wi-Fi, and the kernel survived. After SSR the proxy
+  MSS power domain stayed `active` (no handover), so
+  `guacamole-mss-release` correctly refuses to run. Run it early after boot.
+* **With `mss.lvl` at corner 0:** `pm_test` platform passed, the stage that
+  froze the reference phone. The module re-sent corner 0 whenever the MSS
+  domain switched off or on.
+* **Real s2idle:** `rtcwake -m mem -s 20` slept 20.8 s (CLOCK_BOOTTIME minus
+  CLOCK_MONOTONIC) and woke on the PM8150 RTC. No modem crash after resume;
+  Wi-Fi reconnected, Phosh was up, and unlocking with touch worked.
+
+Still open: longer and repeated cycles, waking with the Power button, a
+cycle on battery, the camera after resume, and running the release at every
+boot (needs the rc4o kernel package installed, then
+`guacamole-mss-release.service` enabled). Automatic suspend stays off.
 
 ## 1. Baseline actually used
 

@@ -83,7 +83,7 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 | **NFC** | :construction: Detected | NXP NQ330 (`nxp-nci_i2c`) on I2C9 | Registers `nfc0`, and `nfctool` lists the supported tag protocols (kernel patch `0074`, IRQ on GPIO47 pulled down so UFS clock scaling stays stable); reading tags is untested. See `docs/RC4K_NFC_SENSORS.md` |
 | **DisplayPort (USB-C)** | :construction: Partial | MSM DP + `qcom,pmic-typec` / TCPM | 3440x1440@60 through a powered USB-C dock and an unpowered USB-C to HDMI adapter, with USB through the dock; a self-powered dock still fails USB-PD as the source. See `docs/NURA_RC4.md` |
 | **Fingerprint** | :x: Disabled | `goodix_fp` | Driver built, but the device-tree node is disabled and the sensor cannot authenticate |
-| **Suspend** | :x: Disabled | — | Automatic suspend is off; the suspend fixes (kernel patches `0044`, `0045`) are built but not enabled |
+| **Suspend** | :construction: Manual | s2idle + PM8150 RTC | A manual suspend with RTC wake works once the modem-rail vote is released (kernel patch `0044`, run by hand for now); automatic suspend is off. See `flows/rc4/topics/suspend-fixes/README.md` |
 | **Volume Keys** | :white_check_mark: Working | `gpio-keys` (PM8150 GPIO 6/7) | Volume up/down report `KEY_VOLUMEUP`/`KEY_VOLUMEDOWN` |
 | **GPU Acceleration** | :white_check_mark: Working | Adreno 640 / Mesa Freedreno & Turnip | GMU v2.0.261 + ZAP shader loaded; native OpenGL ES 3.2 and Vulkan 1.3 |
 | **Wi-Fi** | :white_check_mark: Working | `ath10k_snoc` (WCN3990) | 2.4 and 5 GHz, DHCP and internet; OxygenOS 12-era WLAN firmware + kernel patch `0009`. Factory MAC as the interface address; NetworkManager uses a stable per-network MAC when connected. WoWLAN pending |
