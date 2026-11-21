@@ -44,6 +44,8 @@
 # rc4p (pkgrel 18) adds:
 #   0076 lc898217xc: balance runtime PM in s_ctrl and free the controls
 #        after parking the lens in remove(). Module code only.
+#   0077 camss csid: drop the VFE reference on power-up errors, halt the
+#        channel on stream off, poll reset-done and retry once. Module code only.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -152,6 +154,7 @@ source="
 	0074-arm64-dts-guacamole-nfc.patch
 	0075-arm64-dts-guacamole-rear-autofocus.patch
 	0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
+	0077-media-qcom-camss-csid-recover-from-a-reset-timeout.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -270,4 +273,5 @@ bb5f97f86bf375c1eeb206a7c7d09ddf9d3718f7a1d352db7148c53b3d30a72aecd22a7f0d6a452d
 a2a2aef2301f0abae65ab0346a68dc8e69c4d6cf356619de9e96ca38d9e1cc0fe5fd41d8c90b11c9ec173b2bd2e0a47c0f574d269cde91193ad155cc17e4063a  0074-arm64-dts-guacamole-nfc.patch
 dde0783b8c0f8cc776ec8abe0327cff9c71787b126cbf7ac7666aba8d4c3a909bf0d7e1fa6b0ab29ecc329174ffdf83b2ab0dfdb9bb1665c0133d437eab13e7f  0075-arm64-dts-guacamole-rear-autofocus.patch
 4efc6956ffc6d85078a23a0661fc5ed0f52214c6d2831e74b22a5485b519b9cd0e1e1f05bd622be1ce167c5042db4b01b5b1fb461d4af66d9353bb3387dda002  0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
+6fbb50ae89955e72507a818a9a86ea42df91c0b5a09778d7a39d933d2cd94f7093e0c2365ac60755d9f135dcde163d230f81b071b346b0425a4b01954bfd4089  0077-media-qcom-camss-csid-recover-from-a-reset-timeout.patch
 "
