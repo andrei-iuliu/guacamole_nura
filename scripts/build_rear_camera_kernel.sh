@@ -45,7 +45,8 @@ while read -r expected name; do
         if [[ -n "${NURA_SOURCE_TARBALL:-}" ]]; then
             path="$NURA_SOURCE_TARBALL"
         else
-            for candidate in "$STATE/$name" "$RECIPE/$name" "$ROOT/.work/rear-camera/$name"; do
+            for candidate in "$STATE/$name" "$RECIPE/$name" "$ROOT/local/sources/$name" \
+                             "$ROOT/.work/rear-camera/$name"; do
                 if [[ -f "$candidate" ]]; then
                     path="$candidate"
                     break
