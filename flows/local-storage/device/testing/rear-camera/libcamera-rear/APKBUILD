@@ -35,6 +35,7 @@ source="https://gitlab.freedesktop.org/camera/libcamera/-/archive/v$pkgver/libca
 	0019-libcamera-software-isp-keep-highlights-clipped-in-every-channel-white.patch
 	0020-libcamera-software-isp-steadier-continuous-autofocus.patch
 	0021-libcamera-software-isp-start-autofocus-scans-on-settled-exposure.patch
+	0022-libcamera-software-isp-validate-autofocus-controls.patch
 	0023-libcamera-software-isp-take-the-exposure-target-from-tuning.patch
 	0024-libcamera-software-isp-publish-manual-exposure-and-gain-controls.patch
 	0025-libcamera-software-isp-leave-clipped-pixels-out-of-white-balance.patch
@@ -89,6 +90,7 @@ a63cf1c28ae62bccedfbd9998f237708ce1d36910d178bd981d433c4830e3a25a51b8105e4212780
 057f14a66078084bdb9799fd535f7f8d3b832bff6518c3de0be3811e6df4707a26cd8e858050301d5cc2ec8eecec88c89a8f74f94d09891835c7c0a93237fecf  0019-libcamera-software-isp-keep-highlights-clipped-in-every-channel-white.patch
 aed89e39dc6f4e85c8a828ff2a7787ffc2afeacd91e3b39cc5692ba5eafb906dbfa5e5dd42a4bf1aca4f5679dd97778e806391a288485ce37e7bf239de6538d7  0020-libcamera-software-isp-steadier-continuous-autofocus.patch
 bf969357e4f5c62a69d822e883b735ed726b3d1bae7bad04b5594a3f2aed8f70253177342fbb67bb2b3b0cb9c87ccd9844e57d8785a38c72917f72935facc068  0021-libcamera-software-isp-start-autofocus-scans-on-settled-exposure.patch
+d6bde9e29b36923b879df379fb53b52dac3010fc61bfd0a4b8af461a065e86be49defccf05f4c357ac8589dc74e6da4d550dcf9d9228627ad492b4147ea551a5  0022-libcamera-software-isp-validate-autofocus-controls.patch
 58465c5c28a11cb7bec5052f5e6002709230d7dbc7b5b27e0b5751a72e58070597b534f6cdcf7abfc57d037c7186b5dfd407ae0347e1a3bac62953983be3b202  0023-libcamera-software-isp-take-the-exposure-target-from-tuning.patch
 9dd5ed1f86cbaa362e7d36aaf81ec483612926e702ecbf7fe7dd5844cfd01275b7d7989c77ceba174400c68c5c7227b6ae783b184b24b9b46fd65d2dbb5a5df1  0024-libcamera-software-isp-publish-manual-exposure-and-gain-controls.patch
 2e542efadb25f8534edd2fc15deada1eece7890162ae8a0746a5e8ed309ccfc37b7aa00135f00ef77f02ecbd188076a61f046692a8e2079171015f639c7276e3  0025-libcamera-software-isp-leave-clipped-pixels-out-of-white-balance.patch

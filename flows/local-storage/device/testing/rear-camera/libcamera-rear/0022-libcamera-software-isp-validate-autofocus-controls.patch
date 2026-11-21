@@ -1,0 +1,131 @@
+libcamera: software_isp: validate autofocus controls from applications
+
+The autofocus algorithm reads the AF controls of a request with the typed
+ControlList::get(), which asserts that the value has the type the control
+declares and, for a scalar control, that it does not hold an array. A client
+that writes a one-element AfWindows as a scalar Rectangle, as libcamera-rs
+does, trips the assert and aborts the whole camera process instead of failing
+that request. Check the type and the array flag of the raw value before the
+typed get, accept a scalar rectangle as a list of one window, and ignore a
+malformed value with a warning so that autofocus keeps its previous state.
+
+---
+diff --git a/src/ipa/simple/algorithms/af.cpp b/src/ipa/simple/algorithms/af.cpp
+index 8d64c4c..0cc06d7 100644
+--- a/src/ipa/simple/algorithms/af.cpp
++++ b/src/ipa/simple/algorithms/af.cpp
+@@ -8,6 +8,7 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <iterator>
++#include <optional>
+ #include <stdint.h>
+ 
+ #include <linux/v4l2-controls.h>
+@@ -49,6 +50,55 @@ static constexpr unsigned int kRescanSamples = 15;
+ static constexpr unsigned int kLensStepSettleSamples = 4;
+ static constexpr unsigned int kLensJumpSettleSamples = 6;
+ 
++/*
++ * Applications can send a control with the wrong type, or an array where a
++ * scalar is expected: the typed get() of a ControlList asserts on both, which
++ * aborts the whole camera process. Check the value first and ignore a
++ * malformed one, leaving the algorithm in its previous state.
++ */
++template<typename T>
++static std::optional<T> requestControl(const ControlList &requestControls,
++				       const Control<T> &control)
++{
++	if (!requestControls.contains(control.id()))
++		return std::nullopt;
++
++	const ControlValue &value = requestControls.get(control.id());
++	const ControlId &ctrlId = control;
++	if (value.type() != ctrlId.type() || value.isArray()) {
++		LOG(IPASoftAf, Warning)
++			<< "Ignoring malformed " << ctrlId.name();
++		return std::nullopt;
++	}
++
++	return value.get<T>();
++}
++
++/*
++ * An array control sent with a single element can arrive as a scalar value,
++ * which libcamera-rs does for AfWindows: accept it as a list of one window,
++ * stored in @scalar.
++ */
++static std::optional<Span<const Rectangle>>
++requestWindows(const ControlList &requestControls, Rectangle &scalar)
++{
++	if (!requestControls.contains(controls::AfWindows.id()))
++		return std::nullopt;
++
++	const ControlValue &value =
++		requestControls.get(controls::AfWindows.id());
++	if (value.type() != ControlTypeRectangle) {
++		LOG(IPASoftAf, Warning) << "Ignoring malformed AfWindows";
++		return std::nullopt;
++	}
++
++	if (value.isArray())
++		return value.get<Span<const Rectangle>>();
++
++	scalar = value.get<Rectangle>();
++	return Span<const Rectangle>(&scalar, 1);
++}
++
+ int Af::init(IPAContext &context,
+ 	     [[maybe_unused]] const ValueNode &tuningData)
+ {
+@@ -140,7 +190,8 @@ void Af::queueRequest([[maybe_unused]] typename Module::Context &context,
+ 		return;
+ 
+ 	auto &af = context.activeState.af;
+-	if (const auto metering = requestControls.get(controls::AfMetering)) {
++	if (const auto metering = requestControl(requestControls,
++						 controls::AfMetering)) {
+ 		if (*metering != af.metering) {
+ 			af.metering = *metering;
+ 			af.pendingScan = true;
+@@ -149,7 +200,9 @@ void Af::queueRequest([[maybe_unused]] typename Module::Context &context,
+ 		}
+ 	}
+ 
+-	if (const auto windows = requestControls.get(controls::AfWindows)) {
++	Rectangle scalarWindow;
++	if (const auto windows = requestWindows(requestControls,
++						 scalarWindow)) {
+ 		Rectangle crop = context.sensorInfo.analogCrop;
+ 		if (!crop.width || !crop.height)
+ 			crop = Rectangle(context.sensorInfo.activeAreaSize);
+@@ -174,7 +227,8 @@ void Af::queueRequest([[maybe_unused]] typename Module::Context &context,
+ 		}
+ 	}
+ 
+-	if (const auto mode = requestControls.get(controls::AfMode)) {
++	if (const auto mode = requestControl(requestControls,
++					 controls::AfMode)) {
+ 		if (*mode != af.mode) {
+ 			af.mode = *mode;
+ 			if (af.mode == controls::AfModeContinuous &&
+@@ -204,7 +258,8 @@ void Af::queueRequest([[maybe_unused]] typename Module::Context &context,
+ 	if (af.mode == controls::AfModeManual) {
+ 		af.pendingScan = false;
+ 		af.scanning = false;
+-		if (const auto position = requestControls.get(controls::LensPosition)) {
++		if (const auto position = requestControl(requestControls,
++							 controls::LensPosition)) {
+ 			const float normalized = std::clamp(*position, 0.0f, 1.0f);
+ 			const int32_t range = context.configuration.focus.max -
+ 					      context.configuration.focus.min;
+@@ -217,7 +272,8 @@ void Af::queueRequest([[maybe_unused]] typename Module::Context &context,
+ 	if (af.mode != controls::AfModeAuto)
+ 		return;
+ 
+-	if (const auto trigger = requestControls.get(controls::AfTrigger)) {
++	if (const auto trigger = requestControl(requestControls,
++						controls::AfTrigger)) {
+ 		if (*trigger == controls::AfTriggerStart && !af.scanning &&
+ 		    !af.pendingScan) {
+ 			af.pendingScan = true;
