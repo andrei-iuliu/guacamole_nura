@@ -1,0 +1,53 @@
+From: Nura rc4p series <rc4p@nura.invalid>
+Subject: [PATCH] media: i2c: lc898217xc: balance runtime PM and free controls last
+
+Two fixes to the LC898217XC VCM driver added by 0029, the OnePlus 7 Pro
+main and tele focus actuators.
+
+s_ctrl took pm_runtime_get_if_in_use() as a boolean. With runtime PM
+disabled it returns -EINVAL without taking a reference, and the driver
+then wrote the position and called pm_runtime_put(), underflowing the
+usage count. Treat any non-positive return as "not powered": the control
+keeps its value and power-up applies it, as before.
+
+remove() freed the control handler before powering the actuator down,
+and parking the lens reads the focus control. Power down first, then
+free the controls and clean up the entity.
+
+Neither changes behaviour while the camera streams; the focus value a
+stream reports still comes only from userspace writes.
+
+--- a/drivers/media/i2c/lc898217xc.c
++++ b/drivers/media/i2c/lc898217xc.c
+@@ -151,7 +151,12 @@
+ 	if (ctrl->id != V4L2_CID_FOCUS_ABSOLUTE)
+ 		return -EINVAL;
+ 
+-	if (!pm_runtime_get_if_in_use(vcm->sd.dev))
++	/*
++	 * Only drive the lens while it is powered; power-up applies the
++	 * stored value. A negative return means runtime PM is disabled, and
++	 * no reference was taken either.
++	 */
++	if (pm_runtime_get_if_in_use(vcm->sd.dev) <= 0)
+ 		return 0;
+ 
+ 	ret = lc898217xc_set_position(vcm, ctrl->val);
+@@ -286,13 +291,15 @@
+ 	struct lc898217xc_device *vcm = to_lc898217xc(sd);
+ 
+ 	v4l2_async_unregister_subdev(sd);
+-	v4l2_ctrl_handler_free(&vcm->ctrls);
+-	media_entity_cleanup(&sd->entity);
+ 
++	/* Parking the lens reads the focus control: power down first. */
+ 	pm_runtime_disable(&client->dev);
+ 	if (!pm_runtime_status_suspended(&client->dev))
+ 		lc898217xc_power_down(vcm);
+ 	pm_runtime_set_suspended(&client->dev);
++
++	v4l2_ctrl_handler_free(&vcm->ctrls);
++	media_entity_cleanup(&sd->entity);
+ }
+ 
+ static const struct of_device_id lc898217xc_of_match[] = {

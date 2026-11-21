@@ -41,6 +41,9 @@
 #   0044 guacamole_mss_vote also recognises the board through the
 #        ABL-quarantine wrapper (root "qcom,sm8150-mtp" plus the
 #        samsung,oneplus-dsc panel node); before, it never loaded.
+# rc4p (pkgrel 18) adds:
+#   0076 lc898217xc: balance runtime PM in s_ctrl and free the controls
+#        after parking the lens in remove(). Module code only.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -48,7 +51,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=17
+pkgrel=18
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -148,6 +151,7 @@ source="
 	0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
 	0074-arm64-dts-guacamole-nfc.patch
 	0075-arm64-dts-guacamole-rear-autofocus.patch
+	0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -265,4 +269,5 @@ a4b7404c9af760dd953bd62122c8f6547524380db66826306e5f15424317c5d836f75d8b7b7aa791
 bb5f97f86bf375c1eeb206a7c7d09ddf9d3718f7a1d352db7148c53b3d30a72aecd22a7f0d6a452dd74534439129d98c9e2c54295495f23098d278f6e355ad89  0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch
 a2a2aef2301f0abae65ab0346a68dc8e69c4d6cf356619de9e96ca38d9e1cc0fe5fd41d8c90b11c9ec173b2bd2e0a47c0f574d269cde91193ad155cc17e4063a  0074-arm64-dts-guacamole-nfc.patch
 dde0783b8c0f8cc776ec8abe0327cff9c71787b126cbf7ac7666aba8d4c3a909bf0d7e1fa6b0ab29ecc329174ffdf83b2ab0dfdb9bb1665c0133d437eab13e7f  0075-arm64-dts-guacamole-rear-autofocus.patch
+4efc6956ffc6d85078a23a0661fc5ed0f52214c6d2831e74b22a5485b519b9cd0e1e1f05bd622be1ce167c5042db4b01b5b1fb461d4af66d9353bb3387dda002  0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
 "

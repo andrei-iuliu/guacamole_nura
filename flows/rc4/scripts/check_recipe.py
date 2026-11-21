@@ -3,7 +3,7 @@
 """Read-only structural checks of the rc4 recipe and flow.  No writes, no build.
 
 Checks: recipe sources/checksums, retained rc3 bytes, the reviewed 0044-0058
-and later 0059-0075
+and later 0059-0076
 set and order, the config gates, the kernel tarball hash, the device package
 gates, the local-storage flow constants/guards and the rc4 wrapper.
 
@@ -53,7 +53,7 @@ NEW_PATCHES = {
     "0058-arm64-dts-guacamole-displayport-audio-link.patch": "displayport",
 }
 
-# Added after the rc4 review, one candidate at a time (rc4b-rc4o); each is
+# Added after the rc4 review, one candidate at a time (rc4b-rc4p); each is
 # recorded in its commit and in docs/KERNEL_PATCHES.md.
 LATER_PATCHES = {
     "0059-slimbus-qcom-ngd-wait-5s-for-qmi.patch": "rc4b",
@@ -73,6 +73,7 @@ LATER_PATCHES = {
     "0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch": "rc4j",
     "0074-arm64-dts-guacamole-nfc.patch": "rc4k",
     "0075-arm64-dts-guacamole-rear-autofocus.patch": "rc4n",
+    "0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch": "rc4p",
 }
 
 # rc3 patches deliberately dropped (file kept under flows/rc4-reverted/).
@@ -189,7 +190,7 @@ def main():
     retained = [p for p in rc3_patches if p < "0042" and p not in REVERTED_RC3]
     expected = sorted(retained + list(NEW_PATCHES) + list(LATER_PATCHES))
     check(patches == expected,
-          "recipe: rc3 0001-0041 (minus reverted 0036) plus 0044-0058 and 0059-0075",
+          "recipe: rc3 0001-0041 (minus reverted 0036) plus 0044-0058 and 0059-0076",
           "%d patch files, expected %d; extra %s missing %s" % (
               len(patches), len(expected), sorted(set(patches) - set(expected))[:3],
               sorted(set(expected) - set(patches))[:3]))
@@ -219,7 +220,7 @@ def main():
     # ordering: numeric order must be the reviewed apply order
     ordered = [p for p in patches if p >= "0044"]
     check(ordered == sorted(list(NEW_PATCHES) + list(LATER_PATCHES)),
-          "recipe: new patch order is 0044-0058 then 0059-0075",
+          "recipe: new patch order is 0044-0058 then 0059-0076",
           ",".join(p[:4] for p in ordered))
 
     # tarball: the builder verifies this before applying anything.  It is not
