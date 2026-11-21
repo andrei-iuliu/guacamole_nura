@@ -85,6 +85,7 @@ NEW_PATCHES = [
     "0073-drm-msm-align-kernel-managed-gpu-va-to-64k.patch",
     "0074-arm64-dts-guacamole-nfc.patch",
     "0075-arm64-dts-guacamole-rear-autofocus.patch",
+    "0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch",
 ]
 
 
