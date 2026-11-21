@@ -1,0 +1,312 @@
+From: Nura rc4p series <rc4p@nura.invalid>
+Subject: [PATCH] media: qcom: camss: csid: recover from a reset that times out
+
+A OnePlus 7 Pro (SM8150) reports "CSID reset timeout" on some camera
+starts: the first start after a boot once in a while, and every start
+after the camera app was closed in the middle of a stream, until the
+phone is rebooted.  The next start then fails with -EIO out of
+v4l2_pipeline_pm_get() and userspace reports an I/O error.
+
+Three things in the driver turn that single failure into a permanent
+one.
+
+csid_set_power() takes the parent (VFE/IFE) reference before it touches
+the CSID, but none of its error paths gives it back.  The media core
+does not unwind the failing entity either (pipeline_pm_power_one() in
+v4l2-mc.c returns before the use count is taken), so one failed start
+leaves vfe->power_count at 1 for good: the IFE's power domain keeps its
+runtime-PM-active device link, the VFE's clocks stay enabled and the
+CAMSS top domain never suspends again.  A CSID left in a bad state by
+the failed reset is therefore never power cycled, which is why only a
+reboot clears it: the retry a user does by hand hits the same state.
+
+The CSID is also powered down with its channel still enabled.
+csid_set_stream() writes the stream configuration only when
+need_vc_update is set, and that flag is cleared on the way into
+streaming, so the halt/disable write never happens on the way out.  The
+RDI keeps consuming data while the clocks are cut, and the block comes
+back up mid-frame; RST_STROBES resets the block with its registers
+preserved, so that state is still there when the next reset runs.  That
+matches the failures right after a stream is cut short, and it is the
+likeliest way to get the block into a state where reset done never
+arrives.
+
+Finally, csid_reset() waits only for the reset-done interrupt.  If the
+edge is lost (an earlier edge still pending in the GIC, or a pulse
+raised while the block's clock was settling after the power up), a
+reset that did complete is reported as a timeout.
+
+So: unwind csid_power_on() through one error path that always drops the
+parent reference, halt the channel in csid_set_stream(0) and write the
+configuration again on the next start, poll the reset-done status bit
+alongside the completion, and, when the reset still times out, power
+cycle the CSID once and reset again instead of failing the camera.  The
+timeout message keeps its wording, so existing log greps still match,
+and now prints the top and receive interrupt status and RDI0's
+configuration.
+
+With the references balanced, a start that follows a failed one begins
+from a block that has actually been power cycled, so a retry no longer
+inherits the broken state - that is what turns "dead until reboot" into
+"one bad start".  The in-driver retry covers the other failure mode, a
+reset pulse or its interrupt edge that never reached the block: the
+second reset runs against clocks that are already running and rated.
+
+On the phone the failure is reproducible by closing the camera app
+mid-stream and reopening it.  Compile tested only: the module builds
+with W=1 and no warnings, on the v7.0.0-sm8150 tree with 0028-0031
+applied.
+---
+
+diff --git a/drivers/media/platform/qcom/camss/camss-csid.c b/drivers/media/platform/qcom/camss/camss-csid.c
+--- a/drivers/media/platform/qcom/camss/camss-csid.c
++++ b/drivers/media/platform/qcom/camss/camss-csid.c
+@@ -675,75 +675,112 @@
+  *
+  * Return 0 on success or a negative error code otherwise
+  */
+-static int csid_set_power(struct v4l2_subdev *sd, int on)
++/*
++ * csid_power_off - Power down the CSID module and drop its references
++ * @csid: CSID device
++ *
++ * The parent (VFE/IFE) reference goes too: it is what holds the IFE's power
++ * domain up, and one left behind here would keep the CSID from ever being
++ * power cycled again, so a block stuck in a failed reset would stay stuck
++ * until the next boot.
++ */
++static void csid_power_off(struct csid_device *csid)
++{
++	disable_irq(csid->irq);
++	camss_disable_clocks(csid->nclocks, csid->clock);
++	regulator_bulk_disable(csid->num_supplies, csid->supplies);
++	pm_runtime_put_sync(csid->camss->dev);
++	csid->res->parent_dev_ops->put(csid->camss, csid->id);
++}
++
++static int csid_power_on(struct csid_device *csid)
+ {
+-	struct csid_device *csid = v4l2_get_subdevdata(sd);
+ 	struct camss *camss = csid->camss;
+ 	struct device *dev = camss->dev;
+-	int ret = 0;
++	int ret;
+ 
+-	if (on) {
+-		/*
+-		 * From SDM845 onwards, the VFE needs to be powered on before
+-		 * switching on the CSID. Do so unconditionally, as there is no
+-		 * drawback in following the same powering order on older SoCs.
+-		 */
+-		ret = csid->res->parent_dev_ops->get(camss, csid->id);
+-		if (ret < 0)
+-			return ret;
+-
+-		ret = pm_runtime_resume_and_get(dev);
+-		if (ret < 0)
+-			return ret;
+-
+-		ret = regulator_bulk_enable(csid->num_supplies,
+-					    csid->supplies);
+-		if (ret < 0) {
+-			pm_runtime_put_sync(dev);
+-			return ret;
+-		}
++	/*
++	 * From SDM845 onwards, the VFE needs to be powered on before switching
++	 * on the CSID. Do so unconditionally, as there is no drawback in
++	 * following the same powering order on older SoCs.
++	 */
++	ret = csid->res->parent_dev_ops->get(camss, csid->id);
++	if (ret < 0)
++		return ret;
++
++	ret = pm_runtime_resume_and_get(dev);
++	if (ret < 0)
++		goto error_parent;
++
++	ret = regulator_bulk_enable(csid->num_supplies, csid->supplies);
++	if (ret < 0)
++		goto error_pm_runtime;
++
++	ret = csid_set_clock_rates(csid);
++	if (ret < 0)
++		goto error_regulators;
++
++	ret = camss_enable_clocks(csid->nclocks, csid->clock, dev);
++	if (ret < 0)
++		goto error_regulators;
++
++	csid->phy.need_vc_update = true;
++
++	enable_irq(csid->irq);
++
++	ret = csid->res->hw_ops->reset(csid);
++	if (ret < 0)
++		goto error_clocks;
+ 
+-		ret = csid_set_clock_rates(csid);
+-		if (ret < 0) {
+-			regulator_bulk_disable(csid->num_supplies,
+-					       csid->supplies);
+-			pm_runtime_put_sync(dev);
+-			return ret;
+-		}
++	csid->res->hw_ops->hw_version(csid);
+ 
+-		ret = camss_enable_clocks(csid->nclocks, csid->clock, dev);
+-		if (ret < 0) {
+-			regulator_bulk_disable(csid->num_supplies,
+-					       csid->supplies);
+-			pm_runtime_put_sync(dev);
+-			return ret;
+-		}
++	return 0;
+ 
+-		csid->phy.need_vc_update = true;
++error_clocks:
++	disable_irq(csid->irq);
++	camss_disable_clocks(csid->nclocks, csid->clock);
++error_regulators:
++	regulator_bulk_disable(csid->num_supplies, csid->supplies);
++error_pm_runtime:
++	pm_runtime_put_sync(dev);
++error_parent:
++	csid->res->parent_dev_ops->put(camss, csid->id);
+ 
+-		enable_irq(csid->irq);
++	return ret;
++}
+ 
+-		ret = csid->res->hw_ops->reset(csid);
+-		if (ret < 0) {
+-			disable_irq(csid->irq);
+-			camss_disable_clocks(csid->nclocks, csid->clock);
+-			regulator_bulk_disable(csid->num_supplies,
+-					       csid->supplies);
+-			pm_runtime_put_sync(dev);
+-			return ret;
+-		}
++/*
++ * csid_set_power - Power on/off CSID module
++ * @sd: CSID V4L2 subdevice
++ * @on: Requested power state
++ *
++ * A reset that never reports done leaves the block in whatever state it came
++ * up in, and nothing but a power cycle clears that: the first start after a
++ * boot can hit it once, and a start after a stream was cut short can hit it
++ * every time. Drop the block and try once more from cold instead of failing
++ * the camera until the next reboot.
++ *
++ * Return 0 on success or a negative error code otherwise
++ */
++static int csid_set_power(struct v4l2_subdev *sd, int on)
++{
++	struct csid_device *csid = v4l2_get_subdevdata(sd);
++	int ret;
+ 
+-		csid->res->hw_ops->hw_version(csid);
+-	} else {
+-		disable_irq(csid->irq);
+-		camss_disable_clocks(csid->nclocks, csid->clock);
+-		regulator_bulk_disable(csid->num_supplies,
+-				       csid->supplies);
+-		pm_runtime_put_sync(dev);
+-		csid->res->parent_dev_ops->put(camss, csid->id);
++	if (!on) {
++		csid_power_off(csid);
++		return 0;
+ 	}
+ 
+-	return ret;
++	ret = csid_power_on(csid);
++	if (ret != -EIO)
++		return ret;
++
++	dev_warn(csid->camss->dev,
++		 "CSID%u: power cycle and reset again after the timeout\n",
++		 csid->id);
++
++	return csid_power_on(csid);
+ }
+ 
+ /*
+@@ -773,11 +810,21 @@
+ 		if (!csid->testgen.enabled &&
+ 		    !media_pad_remote_pad_first(&csid->pads[MSM_CSID_PAD_SINK]))
+ 			return -ENOLINK;
+-	}
+ 
+-	if (csid->phy.need_vc_update) {
+-		csid->res->hw_ops->configure_stream(csid, enable);
+-		csid->phy.need_vc_update = false;
++		if (csid->phy.need_vc_update) {
++			csid->res->hw_ops->configure_stream(csid, enable);
++			csid->phy.need_vc_update = false;
++		}
++	} else {
++		/*
++		 * Halt the channel and disable it while the clocks still run,
++		 * and write the configuration again on the next start. Left
++		 * enabled across the power down, the CSID's receive logic sits
++		 * mid-frame, where the next reset can wait for a frame
++		 * boundary that never comes.
++		 */
++		csid->res->hw_ops->configure_stream(csid, 0);
++		csid->phy.need_vc_update = true;
+ 	}
+ 
+ 	return 0;
+diff --git a/drivers/media/platform/qcom/camss/camss-csid-gen2.c b/drivers/media/platform/qcom/camss/camss-csid-gen2.c
+--- a/drivers/media/platform/qcom/camss/camss-csid-gen2.c
++++ b/drivers/media/platform/qcom/camss/camss-csid-gen2.c
+@@ -394,6 +394,7 @@
+ {
+ 	unsigned long time;
+ 	u32 val;
++	int i;
+ 
+ 	reinit_completion(&csid->reset_complete);
+ 
+@@ -406,14 +407,35 @@
+ 	val = 0x1e << RST_STROBES;
+ 	writel_relaxed(val, csid->base + CSID_RST_STROBES);
+ 
+-	time = wait_for_completion_timeout(&csid->reset_complete,
+-					   msecs_to_jiffies(CSID_RESET_TIMEOUT_MS));
+-	if (!time) {
+-		dev_err(csid->camss->dev, "CSID reset timeout\n");
+-		return -EIO;
++	/*
++	 * Reset done is reported by an interrupt, but an edge can be lost: a
++	 * masked interrupt still pending in the GIC swallows the next one, and
++	 * a pulse raised while the block's clock was settling after the power
++	 * up leaves nothing to deliver. Read the status bit as well, so that
++	 * a finished reset is never mistaken for a stuck one.
++	 */
++	for (i = 0; i < CSID_RESET_TIMEOUT_MS / 10; i++) {
++		time = wait_for_completion_timeout(&csid->reset_complete,
++						   msecs_to_jiffies(10));
++		if (time)
++			return 0;
++
++		if (readl_relaxed(csid->base + CSID_TOP_IRQ_STATUS) &
++		    BIT(TOP_IRQ_STATUS_RESET_DONE)) {
++			dev_dbg(csid->camss->dev,
++				"CSID%u: reset done without an interrupt\n",
++				csid->id);
++			return 0;
++		}
+ 	}
+ 
+-	return 0;
++	dev_err(csid->camss->dev,
++		"CSID reset timeout: top irq %#x, rx irq %#x, rdi0 %#x\n",
++		readl_relaxed(csid->base + CSID_TOP_IRQ_STATUS),
++		readl_relaxed(csid->base + CSID_CSI2_RX_IRQ_STATUS),
++		readl_relaxed(csid->base + CSID_RDI_CFG0(0)));
++
++	return -EIO;
+ }
+ 
+ static void csid_subdev_init(struct csid_device *csid)
