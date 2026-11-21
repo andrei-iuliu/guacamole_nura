@@ -1,0 +1,734 @@
+libcamera: software_isp: luma and chroma noise reduction and sharpening
+
+The GPU debayer ends at the gamma curve: a dim scene comes out grainy and a
+bright one soft, where the reference phones smooth the flat areas and keep the
+edges crisp. Omarchy Mobile's libcamera adds a second pass to the GPU debayer
+that does both, and the CPU twin of that ISP (omacam's omacam-merge, isp.rs) has
+been finishing our merged bursts with the same filter, so live frames and stills
+can now come out of it alike.
+
+The debayer renders into an intermediate texture of the output size, and
+postfilter.frag smooths the luma with an edge-preserving (bilateral) 3x3 filter,
+sharpens it with an unsharp mask cored by the noise level, and averages the
+chroma over 16 taps spanning 9x9 pixels, guided by the luma and the chroma, for
+the blotchy colour noise of high gains. Colour is BT.601 luma and the two colour
+differences, and all of it works on the display-encoded picture the first pass
+writes. A new Detail algorithm of the simple IPA reads the tuning file's
+"- Detail:" section: "sharpen" (the unsharp mask's amount), "denoise" and
+"chromaDenoise" (range sigmas, in fractions of full scale). With the gain g the
+sensor's signal is multiplied by, the analogue gain it gets times the digital
+gain that brings back the highlight headroom, denoise and chromaDenoise grow as
+sqrt(g) up to 0.15 and 0.25 while sharpen falls as 1 / (1 + log2(g) / 3), and
+the Sharpness control (0..4, 1 by default) scales the amount. A missing key is
+0, and a tuning file without the section leaves the picture exactly as before:
+the pass does not run and the intermediate texture is never allocated. The
+output's byte order becomes a uniform rather than a define, so that the first
+pass can write RGB for the second to read.
+
+The stages and their strengths are Omarchy Mobile's (Copyright (C) 2026 Derek
+Ross, LGPL-2.1-or-later), from its "software_isp: debayer_egl: Add a noise
+reduction and sharpening pass", "ipa: simple: Add noise reduction and
+sharpening" and "software_isp: debayer_egl: Smooth the chroma" patches, adapted
+onto our shaders and pipeline. Where they differ, omacam's isp.rs decides: it
+keeps no default strengths of its own, so neither does this.
+---
+
+diff --git a/include/libcamera/internal/software_isp/debayer_params.h b/include/libcamera/internal/software_isp/debayer_params.h
+index 0539775..e8492bb 100644
+--- a/include/libcamera/internal/software_isp/debayer_params.h
++++ b/include/libcamera/internal/software_isp/debayer_params.h
+@@ -56,6 +56,15 @@ struct DebayerParams {
+ 	RGB<float> gains = RGB<float>({ 1.0, 1.0, 1.0 });
+ 	/* Applied after colour correction, with a shoulder near white. */
+ 	float digitalGain = 1.0;
++	/*
++	 * Luma sharpening (the unsharp mask's amount), luma noise reduction
++	 * and chroma noise reduction (range sigmas, in fractions of full
++	 * scale), in a second pass of the GPU debayer that runs only while one
++	 * of them is set. The CPU debayer has no second pass and ignores them.
++	 */
++	float sharpen = 0.0f;
++	float denoise = 0.0f;
++	float chromaDenoise = 0.0f;
+ };
+ 
+ } /* namespace libcamera */
+diff --git a/src/ipa/simple/algorithms/detail.cpp b/src/ipa/simple/algorithms/detail.cpp
+new file mode 100644
+index 0000000..7eb4a15
+--- /dev/null
++++ b/src/ipa/simple/algorithms/detail.cpp
+@@ -0,0 +1,131 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Noise reduction and sharpening, from the tuning file's Detail section
++ *
++ * The stages themselves are Omarchy Mobile's (LGPL-2.1-or-later, Copyright
++ * (C) 2026 Derek Ross), which this follows step for step, as does the CPU port
++ * in omacam's omacam-merge (isp.rs, Detail::for_gain): a burst finished there
++ * and a live frame come out of the same filter with the same strengths.
++ */
++
++#include "detail.h"
++
++#include <algorithm>
++#include <cmath>
++
++#include <libcamera/base/log.h>
++
++#include <libcamera/control_ids.h>
++
++#include "libcamera/internal/software_isp/debayer_params.h"
++
++namespace libcamera {
++
++namespace ipa::soft::algorithms {
++
++LOG_DEFINE_CATEGORY(IPASoftDetail)
++
++namespace {
++
++/*
++ * The range sigmas stop where the filter would smooth past the noise, and the
++ * Sharpness control runs to four times the tuning file's amount.
++ */
++constexpr float kDenoiseMax = 0.15f;
++constexpr float kChromaDenoiseMax = 0.25f;
++constexpr float kSharpnessMax = 4.0f;
++
++} /* namespace */
++
++/**
++ * \class Detail
++ * \brief Luma and chroma noise reduction and sharpening, scaled with the gain
++ *
++ * The GPU debayer's second pass smooths the luma with an edge-preserving
++ * (bilateral) 3x3 filter and sharpens it with an unsharp mask cored by the
++ * noise level. It also averages the chroma over a 9x9 footprint, guided by the
++ * luma and the chroma, for the blotchy colour noise of high gains. Noise grows
++ * with the gain, so the smoothing grows with it and the sharpening falls:
++ *
++ *   denoise = denoise_base * sqrt(gain), at most 0.15
++ *   chroma_denoise = chroma_denoise_base * sqrt(gain), at most 0.25
++ *   sharpen = sharpen_base * Sharpness / (1 + log2(gain) / 3)
++ *
++ * where gain is the analogue gain times the digital gain. The tuning file gives
++ * the bases, and no Detail section leaves the picture untouched:
++ *
++ *   - Detail:
++ *       sharpen: 0.6
++ *       denoise: 0.015
++ *       chromaDenoise: 0.03
++ */
++
++int Detail::init(IPAContext &context, const ValueNode &tuningData)
++{
++	/*
++	 * A missing key is a strength of zero, so a section that names only
++	 * some of them leaves the picture untouched by the others.
++	 */
++	sharpenBase_ = std::max(tuningData["sharpen"].get<float>(0.0f), 0.0f);
++	denoiseBase_ = std::max(tuningData["denoise"].get<float>(0.0f), 0.0f);
++	chromaDenoiseBase_ =
++		std::max(tuningData["chromaDenoise"].get<float>(0.0f), 0.0f);
++
++	context.ctrlMap[&controls::Sharpness] =
++		ControlInfo(0.0f, kSharpnessMax, 1.0f);
++
++	return 0;
++}
++
++void Detail::queueRequest([[maybe_unused]] typename Module::Context &context,
++			  [[maybe_unused]] const uint32_t frame,
++			  [[maybe_unused]] typename Module::FrameContext &frameContext,
++			  const ControlList &controls)
++{
++	const auto &sharpness = controls.get(controls::Sharpness);
++	if (sharpness.has_value()) {
++		sharpness_ = std::clamp(*sharpness, 0.0f, kSharpnessMax);
++		LOG(IPASoftDetail, Debug) << "Setting sharpness to " << sharpness_;
++	}
++}
++
++void Detail::prepare(IPAContext &context,
++		     [[maybe_unused]] const uint32_t frame,
++		     [[maybe_unused]] IPAFrameContext &frameContext,
++		     DebayerParams *params)
++{
++	/*
++	 * The gain the sensor's signal is multiplied by: the analogue gain it
++	 * gets, which is the loop's own once the headroom came off, times the
++	 * digital gain that brings the headroom back.
++	 */
++	const auto &agc = context.activeState.agc;
++	const auto &limits = context.configuration.agc;
++	const double digitalGain = std::exp2(agc.headroom);
++	const double again = std::clamp(agc.again / digitalGain,
++					limits.againMin, limits.againMax);
++	const double gain = std::max(1.0, again * std::max(digitalGain, 1.0));
++
++	params->denoise = std::min(static_cast<float>(denoiseBase_ * std::sqrt(gain)),
++				   kDenoiseMax);
++	params->chromaDenoise =
++		std::min(static_cast<float>(chromaDenoiseBase_ * std::sqrt(gain)),
++			 kChromaDenoiseMax);
++	params->sharpen = static_cast<float>(sharpenBase_ * sharpness_ /
++					     (1.0 + std::log2(gain) / 3.0));
++}
++
++void Detail::process([[maybe_unused]] IPAContext &context,
++		     [[maybe_unused]] const uint32_t frame,
++		     [[maybe_unused]] IPAFrameContext &frameContext,
++		     [[maybe_unused]] const SwIspStats *stats,
++		     ControlList &metadata)
++{
++	metadata.set(controls::Sharpness, sharpness_);
++}
++
++REGISTER_IPA_ALGORITHM(Detail, "Detail")
++
++} /* namespace ipa::soft::algorithms */
++
++} /* namespace libcamera */
+diff --git a/src/ipa/simple/algorithms/detail.h b/src/ipa/simple/algorithms/detail.h
+new file mode 100644
+index 0000000..dc8e9cf
+--- /dev/null
++++ b/src/ipa/simple/algorithms/detail.h
+@@ -0,0 +1,45 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Noise reduction and sharpening, for the GPU debayer's second pass
++ */
++
++#pragma once
++
++#include "algorithm.h"
++
++namespace libcamera {
++
++namespace ipa::soft::algorithms {
++
++class Detail : public Algorithm
++{
++public:
++	Detail() = default;
++	~Detail() = default;
++
++	int init(IPAContext &context, const ValueNode &tuningData) override;
++	void queueRequest(typename Module::Context &context,
++			  const uint32_t frame,
++			  typename Module::FrameContext &frameContext,
++			  const ControlList &controls) override;
++	void prepare(IPAContext &context,
++		     const uint32_t frame,
++		     IPAFrameContext &frameContext,
++		     DebayerParams *params) override;
++	void process(IPAContext &context, const uint32_t frame,
++		     IPAFrameContext &frameContext,
++		     const SwIspStats *stats,
++		     ControlList &metadata) override;
++
++private:
++	/* The tuning file's strengths at a gain of 1. */
++	float sharpenBase_ = 0.0f;
++	float denoiseBase_ = 0.0f;
++	float chromaDenoiseBase_ = 0.0f;
++	/* The Sharpness control: 1 leaves the tuning file's amount. */
++	float sharpness_ = 1.0f;
++};
++
++} /* namespace ipa::soft::algorithms */
++
++} /* namespace libcamera */
+diff --git a/src/ipa/simple/algorithms/meson.build b/src/ipa/simple/algorithms/meson.build
+index d9d5409..fd99eb7 100644
+--- a/src/ipa/simple/algorithms/meson.build
++++ b/src/ipa/simple/algorithms/meson.build
+@@ -7,5 +7,6 @@ soft_simple_ipa_algorithms = files([
+     'agc.cpp',
+     'blc.cpp',
+     'ccm.cpp',
++    'detail.cpp',
+     'lsc.cpp',
+ ])
+diff --git a/src/ipa/simple/data/uncalibrated.yaml b/src/ipa/simple/data/uncalibrated.yaml
+index 673c82a..67981d7 100644
+--- a/src/ipa/simple/data/uncalibrated.yaml
++++ b/src/ipa/simple/data/uncalibrated.yaml
+@@ -28,4 +28,15 @@ algorithms:
+   #     r: [ 0.987, 2.0296, 0.7373, -0.3394 ]
+   #     g: [ 0.9982, 1.5947, 1.2865, -0.7828 ]
+   #     b: [ 1.0, 1.4739, 1.2465, -0.738 ]
++  # Noise reduction and sharpening can be defined here, with the GPU debayer's
++  # second pass: 'denoise' and 'chromaDenoise' are the range sigmas (fractions
++  # of full scale, at most 0.15 and 0.25) of an edge-preserving luma filter and
++  # a 16-tap average of the chroma over 9x9 pixels, and 'sharpen' is an unsharp
++  # mask's amount; each grows with the square root of the gain except the
++  # sharpening, which falls as 1 / (1 + log2(gain) / 3). Missing keys are 0.
++  # Without the section the second pass does not run at all.
++  # - Detail:
++  #     sharpen: 0.6
++  #     denoise: 0.015
++  #     chromaDenoise: 0.03
+ ...
+diff --git a/src/libcamera/shaders/bayer_1x_packed.frag b/src/libcamera/shaders/bayer_1x_packed.frag
+index baf47e7..2add0ee 100644
+--- a/src/libcamera/shaders/bayer_1x_packed.frag
++++ b/src/libcamera/shaders/bayer_1x_packed.frag
+@@ -71,6 +71,12 @@ uniform vec3 blacklevel;
+ uniform float gamma;
+ uniform float contrastExp;
+ uniform float digitalGain;
++/*
++ * 1.0 writes blue first, for the output formats whose bytes EGL orders that
++ * way. A uniform rather than a define so that one program serves both, and so
++ * that the second pass can ask for RGB and swap at its own end.
++ */
++uniform float swap_blue;
+ 
+ /*
+  * Radial lens shading correction. The gain of each channel is the polynomial
+@@ -337,9 +343,5 @@ void main(void)
+ 	/* Apply gamma after colour correction */
+ 	rgb = pow(rgb, vec3(gamma));
+ 
+-#if defined (SWAP_BLUE)
+-	gl_FragColor = vec4(rgb.bgr, 1.0);
+-#else
+-	gl_FragColor = vec4(rgb, 1.0);
+-#endif
++	gl_FragColor = vec4(mix(rgb, rgb.bgr, swap_blue), 1.0);
+ }
+diff --git a/src/libcamera/shaders/bayer_unpacked.frag b/src/libcamera/shaders/bayer_unpacked.frag
+index 7223df1..f05824b 100644
+--- a/src/libcamera/shaders/bayer_unpacked.frag
++++ b/src/libcamera/shaders/bayer_unpacked.frag
+@@ -30,6 +30,8 @@ uniform vec3            blacklevel;
+ uniform float           gamma;
+ uniform float           contrastExp;
+ uniform float           digitalGain;
++/* 1.0 writes blue first, as the packed shader's swap_blue */
++uniform float           swap_blue;
+ 
+ /*
+  * Radial lens shading correction. The gain of each channel is the polynomial
+@@ -242,9 +244,5 @@ void main(void) {
+     /* Apply gamma after colour correction */
+     rgb = pow(rgb, vec3(gamma));
+ 
+-#if defined (SWAP_BLUE)
+-    gl_FragColor = vec4(rgb.bgr, 1.0);
+-#else
+-    gl_FragColor = vec4(rgb, 1.0);
+-#endif
++    gl_FragColor = vec4(mix(rgb, rgb.bgr, swap_blue), 1.0);
+ }
+diff --git a/src/libcamera/shaders/meson.build b/src/libcamera/shaders/meson.build
+index c409ff9..2c39c48 100644
+--- a/src/libcamera/shaders/meson.build
++++ b/src/libcamera/shaders/meson.build
+@@ -7,6 +7,7 @@ shader_files = files([
+     'bayer_unpacked.frag',
+     'bayer_unpacked.vert',
+     'identity.vert',
++    'postfilter.frag',
+ ])
+ 
+ # Generate header from shaders
+diff --git a/src/libcamera/shaders/postfilter.frag b/src/libcamera/shaders/postfilter.frag
+new file mode 100644
+index 0000000..87ecb95
+--- /dev/null
++++ b/src/libcamera/shaders/postfilter.frag
+@@ -0,0 +1,122 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Luma and chroma noise reduction and sharpening: the second pass of the GPU
++ * debayer, over the display-encoded RGB the first pass writes.
++ *
++ * Ported from Omarchy Mobile's libcamera ("debayer_egl: Add a noise reduction
++ * and sharpening pass" and "debayer_egl: Smooth the chroma"), LGPL-2.1-or-later:
++ * Copyright (C) 2026 Derek Ross.
++ *
++ * The luma is smoothed by a 3x3 bilateral filter (a binomial blur weighted by
++ * the difference in luma, so edges keep their contrast) and sharpened by an
++ * unsharp mask cored by the noise level. The chroma is averaged over a 9x9
++ * footprint weighted by the luma and the chroma, which is where the blotchy
++ * colour noise of a high gain goes. Colour is BT.601 luma with the two colour
++ * differences, and 0 in a strength leaves that part alone.
++ */
++
++#ifdef GL_ES
++precision highp float;
++#endif
++
++varying vec2 textureOut;
++
++/* The first pass's output: display-encoded RGB in 0..1 */
++uniform sampler2D tex_rgb;
++/* One output pixel, in texture coordinates */
++uniform vec2 tex_step;
++/* Unsharp mask amount on the luma, 0 leaves it */
++uniform float sharpen;
++/* Range sigma of the luma smoothing, 0 leaves it */
++uniform float denoise;
++/* Range sigma of the chroma smoothing, 0 leaves the chroma */
++uniform float chroma_denoise;
++/* 1.0 to write blue first */
++uniform float swap_blue;
++
++float luma(vec3 c)
++{
++	return dot(c, vec3(0.299, 0.587, 0.114));
++}
++
++void main(void)
++{
++	vec3 c = texture2D(tex_rgb, textureOut).rgb;
++	float y = luma(c);
++
++	/*
++	 * The 3x3 neighbourhood: a binomial blur for the unsharp mask, and the
++	 * same weights scaled down by the difference in luma for the bilateral
++	 * smoothing.
++	 */
++	float blur = 4.0 * y;
++	float smooth_sum = 4.0 * y;
++	float smooth_weight = 4.0;
++	float inv_sigma = denoise > 0.0 ? 1.0 / denoise : 0.0;
++
++	for (int j = -1; j <= 1; j++) {
++		for (int i = -1; i <= 1; i++) {
++			if (i == 0 && j == 0)
++				continue;
++
++			vec2 offset = vec2(float(i), float(j)) * tex_step;
++			float yn = luma(texture2D(tex_rgb, textureOut + offset).rgb);
++			float w = (i == 0 || j == 0) ? 2.0 : 1.0;
++			float d = (yn - y) * inv_sigma;
++			float ws = w * exp(-d * d);
++
++			blur += w * yn;
++			smooth_sum += ws * yn;
++			smooth_weight += ws;
++		}
++	}
++	blur /= 16.0;
++
++	float y_out = denoise > 0.0 ? smooth_sum / smooth_weight : y;
++
++	/* Sharpen detail above the noise only (coring) */
++	float detail = y - blur;
++	detail = sign(detail) * max(abs(detail) - 0.5 * denoise, 0.0);
++	y_out = clamp(y_out + sharpen * detail, 0.0, 1.0);
++
++	vec3 rgb = c + (y_out - y);
++
++	if (chroma_denoise > 0.0) {
++		/*
++		 * Colour noise is blotchy, coarser than the 3x3 above: average
++		 * the chroma over a 9x9 footprint (16 taps at 2 and 4 pixels in
++		 * eight directions), guided by the luma so that colour doesn't
++		 * bleed across edges, and by the chroma itself so that real
++		 * colour detail survives.
++		 */
++		vec2 cc = vec2(c.b - y, c.r - y);
++		vec2 c_sum = cc;
++		float c_weight = 1.0;
++		float inv_c = 1.0 / chroma_denoise;
++		float inv_y = 1.0 / (0.04 + 2.0 * denoise);
++
++		for (int k = 0; k < 16; k++) {
++			float a = float(k) * 0.7853982;
++			float rad = k < 8 ? 2.0 : 4.0;
++			vec2 offset = vec2(cos(a), sin(a)) * rad * tex_step;
++			vec3 cn = texture2D(tex_rgb, textureOut + offset).rgb;
++			float yn = luma(cn);
++			vec2 ccn = vec2(cn.b - yn, cn.r - yn);
++			float dy = (yn - y) * inv_y;
++			vec2 dc = (ccn - cc) * inv_c;
++			float w = (k < 8 ? 1.0 : 0.6) * exp(-dy * dy - dot(dc, dc));
++
++			c_sum += w * ccn;
++			c_weight += w;
++		}
++		cc = c_sum / c_weight;
++
++		/* Rebuild RGB from the luma and the smoothed colour differences */
++		rgb.b = y_out + cc.x;
++		rgb.r = y_out + cc.y;
++		rgb.g = (y_out - 0.299 * rgb.r - 0.114 * rgb.b) / 0.587;
++	}
++
++	rgb = clamp(rgb, 0.0, 1.0);
++	gl_FragColor = vec4(mix(rgb, rgb.bgr, swap_blue), 1.0);
++}
+diff --git a/src/libcamera/software_isp/debayer_egl.cpp b/src/libcamera/software_isp/debayer_egl.cpp
+index 645b246..9710b97 100644
+--- a/src/libcamera/software_isp/debayer_egl.cpp
++++ b/src/libcamera/software_isp/debayer_egl.cpp
+@@ -122,6 +122,7 @@ int DebayerEGL::getShaderVariableLocations(void)
+ 	gammaUniformDataIn_ = glGetUniformLocation(programId_, "gamma");
+ 	contrastExpUniformDataIn_ = glGetUniformLocation(programId_, "contrastExp");
+ 	digitalGainUniformDataIn_ = glGetUniformLocation(programId_, "digitalGain");
++	swapBlueUniformDataIn_ = glGetUniformLocation(programId_, "swap_blue");
+ 
+ 	lscEnabledUniformDataIn_ = glGetUniformLocation(programId_, "lscEnabled");
+ 	lscCentreUniformDataIn_ = glGetUniformLocation(programId_, "lscCentre");
+@@ -168,15 +169,18 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
+ 
+ 	/*
+ 	 * Tell shaders how to re-order output taking account of how the pixels
+-	 * are actually stored by EGL.
++	 * are actually stored by EGL. The first pass writes RGB, so that the
++	 * second can read it without knowing the output's byte order; each
++	 * pass swaps at its end.
+ 	 */
+ 	switch (outputFormat) {
+ 	case formats::ARGB8888:
+ 	case formats::XRGB8888:
++		swapBlue_ = false;
+ 		break;
+ 	case formats::ABGR8888:
+ 	case formats::XBGR8888:
+-		egl_.pushEnv(shaderEnv, "#define SWAP_BLUE");
++		swapBlue_ = true;
+ 		break;
+ 	default:
+ 		LOG(Debayer, Error) << "Unsupported output format";
+@@ -414,6 +418,9 @@ uint32_t DebayerEGL::preferredInputStride(const PixelFormat &inputFormat, const
+ 
+ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerParams &params)
+ {
++	/* The second pass leaves its own program current */
++	egl_.useProgram(programId_);
++
+ 	/*
+ 	 * Raw Bayer 8-bit, and packed raw Bayer 10-bit/12-bit formats
+ 	 * are stored in a GL_LUMINANCE texture. The texture width is
+@@ -634,6 +641,124 @@ eGLImage *DebayerEGL::getCachedOutputFrameBuffer(FrameBuffer *output)
+ 	return eglImageOut;
+ }
+ 
++/*
++ * The second pass, noise reduction and sharpening, takes the debayered picture
++ * from postImage_. Without it (a compile failure, say) the debayer renders
++ * straight to the output, as it does when no tuning asks for any of the three
++ * strengths.
++ */
++int DebayerEGL::initPostShaders()
++{
++	std::vector<std::string> shaderEnv;
++	GLuint vertexShaderId = 0;
++	GLuint fragmentShaderId = 0;
++
++	egl_.pushEnv(shaderEnv, "#version 100");
++
++	if (egl_.compileVertexShader(vertexShaderId, identity_vert, shaderEnv))
++		return -ENODEV;
++	utils::scope_exit vShaderGuard([&] { glDeleteShader(vertexShaderId); });
++
++	if (egl_.compileFragmentShader(fragmentShaderId, postfilter_frag, shaderEnv))
++		return -ENODEV;
++	utils::scope_exit fShaderGuard([&] { glDeleteShader(fragmentShaderId); });
++
++	if (egl_.linkProgram(postProgramId_, vertexShaderId, fragmentShaderId))
++		return -ENODEV;
++
++	postAttributeVertex_ = glGetAttribLocation(postProgramId_, "vertexIn");
++	postAttributeTexture_ = glGetAttribLocation(postProgramId_, "textureIn");
++	postUniformTexture_ = glGetUniformLocation(postProgramId_, "tex_rgb");
++	postUniformStep_ = glGetUniformLocation(postProgramId_, "tex_step");
++	postUniformSharpen_ = glGetUniformLocation(postProgramId_, "sharpen");
++	postUniformDenoise_ = glGetUniformLocation(postProgramId_, "denoise");
++	postUniformChromaDenoise_ = glGetUniformLocation(postProgramId_, "chroma_denoise");
++	postUniformSwapBlue_ = glGetUniformLocation(postProgramId_, "swap_blue");
++	postUniformProjMatrix_ = glGetUniformLocation(postProgramId_, "proj_matrix");
++	postUniformStrideFactor_ = glGetUniformLocation(postProgramId_, "stride_factor");
++
++	LOG(Debayer, Debug) << "post tex_rgb " << postUniformTexture_
++			    << " tex_step " << postUniformStep_
++			    << " sharpen " << postUniformSharpen_
++			    << " denoise " << postUniformDenoise_
++			    << " chroma_denoise " << postUniformChromaDenoise_;
++
++	return 0;
++}
++
++/*
++ * The intermediate texture, of the output size the first pass renders into
++ * and the second reads. Made on the first frame that wants the second pass, so
++ * that a camera whose tuning has no Detail section pays no memory for it.
++ */
++int DebayerEGL::ensurePostPass()
++{
++	if (postImage_)
++		return 0;
++
++	postImage_ = std::make_unique<eGLImage>(GL_RGBA, outputSize_.width,
++					       outputSize_.height,
++					       outputSize_.width * 4, GL_TEXTURE2, 2);
++	egl_.createOutputTexture2D(*postImage_);
++
++	if (egl_.attachTextureToFBO(*postImage_)) {
++		postImage_.reset();
++		return -ENODEV;
++	}
++
++	return 0;
++}
++
++int DebayerEGL::postFilter(eGLImage &eglImageOut, const DebayerParams &params)
++{
++	static const GLfloat vcoordinates[4][2] = {
++		{ -1.0f, -1.0f },
++		{ -1.0f, +1.0f },
++		{ +1.0f, +1.0f },
++		{ +1.0f, -1.0f },
++	};
++	static const GLfloat tcoordinates[4][2] = {
++		{ 0.0f, 0.0f },
++		{ 0.0f, 1.0f },
++		{ 1.0f, 1.0f },
++		{ 1.0f, 0.0f },
++	};
++	static const GLfloat identity[] = {
++		1, 0, 0, 0,
++		0, 1, 0, 0,
++		0, 0, 1, 0,
++		0, 0, 0, 1
++	};
++
++	if (egl_.attachTextureToFBO(eglImageOut))
++		return -ENODEV;
++
++	egl_.useProgram(postProgramId_);
++
++	glEnableVertexAttribArray(postAttributeVertex_);
++	glVertexAttribPointer(postAttributeVertex_, 2, GL_FLOAT, GL_TRUE,
++			      2 * sizeof(GLfloat), vcoordinates);
++	glEnableVertexAttribArray(postAttributeTexture_);
++	glVertexAttribPointer(postAttributeTexture_, 2, GL_FLOAT, GL_TRUE,
++			      2 * sizeof(GLfloat), tcoordinates);
++
++	egl_.activateBindTexture(*postImage_);
++	glUniform1i(postUniformTexture_, postImage_->texture_unit_uniform_id_);
++	glUniform2f(postUniformStep_, 1.0f / outputSize_.width,
++		    1.0f / outputSize_.height);
++	glUniform1f(postUniformSharpen_, params.sharpen);
++	glUniform1f(postUniformDenoise_, params.denoise);
++	glUniform1f(postUniformChromaDenoise_, params.chromaDenoise);
++	glUniform1f(postUniformSwapBlue_, swapBlue_ ? 1.0f : 0.0f);
++	glUniformMatrix4fv(postUniformProjMatrix_, 1, GL_FALSE, identity);
++	glUniform1f(postUniformStrideFactor_, 1.0f);
++
++	glViewport(0, 0, outputSize_.width, outputSize_.height);
++	glDrawArrays(GL_TRIANGLE_FAN, 0, DEBAYER_OPENGL_COORDS);
++
++	return 0;
++}
++
+ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
+ {
+ 	eGLImage *eglImageIn;
+@@ -649,13 +774,31 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
+ 	if (!eglImageOut)
+ 		return -ENOMEM;
+ 
+-	egl_.attachTextureToFBO(*eglImageOut);
++	/*
++	 * The second pass runs only while the IPA asks for one of its
++	 * strengths, so a camera without a Detail section in its tuning file
++	 * debayers straight to the output as it did before.
++	 */
++	bool post = postProgramId_ && !postDisabled_ &&
++		    (params.sharpen > 0.0f || params.denoise > 0.0f ||
++		     params.chromaDenoise > 0.0f);
++	if (post && ensurePostPass()) {
++		LOG(Debayer, Warning) << "No noise reduction or sharpening pass";
++		postDisabled_ = true;
++		post = false;
++	}
++
++	egl_.attachTextureToFBO(post ? *postImage_ : *eglImageOut);
+ 	setShaderVariableValues(*eglImageIn, params);
++	glUniform1f(swapBlueUniformDataIn_, !post && swapBlue_ ? 1.0f : 0.0f);
+ 
+ 	glViewport(0, 0, width_, height_);
+ 	glClear(GL_COLOR_BUFFER_BIT);
+ 	glDrawArrays(GL_TRIANGLE_FAN, 0, DEBAYER_OPENGL_COORDS);
+ 
++	if (post && postFilter(*eglImageOut, params))
++		return -ENODEV;
++
+ 	GLenum err = glGetError();
+ 	if (err != GL_NO_ERROR) {
+ 		LOG(eGL, Error) << "Drawing scene fail " << err;
+@@ -739,6 +882,14 @@ int DebayerEGL::start()
+ 	if (initBayerShaders(inputPixelFormat_, outputPixelFormat_))
+ 		return -EINVAL;
+ 
++	postDisabled_ = false;
++	if (initPostShaders()) {
++		LOG(Debayer, Warning) << "No noise reduction or sharpening pass";
++		if (postProgramId_)
++			glDeleteProgram(postProgramId_);
++		postProgramId_ = 0;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -749,6 +900,11 @@ void DebayerEGL::stop()
+ 
+ 	if (programId_)
+ 		glDeleteProgram(programId_);
++
++	postImage_.reset();
++	if (postProgramId_)
++		glDeleteProgram(postProgramId_);
++	postProgramId_ = 0;
+ }
+ 
+ SizeRange DebayerEGL::sizes(PixelFormat inputFormat, const Size &inputSize)
+diff --git a/src/libcamera/software_isp/debayer_egl.h b/src/libcamera/software_isp/debayer_egl.h
+index eb229bc..b6768c6 100644
+--- a/src/libcamera/software_isp/debayer_egl.h
++++ b/src/libcamera/software_isp/debayer_egl.h
+@@ -67,6 +67,9 @@ private:
+ 	int initBayerShaders(PixelFormat inputFormat, PixelFormat outputFormat);
+ 	int getShaderVariableLocations();
+ 	void setShaderVariableValues(eGLImage &eGLImageIn, const DebayerParams &params);
++	int initPostShaders();
++	int ensurePostPass();
++	int postFilter(eGLImage &eglImageOut, const DebayerParams &params);
+ 	int debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *mappedInputBuffer, std::optional<DmaSyncer> *inputBufferDmaSyncer);
+ 
+ 	eGLImage *getCachedInputFrameBuffer(FrameBuffer *input, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer);
+@@ -112,6 +115,25 @@ private:
+ 	GLint contrastExpUniformDataIn_;
+ 	GLint digitalGainUniformDataIn_;
+ 
++	/* Blue first in the output */
++	GLint swapBlueUniformDataIn_;
++	bool swapBlue_ = false;
++
++	/* The second pass: noise reduction and sharpening */
++	GLuint postProgramId_ = 0;
++	bool postDisabled_ = false;
++	std::unique_ptr<eGLImage> postImage_;
++	GLint postAttributeVertex_;
++	GLint postAttributeTexture_;
++	GLint postUniformTexture_;
++	GLint postUniformStep_;
++	GLint postUniformSharpen_;
++	GLint postUniformDenoise_;
++	GLint postUniformChromaDenoise_;
++	GLint postUniformSwapBlue_;
++	GLint postUniformProjMatrix_;
++	GLint postUniformStrideFactor_;
++
+ 	/* Radial lens shading correction */
+ 	GLint lscEnabledUniformDataIn_;
+ 	GLint lscCentreUniformDataIn_;

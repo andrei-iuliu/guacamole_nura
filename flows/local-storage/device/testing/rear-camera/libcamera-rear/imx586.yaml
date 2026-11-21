@@ -52,5 +52,11 @@ algorithms:
       # Highlight priority (patch 0028): lower the target until at most 2 % of
       # the output renders white. Window A/B 2026-11-21: clipped 14 % -> 3.4 %.
       maxClipped: 0.02
+  # Noise reduction and sharpening in the GPU debayer's second pass (patch
+  # 0029, from Omarchy Mobile); Omarchy's defaults, approved live 2026-11-21.
+  - Detail:
+      sharpen: 0.6
+      denoise: 0.015
+      chromaDenoise: 0.03
   - Af:
 ...
