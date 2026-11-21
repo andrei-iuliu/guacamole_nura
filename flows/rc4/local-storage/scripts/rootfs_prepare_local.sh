@@ -1254,7 +1254,7 @@ sign_system_apks() {
         python3 "$ROOT/scripts/check_local_candidate.py" apk-resign \
             --source "$source" --sha256 "$expected" \
             --signed-control "$staging/$name.control.tar.gz" --output "$TMP/$name-$version.apk"
-        sudo install -m 644 "$TMP/$name-$version.apk" "$PKGDIR/$name-$version.apk"
+        sudo install -m 644 -o 12345 -g 12345 "$TMP/$name-$version.apk" "$PKGDIR/$name-$version.apk"
         "${PMB[@]}" chroot -- apk verify "/mnt/pmbootstrap/packages/$CHANNEL/aarch64/$name-$version.apk"
     done < <(python3 - "$TMP/source.json" <<'PY'
 import json, sys
