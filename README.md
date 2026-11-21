@@ -24,8 +24,9 @@ known issues. `runtime-workspace` remains the prepared build/runtime workspace.
 See [workspace status](docs/WORKSPACE_STATUS.md) before building: local tools,
 chroots, firmware bundles and images are not stored in Git.
 
-For a fresh pull, use the [build environment and local-input checklist](docs/BUILD_ENVIRONMENT.md)
-and copy `build-env.example.sh` to your ignored `build-env.local.sh`.
+**To build and install from a fresh clone, follow [INSTALL.md](INSTALL.md)** (`./nura`).
+The [build environment and local-input checklist](docs/BUILD_ENVIRONMENT.md)
+has the details behind each step.
 For the original prepared 7.0 netboot setup, run these host scripts in separate terminals
 from its prepared runtime checkout (Bash or fish; no sudo in front):
 
