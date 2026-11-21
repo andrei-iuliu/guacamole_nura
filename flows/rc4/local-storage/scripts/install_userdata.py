@@ -37,6 +37,7 @@ import socket
 import struct
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -57,7 +58,16 @@ def die(msg: str) -> None:
 
 
 def say(msg: str) -> None:
-    print(f"==> {msg}", flush=True)
+    print(f"==> [{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def detail(msg: str) -> None:
+    print(f"    {msg}", flush=True)
+
+
+def fmt_secs(secs: float) -> str:
+    secs = int(secs)
+    return f"{secs // 60}m{secs % 60:02d}s" if secs >= 60 else f"{secs}s"
 
 
 def sha256(path: Path) -> str:
@@ -128,6 +138,41 @@ class Fastboot:
             return subprocess.CompletedProcess(argv, 0, "", "")
         return subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
 
+    def stream(self, args: list[str], timeout: int) -> subprocess.CompletedProcess:
+        """Like run(write=True), but echo fastboot's progress lines as they arrive."""
+        if not self.allowed(args):
+            die(f"refusing fastboot command: {args}")
+        argv = [self.binary] + (["-s", self.serial] if self.serial else []) + args
+        if self.dry_run:
+            say(f"dry run, would run: {shlex.join(argv)}")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        start = time.monotonic()
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        timed_out = threading.Event()
+        killer = threading.Timer(timeout, lambda: (timed_out.set(), proc.kill()))
+        killer.start()
+        out, line = [], bytearray()
+        try:
+            while chunk := proc.stdout.read1(4096):
+                for b in chunk:
+                    if b in (10, 13):           # fastboot ends some lines with \r
+                        text = line.decode(errors="replace").strip()
+                        if text:
+                            out.append(text)
+                            detail(f"[{fmt_secs(time.monotonic() - start):>6}] {text}")
+                        line.clear()
+                    else:
+                        line.append(b)
+            if line.strip():
+                out.append(line.decode(errors="replace").strip())
+                detail(out[-1])
+            rc = proc.wait()
+        finally:
+            killer.cancel()
+        if timed_out.is_set():
+            out.append(f"killed after {fmt_secs(timeout)}")
+        return subprocess.CompletedProcess(argv, rc, "\n".join(out) + "\n", "")
+
     def devices(self) -> list[str]:
         out = self.run(["devices"]).stdout
         return [line.split()[0] for line in out.splitlines() if line.strip().endswith("fastboot")]
@@ -165,11 +210,20 @@ def check_device(fb: Fastboot, image_size: int, accept_product: str | None) -> d
     return facts
 
 
-def wait_for(predicate, timeout: float, interval: float = 2.0) -> bool:
-    end = time.monotonic() + timeout
+def wait_for(predicate, timeout: float, interval: float = 2.0, what: str | None = None,
+             every: float = 30.0) -> bool:
+    """Poll predicate; with `what`, print a heartbeat every `every` seconds."""
+    start = time.monotonic()
+    end, next_note = start + timeout, start + every
     while time.monotonic() < end:
         if predicate():
+            if what:
+                detail(f"{what}: ready after {fmt_secs(time.monotonic() - start)}")
             return True
+        now = time.monotonic()
+        if what and now >= next_note:
+            detail(f"still waiting for {what} ({fmt_secs(now - start)} of {fmt_secs(timeout)})")
+            next_note = now + every
         time.sleep(interval)
     return False
 
@@ -240,15 +294,27 @@ def debug_shell(host: str, port: int, script: str, done: re.Pattern, timeout: fl
         buf = b""
         for line in script.strip().splitlines():
             s.sendall(line.encode() + b"\n")
-        end = time.monotonic() + timeout
+        echoed = [ln.strip()[:40] for ln in script.strip().splitlines()]
+        start = time.monotonic()
+        end, shown, next_note = start + timeout, 0, start + 30
         while time.monotonic() < end:
             try:
                 chunk = s.recv(65536)
             except socket.timeout:
-                continue
-            if not chunk:
+                chunk = None
+            if chunk == b"":
                 break
-            buf += strip_telnet(chunk)
+            if chunk:
+                buf += strip_telnet(chunk)
+                # show the shell's output line by line, minus the echoed script
+                while (nl := buf.find(b"\n", shown)) >= 0:
+                    text = buf[shown:nl].decode(errors="replace").replace("\r", "").strip()
+                    shown = nl + 1
+                    if text and not any(e and e in text for e in echoed):
+                        detail(f"| {text}")
+            if time.monotonic() >= next_note:
+                detail(f"filesystem check running ({fmt_secs(time.monotonic() - start)})")
+                next_note = time.monotonic() + 30
             m = done.search(buf)
             if m:
                 return int(m.group(1)), buf.decode(errors="replace")
@@ -452,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
                 subprocess.run(ssh_argv(args, "-t") + ['sync; sudo sh -c "sync; reboot bootloader"'])
             else:
                 say("no fastboot device and no SSH: put the phone into fastboot mode (Power + Volume Down)")
-            if not wait_for(lambda: bool(fb.devices()), 180):
+            if not wait_for(lambda: bool(fb.devices()), 180, what="a fastboot device"):
                 die("no fastboot device appeared")
         elif not args.skip_backup:
             say("phone is already in fastboot: no backup possible (use --skip-backup to silence this)")
@@ -463,8 +529,8 @@ def main(argv: list[str] | None = None) -> int:
             confirm(f"\nThis REPLACES the Linux rootfs on userdata of {fb.serial} with\n  {m['image']}\n"
                     f"  sha256 {m['image_sha256']}\nAll data in /home/user on the phone is lost.",
                     CONFIRM_PHRASE)
-        say("flashing userdata in 64 MiB sparse chunks")
-        r = fb.run(["-S", "64M", "flash", "userdata", str(m["image"])], timeout=3600, write=True)
+        say("flashing userdata in 64 MiB sparse chunks (usually 3-6 minutes; fastboot output follows)")
+        r = fb.stream(["-S", "64M", "flash", "userdata", str(m["image"])], timeout=3600)
         if r.returncode != 0:
             die(f"flash failed:\n{r.stdout}{r.stderr}")
         if args.dry_run:
@@ -480,8 +546,9 @@ def main(argv: list[str] | None = None) -> int:
                           env=env).returncode != 0:
             die("debug image did not boot; userdata is flashed, the phone is still in fastboot")
         say("waiting for the initramfs debug shell (telnet 23)")
-        if not wait_for(lambda: port_open(args.phone_ip, 23), 240):
+        if not wait_for(lambda: port_open(args.phone_ip, 23), 240, what="the debug shell"):
             die("debug shell did not appear; check the host USB network (172.16.42.2/24)")
+        say("running a read-only e2fsck of both subpartitions in the debug shell")
         rc, transcript = debug_shell(args.phone_ip, 23, FSCK_SCRIPT, DONE, 900)
         (logdir / "debug-fsck.txt").write_text(transcript)
         if rc != 0:
@@ -495,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         # 6. continue and check
         continue_boot(args.phone_ip, 23)
         say("continuing boot; first boot grows the filesystem, this can take several minutes")
-        if not wait_for(lambda: ssh_ok(args), 900, 5):
+        if not wait_for(lambda: ssh_ok(args), 900, 5, what="SSH on the booted rootfs"):
             die("SSH did not come up within 15 minutes; check the screen")
         release = subprocess.run(ssh_argv(args) + ["uname -r"], capture_output=True, text=True).stdout.strip()
         if release != m["release"]:
