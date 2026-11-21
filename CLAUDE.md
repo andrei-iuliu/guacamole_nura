@@ -1,82 +1,192 @@
 # CLAUDE.md
 
-The current flow (rc4, rootfs on `userdata`) runs through `./nura`
-(`./nura help`); see `docs/BUILD_ENVIRONMENT.md` and `scripts/README.md`. For
-the 7.0 rear-camera work, read `docs/WORKSPACE_STATUS.md` and
-`docs/DELIVERY_LIFECYCLE.md` first. The older workflow below describes the
-6.17 baseline; its build/flash scripts moved to `archive/scripts/` (see
-`archive/README.md`). Current source and mocked tests also live under `tests/`.
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this repo is
 
-A bringup workspace for running postmarketOS / Nura on the OnePlus 7 Pro (`oneplus-guacamole`, Qualcomm SM8150 / Snapdragon 855). There is no application code and no test suite. "Testing" means building a `boot.img`, booting it on the phone, and checking `dmesg` or the hardware over SSH (`ssh user@172.16.42.1`, USB gadget networking). `docs/PLAN.md` tracks phase status; audio works for stereo speakers and the internal mic (earpiece/call audio still pending). Battery, charging, Wi-Fi and Bluetooth work. ModemManager detects the modem over the IPA data path, but cellular (SIM, registration, data, calls) is untested: no SIM has been fitted yet.
+A bringup workspace for running postmarketOS / Nura on the OnePlus 7 Pro
+(`oneplus-guacamole`, Qualcomm SM8150 / Snapdragon 855). The current
+generation is **rc4**: kernel `7.0.0-sm8150-guacamole-rc4` (from the
+`v7.0.0-sm8150` tag, `LLVM=1`, local patches), Phosh by default (Plasma
+optional). The rootfs sits on `userdata`, and the boot image on `boot_b`.
 
-## Boot image pipeline (actual dev loop)
+- **Build and install:** [INSTALL.md](INSTALL.md) is the path from a fresh
+  clone to an installed phone. [docs/BUILD_ENVIRONMENT.md](docs/BUILD_ENVIRONMENT.md)
+  has the variables, pins and retry/upgrade procedures.
+- **What runs on the phone now:** [docs/WORKSPACE_STATUS.md](docs/WORKSPACE_STATUS.md)
+  (authoritative) and the status table in [README.md](README.md).
+- **Install-work status and deferred decisions:** `notes/INSTALL_IMPROVEMENTS.md`
+  and `notes/REVISIT_LATER.md`. Both are gitignored and local only.
 
-> 6.17 history. These commands ran from `scripts/`; the scripts now live in
-> `archive/scripts/` and do not run from there as-is (`archive/README.md`
-> explains how to run one from git history). Current work uses `./nura`.
+## The current flow: `./nura`
 
-Device-tree work does **not** go through the upstream `dts/*.dts` sources. The loop is:
+Every step goes through `./nura` (Bash; works from fish). It loads
+`build-env.local.sh` when present (template: `build-env.example.sh`) and parses
+`--ui phosh|plasma` once.
 
-1. Edit **`base_guacamole_working.dts`**. This is a *flattened, decompiled* DTS (from `dtc -I dtb -O dts`): no `#include`s, no labels for most nodes, and every cross-reference is a raw numeric phandle (`<0xde>`). When you add a node that others reference, give it a `phandle = <0x...>;` that is unused (grep the file for the current maximum) and reference it numerically.
-2. `python3 scripts/patch_dtb.py` applies fix-ups by **exact string replacement** (tab-indented text blocks): it corrects reserved-memory regions, adds the ramoops/bootloader_log/cdsp_sec/param/mtp carve-outs, and injects `qcom,msm-id` / `qcom,board-id` so ABL accepts the DTB. It writes `build/patched_guacamole.dts` and compiles `build/custom_guacamole.dtb`. The `assert` fails if the `rmtfs-mem` block it anchors on is reformatted, so keep that block's exact formatting.
-3. `archive/scripts/build_bootimg.sh` runs step 2. It then packs `build/boot.img` (mkbootimg header v2, offsets matching `deviceinfo`, cmdline with ramoops and `PMOS_NO_OUTPUT_REDIRECT`) and adds an AVB hash footer. The kernel comes from `$KERNEL_DIR/boot/vmlinuz` (default `build/kernel_r6`), or failing that from the pmbootstrap chroot at `~/.local/var/pmbootstrap/chroot_rootfs_oneplus-guacamole`. The initramfs comes from `$INITRAMFS` if set, else `/tmp/device_initramfs_r4` or that same chroot.
-4. `scripts/fastboot_boot.sh [boot.img]` runs `fastboot boot` with the recovery the ABL needs (non-destructive; prefer this). Test every image this way first; only then flash it, and only to `boot_b` (`fastboot flash boot_b <img>`). Never flash `boot_a`, and never flash `userdata` unless you are deliberately reinstalling the rootfs. The ABL often stalls at `Sending 'boot.img'` or answers `Load Error` while the device still enumerates; the script then resets the USB device from the host (`USBDEVFS_RESET`), runs `fastboot reboot bootloader` and retries, which clears it without touching the phone. `archive/scripts/flash_boot.sh test` is the plain version; wrap it in `timeout 10`. Reboot into the bootloader with `ssh user@172.16.42.1 'sudo reboot bootloader'` (SSH key auth works; `sudo` needs the test password).
-5. After a panic, reboot into TWRP and run `scripts/ramoops.sh` to pull pstore logs into `logs/ramoops_<timestamp>/`.
-
-```bash
-./archive/scripts/build_bootimg.sh
+```
+./nura prereqs | fetch [--lineage-ota ZIP] [--check] | firmware OTA_ZIP | baseline
+./nura signing-key [status|adopt WORK|seed WORK]
+./nura kernel | check | build [--fresh-baseline] | debug-image
+./nura preflight | install [--dry-run] | shutdown | clean [--apply] [--rootfs] | env
 ```
 
-With a new kernel package, the modules in `/lib/modules` on the phone must match the kernel you boot. Install the APK on the phone first (`apk add /tmp/linux-...apk`; this only regenerates `/boot`, it never flashes), extract the same APK into `build/kernel_rN/`, copy the phone's new `/boot/initramfs` next to it, and then run:
+Where things live:
 
-```bash
-KERNEL_DIR=$PWD/build/kernel_r8 INITRAMFS=$PWD/build/kernel_r8/initramfs ./archive/scripts/build_bootimg.sh
-```
+- `flows/rc4/`: kernel recipe (`device/testing/linux-postmarketos-qcom-sm8150`,
+  patches `0001`–`0075`), the rc4 device package, `scripts/rc4.sh`
+  (check/contract/kernel/shutdown) and `tests/`. Topic write-ups are in `topics/`.
+- `flows/rc4/local-storage/`: the user-run rootfs and boot-image flow
+  (`scripts/local_storage_build.sh`, `install_userdata.py`). Its
+  `device/testing/` entries are symlinks into `flows/rc4/device/testing` and
+  `flows/local-storage/device/testing`; edit the link targets.
+- State and outputs: `flows/rc4/local-storage/.work/local-userdata-phosh/`
+  (pmbootstrap work dir and kernel copy) and `.../build/local-userdata-phosh/`
+  (`DELIVERY.local.json`, boot image). The kernel builds into `RC4_KERNEL_ROOT`
+  (for example `.work/rc4o-build`) or `flows/rc4/build-source/`.
+- `scripts/`: helpers called by `./nura`, indexed in `scripts/README.md`.
+  `archive/scripts/`: superseded 6.17/7.0 scripts (see `archive/README.md`).
+- Ignored local inputs: `local/` (host tools, `local/sources/` kernel
+  tarball), `platform-tools/`, `ref/lineageos/`, and the firmware and sensor
+  tarballs next to their APKBUILDs.
 
-```bash
-./archive/scripts/flash_boot.sh test
-```
+## Rules for working here
 
-Needs on the host: `dtc`, `mkbootimg`, `avbtool`, `fastboot`/`adb` (or `pmbootstrap flasher` as a fallback).
+- **Phone writes.** Test every boot image in RAM first with
+  `scripts/fastboot_boot.sh <img>`; only then `fastboot flash boot_b`. Never
+  flash `boot_a`, `dtbo`, `vbmeta`, or change the active slot. `userdata` is
+  written only by `./nura install`, which needs a typed confirmation. The
+  ABL often stalls at `Sending 'boot.img'` or answers `Load Error`;
+  `fastboot_boot.sh` resets the USB device and retries.
+- **User-run steps.** `./nura build`, `install`, `shutdown` and
+  `clean --rootfs` need sudo or the phone; the flow scripts mark them
+  `USER RUN`. Hand them to the user unless asked to run them.
+- **pmbootstrap.** Never run two pmbootstrap commands at once:
+  `checksum`/`build` wipe the shared build dir and kill a running build. After
+  a failed build, `./nura shutdown` clears leftover chroot mounts; never
+  force-unmount them.
+- **Signing key.** One project key in `~/.config/nura-guacamole/abuild/`. The
+  phone only installs packages signed with the key its rootfs was built
+  with. Don't delete a pmbootstrap work dir whose key isn't the project key
+  (`./nura clean` enforces this).
+- **Git.** `main` is a public fork. Commit locally; push only when the user
+  says so. Never commit the large binaries (`*.img`, TWRP zip,
+  `stock_boot*.img`), `build-env.local.sh` or anything under `notes/`.
 
-`base_guacamole_working.dts.bak` and `.adsp_only` are untracked manual snapshots from before audio changes. They are not inputs to the build.
+## Testing
 
-## Kernel and packages
+There is no app; "testing" means host checks, then booting the image and
+checking over SSH (`ssh user@172.16.42.1`, USB gadget networking; key auth,
+`sudo` needs the phone password).
 
-- `device/testing/*` are pmaports packages. pmbootstrap builds from `~/.local/var/pmbootstrap/cache_git/pmaports/device/testing/`. The device and firmware packages there are symlinks to this repo, but `linux-postmarketos-qcom-sm8150` is a **separate copy**. After editing the repo copy, copy the files there and run `pmbootstrap checksum`; then make sure both directories are identical (`diff -rq`). Never run two pmbootstrap commands at once: `checksum`/`build` wipe the shared build dir (`chroot_native/home/pmos/build`), which kills a build already in progress. Packages: `device-oneplus-guacamole` (deviceinfo, the charging daemon `guacamole-chgctrl`, the MPSS init script, WoWLAN configs), `firmware-oneplus-guacamole`, and `linux-postmarketos-qcom-sm8150`. The kernel is the `v6.17.0-sm8150` tag from gitlab.com/sm8150-mainline/linux, built with `LLVM=1` and carrying the local `000N-*.patch` files.
-- `archive/scripts/build_kernel.sh /path/to/linux` builds a kernel tree via pmbootstrap `envkernel.sh` and then runs `pmbootstrap build --envkernel`. Source `archive/scripts/envsetup.sh` for the `pmb` / `pmb-guacamole` / `envkernel` helpers.
-- `pmbootstrap/` is a gitignored clone of pmbootstrap. The pmbootstrap work dir is `~/.local/var/pmbootstrap`.
-- Kernel patches: `0004` DSC panel + MSM DSI 2-slices-per-packet, `0005` s6sy761 reset GPIO, `0006` geni I2C FIFO mode, `0007` TFA9874 speaker amp driver (ported from hotdog), `0008` SM8150 `QUATERNARY_MI2S_RX` speaker backend + per-SLIMbus-link channel maps, `0009` ath10k quiet-mode skip, `0010` UFS HS-G3 cap, `0011`/`0012` charger and gauge fixes, `0013`–`0016` IPA v4.1 (SM8150) support for the modem data path (from hotdog 0144/0145/0156), `0017` FastRPC sensors-PD message buffers from the reserved pool (hotdog 0148), `0018`/`0019` SMB5 USB3 SDP current and the writable `input_current_limit` property (hotdog 0151/0152), `0020`–`0024` USB-PD on PM8150B: input window override, Type-C sink exit on CC only, charger following the TCPM contract (current, standby, voltage window), VBUS diagnostics. The board never passes a 9 V PD supply to the PMIC (USBIN reads 0 V under a 9 V contract), so the connector sinks 5 V/3 A only; do not re-add the 9 V/12 V PDOs without new evidence.
+- Host: `./nura check` (read-only recipe and rootfs preflight),
+  `python3 -m unittest discover -s flows/rc4/tests` (rc4 flow), and
+  `python3 -m unittest tests/test_<name>.py` (scripts; pytest isn't
+  installed). The full `tests/` suite has known failures from older
+  generations, so compare it with the state before your change, not with
+  zero.
+- Phone: `dmesg`, `journalctl -b`, the hardware itself. Reboot into the
+  bootloader with `ssh user@172.16.42.1 'sync; sudo sh -c "sync; reboot bootloader"'`.
+
+## Kernel upgrades on an installed phone
+
+The release string stays `7.0.0-sm8150-guacamole-rc4` across candidates.
+Compare `Module.symvers` and the BTF with the running kernel. If they're
+unchanged, only a new `boot_b` image is needed. If the ABI changed, install
+the kernel APK on the phone (`apk add`, then `sync`), then boot the matching
+image. Details: BUILD_ENVIRONMENT.md, "Upgrading the kernel while keeping
+userdata".
 
 ## Reference material (untracked, read-only)
 
-- `hotdog-linux-bringup/`: a bringup project for the OnePlus 7T Pro (`hotdog`), a sibling device. Useful for SM8150 patterns, but its hardware differs (for example, touch power on hotdog comes from PM8150L; on guacamole it is PM8150 LDO17 plus GPIO 119).
-- `qcom/`: upstream SM8150 audio references (`sm8150-wcd9340.dtsi`, the Xiaomi cepheus/raphael DTS files, the `qdsp6` driver, `sm8150.c` machine driver). Use them as templates when porting audio nodes into the flattened DTS.
-- `build/audio_ref/stock_vendor_b/`: stock OxygenOS `tfa98xx.cnt` and `mixer_paths_tavil.xml` read from the phone's `vendor_b` partition. These are the source of truth for audio routes (parse the container with `hotdog-linux-bringup/scripts/inspect-tfa-container.py`).
-- `ref/lineageos/`: LineageOS 24 guacamole build (boot/dtbo/vbmeta and the OTA zip). Useful for downstream behaviour, e.g. modem and call audio.
-- `linux-v6.17.0-sm8150/`, `build/kernel_r*/`, `extracted_dtb/device.dts` (the live DTB dumped from stock Android via `scripts/extract_dtb.sh`), and `backups/dtbo_*.img`.
+- `hotdog-linux-bringup/`: OnePlus 7T Pro (`hotdog`) bringup, a sibling
+  device. Useful for SM8150 patterns, but the hardware differs: for example,
+  hotdog's touch power comes from PM8150L, while guacamole uses PM8150 LDO17
+  plus GPIO 119.
+- `qcom/`: upstream SM8150 audio references (WCD9340 dtsi, Xiaomi
+  cepheus/raphael DTS, `qdsp6`, `sm8150.c`).
+- `build/audio_ref/stock_vendor_b/`: stock `tfa98xx.cnt` and
+  `mixer_paths_tavil.xml`, the source of truth for audio routes (parse with
+  `hotdog-linux-bringup/scripts/inspect-tfa-container.py`).
+- `ref/lineageos/`: LineageOS 24 guacamole images and OTA. This is also the
+  firmware source: WLAN, board data, Bluetooth and IPA via
+  `./nura firmware`.
+- `linux-v6.17.0-sm8150/`, `extracted_dtb/device.dts` (live DTB from stock
+  Android), `backups/dtbo_*.img`.
 
-## Device-specific gotchas
+## Device gotchas
 
-- The PM8150B charger depends on kernel patch `0011` (SMB5 limit fix). Without it, `qcom_smbx` programs about 4.85 V float voltage. After any change to the charger or the `battery` node, read back `0x1070` (float voltage), `0x1061` (fast-charge current) and `0x1370` (input limit) from `/sys/kernel/debug/regmap/0-02/registers` before leaving the phone on a charger.
-- The bq27411 `capacity` register is voltage-based and reads 0 / Critical with a loaded cell near 3.4 V even when `charge_now` says 30%; UPower powers the phone off on Critical. Treat Critical as real and get the phone onto the 5 V DCP charger (1.8 A); a USB 2 PC port (500 mA) does not keep up with the screen on.
-- Charging policy lives in `guacamole-chgctrl` (device package, systemd unit), not the kernel: it sets `pm8150b-charger/input_current_limit` from the PD contract or BC1.2 type and suspends the input via `status` (write `0` to suspend, `1` to resume). Stop the daemon before experimenting with those files by hand, and never leave the input suspended (`echo 1 > .../status`). `/run/guacamole/charger` is the source-type indicator.
-- The fuel gauge is `ti,bq27411` on `i2c@a80000`. Never add `monitored-battery` to it, because that lets the driver write the gauge's data memory.
-- Never test Wi-Fi by unbinding/rebinding `ath10k_snoc` or by stopping/starting `remoteproc0` at runtime: the MSA region stays assigned to the modem, and a reboot from that state has dropped the phone into Qualcomm crashdump mode (recover with Power + Volume Up). Use a fresh boot for every Wi-Fi test.
-- Debug ath10k on a fresh boot by adding `ath10k_core.debug_mask=0x300022` (BOOT, WMI, SNOC, QMI) to the boot image cmdline.
-- UFS must stay at HS-G3 (kernel patch `0010`). At HS-G4 the link drops buffered writes silently (`OCS invalid` after UIC errors). After any suspected corruption, verify with `apk audit --system` and re-hash files after `echo 3 > /proc/sys/vm/drop_caches`.
-- The WLAN firmware, board data, Bluetooth firmware and IPA firmware come from a LineageOS OTA. Before building `firmware-oneplus-guacamole`, run `scripts/extract_lineage_firmware.py ref/lineageos/<lineage zip> device/testing/firmware-oneplus-guacamole` to create the local tarball.
-- Reboots with Wi-Fi on rely on `qcom,dload-mode` on the `scm` node (TCSR syscon at `0x1fc0000`, offset `0x13000`). Without it, the download-mode cookie stays armed and a reboot with Wi-Fi active can end in Qualcomm crashdump mode (recover with Power + Volume Up).
-- USB tethering on the phone is the local `/etc/systemd/system/usb-internet.service` (default route via `172.16.42.2` on `usb0` plus public DNS). Its route metric must stay at 30000: NetworkManager adds 20000 to a connection's route metric when its connectivity check fails, so a lower USB metric (it was 1000) captured all traffic and DNS on a PC that was not forwarding, and the Wi-Fi check could never recover.
-- Sensors run on the SLPI DSP through `hexagonrpcd` (served tree `/usr/share/qcom`, registry under `/var/lib/guacamole/sensors`) and `iio-sensor-proxy` (libssc). Both are locally patched aports in `device/testing/` (`hexagonrpcd`, `iio-sensor-proxy`), also copied into pmaports `main/`; build them with `pmbootstrap build --arch aarch64 <pkg>`. Never restart `hexagonrpcd` after it has attached to the sensor PD; the PD is created on the first attach only and a restart leaves the sensors dead until reboot. Phosh releases the accelerometer while the screen is off, so test rotation with the screen awake, and use `sudo monitor-sensor --accel` over SSH.
-- Device packages that ship Hexagon `.so` files need `!strip !tracedeps` in `options`, or abuild fails on them.
-- Run `sync` on the phone after every `apk add` and before any reboot (`ssh user@172.16.42.1 'sync; sudo sh -c "sync; reboot bootloader"'`). An r10 kernel upgrade followed straight by `reboot bootloader` once left `/usr/lib/modules/<ver>/` pointing at freed inodes. No modules loaded on the next boot, so touch, audio, the DSPs and Wi-Fi were all missing.
-- Rootfs repair: boot an image with `pmos.debug-shell` on the cmdline, then `nc 172.16.42.1 23`. In that shell, `losetup --show -Pf --direct-io=on --sector-size 4096 /dev/sda19` (`userdata`), `e2fsck -fy /dev/loopNp2`, `losetup -d`, `pmos_continue_boot`. Then restore any cleared package files: extract the APK over `/`, run `depmod -a`, check with `apk audit --system`, and run `udevadm trigger --action=add`.
-- ABL splices the UFS `dtbo_<slot>` partition into whatever DTB it boots. The active slot's DTBO has been zeroed (the originals are in `backups/`). If boots hang silently with no early output, check this first.
-- The Linux rootfs is a pmOS image on the `userdata` partition (UFS LUN 0, partition 19), with the boot and root subpartitions mounted through `loop0` and referenced by UUID in `/etc/fstab`. The active slot is `_b`: `boot_b` holds the Linux boot image. LineageOS system images remain on slot `_a` without data, because the Linux rootfs replaced Android's `/data`. `sdX` names are not stable: the six UFS LUNs probe asynchronously, so LUN 0 is not always `sda`. Use `/dev/disk/by-partlabel/` or SCSI addresses (`0:0:0:N`) instead.
-- UFS uses 4096-byte sectors (`deviceinfo_rootfs_image_sector_size`).
-- Large binaries (`*.img`, the TWRP zip, `stock_boot*.img`) sit in the repo root and are gitignored. Never commit them.
+- **Charger.** PM8150B charging needs patch `0011` (SMB5 limits). Without it,
+  `qcom_smbx` programs about 4.85 V float voltage. After any change to the
+  charger or the `battery` node, read back `0x1070` (float voltage), `0x1061`
+  (fast-charge current) and `0x1370` (input limit) from
+  `/sys/kernel/debug/regmap/0-02/registers` before leaving the phone on a
+  charger.
+- **Charging policy** lives in `guacamole-chgctrl` (device package, systemd).
+  It sets `pm8150b-charger/input_current_limit` from the PD contract or BC1.2
+  type and suspends the input via `status` (`0` suspends, `1` resumes). Stop
+  the daemon before experimenting by hand, and never leave the input
+  suspended. `/run/guacamole/charger` shows the source type. The board never
+  passes a 9 V PD supply to the PMIC, so the connector sinks 5 V/3 A only.
+  Don't re-add 9 V/12 V PDOs without new evidence.
+- **Fuel gauge.** `ti,bq27411` on `i2c@a80000`. Never add `monitored-battery`
+  to it, because that lets the driver write the gauge's data memory. Its
+  `capacity` is voltage-based and reads 0 / Critical near 3.4 V under load
+  even when `charge_now` says 30%. UPower powers off on Critical, so treat it
+  as real: use the 5 V DCP charger (1.8 A), not a USB 2 port.
+- **Wi-Fi.** Never test by unbinding `ath10k_snoc` or by restarting
+  `remoteproc0` at runtime: the MSA region stays assigned to the modem, and a
+  reboot from that state has dropped the phone into Qualcomm crashdump mode
+  (recover with Power + Volume Up). Use a fresh boot per test. For debugging,
+  add `ath10k_core.debug_mask=0x300022` to the cmdline. Reboots with Wi-Fi on
+  rely on `qcom,dload-mode` on the `scm` node (TCSR `0x1fc0000`, offset
+  `0x13000`).
+- **UFS** must stay at HS-G3 (patch `0010`): HS-G4 silently drops buffered
+  writes. After suspected corruption, run `apk audit --system` and re-hash
+  after `echo 3 > /proc/sys/vm/drop_caches`. UFS uses 4096-byte sectors. `sdX`
+  names aren't stable (the LUNs probe asynchronously), so use
+  `/dev/disk/by-partlabel/` or SCSI addresses.
+- **DTBO.** ABL splices the active slot's `dtbo` into whatever DTB it boots.
+  rc4 images carry the ABL-quarantine wrapper DTB
+  (`scripts/prepare_temporary_dtb.py`, [docs/TEMPORARY_BOOT.md](docs/TEMPORARY_BOOT.md)),
+  so the stock DTBO stays in place. If a boot hangs silently with no early
+  output, check the wrapper first. Older setups zeroed the DTBO; the
+  originals are in `backups/`.
+- **Sensors** run on the SLPI DSP through `hexagonrpcd` and `iio-sensor-proxy`
+  (libssc), both locally patched aports in the flow's `device/testing`.
+  Never restart `hexagonrpcd` once it has attached to the sensor PD: the
+  PD is created on the first attach only. Phosh releases the accelerometer
+  while the screen is off, so test with the screen awake
+  (`sudo monitor-sensor --accel`).
+- Device packages that ship Hexagon `.so` files need `!strip !tracedeps`.
+- **Sync.** Run `sync` on the phone after every `apk add` and before any
+  reboot. A kernel upgrade followed straight by `reboot bootloader` once left
+  `/usr/lib/modules/<ver>/` pointing at freed inodes, so no modules loaded on
+  the next boot.
+- **Rootfs repair.** Boot an image with `pmos.debug-shell` (the debug image
+  from `./nura debug-image`), then `nc 172.16.42.1 23`. In that shell, find
+  `userdata` by `PARTNAME=userdata` in `/sys/class/block/*/uevent` (it was
+  `/dev/sda19`, but `sdX` moves; `install_userdata.py` does the same
+  lookup), then run
+  `losetup --show -Pf --direct-io=on --sector-size 4096 <dev>`,
+  `e2fsck -fy /dev/loopNp2`, `losetup -d`, `pmos_continue_boot`. Restore
+  cleared package files by extracting the APK over `/`, then run `depmod -a`,
+  `apk audit --system` and `udevadm trigger --action=add`.
+- **USB tethering** is the phone's local `usb-internet.service` (default route
+  via `172.16.42.2`, metric 30000). Keep the metric: a lower one captured all
+  traffic and DNS whenever the PC was not forwarding.
+- **Panics.** Reboot into TWRP and run `scripts/ramoops.sh` to pull pstore
+  logs into `logs/ramoops_<timestamp>/`.
+
+## History: the 6.17 workflow
+
+Before rc4 the dev loop edited the flattened, decompiled
+`base_guacamole_working.dts`, which uses raw numeric phandles: new nodes take
+an unused `phandle = <0x...>`. `scripts/patch_dtb.py` applied exact-string
+fix-ups (reserved memory, `qcom,msm-id`/`qcom,board-id`), and its assert
+anchors on the `rmtfs-mem` block formatting. `archive/scripts/build_bootimg.sh`
+packed the image. The kernel was the 6.17 recipe in `device/testing/`, built
+via pmbootstrap's `envkernel`. Those scripts are in `archive/scripts/` and
+don't run from there as-is; `archive/README.md` explains how to run one from
+git history. The 6.17 notes are in `docs/PLAN.md`, `docs/BRINGUP_GUIDE.md` and
+`docs/KERNEL_PATCHES.md`.
