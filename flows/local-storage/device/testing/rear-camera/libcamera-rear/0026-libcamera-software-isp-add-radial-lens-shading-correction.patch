@@ -1,0 +1,521 @@
+libcamera: software_isp: add radial lens-shading correction
+
+A lens delivers less light to the corners of the image than to its centre,
+and on the OnePlus 7 Pro main camera the corners get only 25-32% of it, about
+two stops, with red falling off faster than green and blue, so they come out
+dark and tinted. A flat-field fit gives a radial gain per channel,
+k0 + k1*r^2 + k2*r^4 + k3*r^6, with r measured from the optical centre in
+fractions of the image size, so r = 1 at the corners.
+
+The new LensShading algorithm of the simple IPA reads that fit from the
+sensor's tuning file and hands it to the debayer in DebayerParams. Its keys
+are 'r', 'g' and 'b', the four coefficients of each channel and the only
+required ones, 'centre' for the optical centre as fractions of the image
+(default 0.5, 0.5), 'strength' as a 0..1 blend towards no correction
+(default 1) and 'maxGain' as the clamp of the gains (default 4). The two GPU
+fragment shaders apply the gain to the demosaiced linear signal before white
+balance and colour correction, at the position the output pixel samples on
+the sensor, so a stream scaled down from the sensor keeps the fit; a tuning
+file without LensShading applies a gain of exactly 1. The CPU debayer folds
+its processing into lookup tables on the pixel value and cannot carry a gain
+that varies across the frame, so it logs a one-time warning if the
+correction is tuned in.
+---
+diff --git a/include/libcamera/internal/software_isp/debayer_params.h b/include/libcamera/internal/software_isp/debayer_params.h
+index 41fb176..0539775 100644
+--- a/include/libcamera/internal/software_isp/debayer_params.h
++++ b/include/libcamera/internal/software_isp/debayer_params.h
+@@ -18,6 +18,35 @@
+ namespace libcamera {
+ 
+ struct DebayerParams {
++	/*
++	 * Radial lens shading correction. The gain of each channel is the
++	 * polynomial
++	 *
++	 *   gain_c(r) = k0 + k1*r^2 + k2*r^4 + k3*r^6
++	 *
++	 * where r is the distance from the centre, in fractions of the sensor
++	 * image size and normalised so that r = 1 at the corners of a centred
++	 * lens. It corrects the falloff of the lens, which darkens and tints
++	 * the corners of the image, and is applied to the linear signal before
++	 * the colour gains.
++	 */
++	struct LensShading {
++		/* Off unless a LensShading algorithm reads a fit from tuning. */
++		bool enabled = false;
++		/* Centre of the falloff, as fractions of the image size. */
++		float centre[2] = { 0.5f, 0.5f };
++		/* Red, green and blue coefficients k0, k1, k2 and k3. */
++		float coefficients[3][4] = {
++			{ 1.0f, 0.0f, 0.0f, 0.0f },
++			{ 1.0f, 0.0f, 0.0f, 0.0f },
++			{ 1.0f, 0.0f, 0.0f, 0.0f },
++		};
++		/* 0..1, the applied gain is 1 + strength * (gain - 1). */
++		float strength = 1.0f;
++		/* Gains are clamped to [1 / maxGain, maxGain]. */
++		float maxGain = 4.0f;
++	} lsc;
++
+ 	Matrix<float, 3, 3> combinedMatrix = { { 1.0, 0.0, 0.0,
+ 						 0.0, 1.0, 0.0,
+ 						 0.0, 0.0, 1.0 } };
+diff --git a/src/ipa/simple/algorithms/lsc.cpp b/src/ipa/simple/algorithms/lsc.cpp
+new file mode 100644
+index 0000000..a73b383
+--- /dev/null
++++ b/src/ipa/simple/algorithms/lsc.cpp
+@@ -0,0 +1,100 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Copyright (C) 2026, Red Hat Inc.
++ *
++ * Radial lens shading correction
++ */
++
++#include "lsc.h"
++
++#include <algorithm>
++#include <errno.h>
++#include <iterator>
++#include <optional>
++#include <string_view>
++
++#include <libcamera/base/log.h>
++
++namespace libcamera {
++
++namespace ipa::soft::algorithms {
++
++LOG_DEFINE_CATEGORY(IPASoftLsc)
++
++namespace {
++
++/*
++ * Read a list of numbers from the tuning data. The coefficients have no
++ * meaning on their own, so a missing or malformed list fails the init of the
++ * algorithm and leaves lens shading off rather than applying a guess.
++ */
++int readValues(const ValueNode &tuningData, std::string_view name,
++	       float *values, unsigned int count)
++{
++	const ValueNode &node = tuningData[name];
++
++	if (!node.isList() || node.size() != count) {
++		LOG(IPASoftLsc, Error)
++			<< "Failed to parse the " << count << " '" << name
++			<< "' values from the tuning file";
++		return -EINVAL;
++	}
++
++	for (unsigned int i = 0; i < count; i++) {
++		std::optional<float> value = node[i].get<float>();
++		if (!value.has_value()) {
++			LOG(IPASoftLsc, Error)
++				<< "Invalid '" << name << "' value " << i
++				<< " in the tuning file";
++			return -EINVAL;
++		}
++
++		values[i] = *value;
++	}
++
++	return 0;
++}
++
++} /* namespace */
++
++int LensShading::init([[maybe_unused]] IPAContext &context,
++		      const ValueNode &tuningData)
++{
++	static constexpr std::string_view channels[] = { "r", "g", "b" };
++	int ret;
++
++	/* The optical centre in fractions of the sensor image size. */
++	if (tuningData["centre"]) {
++		ret = readValues(tuningData, "centre", lsc_.centre, 2);
++		if (ret)
++			return ret;
++	}
++
++	for (unsigned int i = 0; i < std::size(channels); i++) {
++		ret = readValues(tuningData, channels[i], lsc_.coefficients[i], 4);
++		if (ret)
++			return ret;
++	}
++
++	lsc_.strength = std::clamp(tuningData["strength"].get<float>(lsc_.strength),
++				   0.0f, 1.0f);
++	lsc_.maxGain = std::max(tuningData["maxGain"].get<float>(lsc_.maxGain),
++				1.0f);
++
++	return 0;
++}
++
++void LensShading::prepare([[maybe_unused]] IPAContext &context,
++			  [[maybe_unused]] const uint32_t frame,
++			  [[maybe_unused]] IPAFrameContext &frameContext,
++			  DebayerParams *params)
++{
++	params->lsc = lsc_;
++	params->lsc.enabled = true;
++}
++
++REGISTER_IPA_ALGORITHM(LensShading, "LensShading")
++
++} /* namespace ipa::soft::algorithms */
++
++} /* namespace libcamera */
+diff --git a/src/ipa/simple/algorithms/lsc.h b/src/ipa/simple/algorithms/lsc.h
+new file mode 100644
+index 0000000..81b7848
+--- /dev/null
++++ b/src/ipa/simple/algorithms/lsc.h
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Copyright (C) 2026, Red Hat Inc.
++ *
++ * Radial lens shading correction
++ */
++
++#pragma once
++
++#include "algorithm.h"
++
++namespace libcamera {
++
++namespace ipa::soft::algorithms {
++
++class LensShading : public Algorithm
++{
++public:
++	LensShading() = default;
++	~LensShading() = default;
++
++	int init(IPAContext &context, const ValueNode &tuningData) override;
++	void prepare(IPAContext &context,
++		     const uint32_t frame,
++		     IPAFrameContext &frameContext,
++		     DebayerParams *params) override;
++
++private:
++	DebayerParams::LensShading lsc_;
++};
++
++} /* namespace ipa::soft::algorithms */
++
++} /* namespace libcamera */
+diff --git a/src/ipa/simple/algorithms/meson.build b/src/ipa/simple/algorithms/meson.build
+index 1cd58d5..d9d5409 100644
+--- a/src/ipa/simple/algorithms/meson.build
++++ b/src/ipa/simple/algorithms/meson.build
+@@ -7,4 +7,5 @@ soft_simple_ipa_algorithms = files([
+     'agc.cpp',
+     'blc.cpp',
+     'ccm.cpp',
++    'lsc.cpp',
+ ])
+diff --git a/src/ipa/simple/data/uncalibrated.yaml b/src/ipa/simple/data/uncalibrated.yaml
+index fc90ca5..673c82a 100644
+--- a/src/ipa/simple/data/uncalibrated.yaml
++++ b/src/ipa/simple/data/uncalibrated.yaml
+@@ -16,4 +16,16 @@ algorithms:
+   #                0, 0, 1]
+   - Adjust:
+   - Agc:
++  # Radial lens shading correction can be defined here. 'r', 'g' and 'b' hold
++  # the four coefficients of a gain_c(r) = k0 + k1*r^2 + k2*r^4 + k3*r^6
++  # polynomial fitted on a flat field, with r measured from the optical centre
++  # and normalised to 1 at the corners. 'centre' is that optical centre as
++  # fractions of the image size (default [ 0.5, 0.5 ]); 'strength' (0..1,
++  # default 1) blends towards no correction and 'maxGain' (default 4) limits
++  # the applied gains. The three coefficient lists are required.
++  # - LensShading:
++  #     centre: [ 0.510, 0.460 ]
++  #     r: [ 0.987, 2.0296, 0.7373, -0.3394 ]
++  #     g: [ 0.9982, 1.5947, 1.2865, -0.7828 ]
++  #     b: [ 1.0, 1.4739, 1.2465, -0.738 ]
+ ...
+diff --git a/src/libcamera/shaders/bayer_1x_packed.frag b/src/libcamera/shaders/bayer_1x_packed.frag
+index ad6bf38..baf47e7 100644
+--- a/src/libcamera/shaders/bayer_1x_packed.frag
++++ b/src/libcamera/shaders/bayer_1x_packed.frag
+@@ -72,6 +72,27 @@ uniform float gamma;
+ uniform float contrastExp;
+ uniform float digitalGain;
+ 
++/*
++ * Radial lens shading correction. The gain of each channel is the polynomial
++ *
++ *   gain_c(r) = k0 + k1*r^2 + k2*r^4 + k3*r^6
++ *
++ * where r is the distance from the lens centre, normalised so that r = 1 at
++ * the corners of the sensor image, as the flat-field fit of the falloff used.
++ *
++ * lscCentre is in pixels of the input image and lscScale is 4 / (W^2 + H^2)
++ * for that image, so a position sampled from the full sensor keeps the fit
++ * even when the output stream is scaled down.
++ */
++uniform bool lscEnabled;
++uniform vec2 lscCentre;
++uniform vec4 lscR;
++uniform vec4 lscG;
++uniform vec4 lscB;
++uniform float lscStrength;
++uniform float lscMaxGain;
++uniform float lscScale;
++
+ /*
+  * Digital gain gives back the stops the exposure algorithm took off the sensor
+  * to keep highlights. Above half of white a rational shoulder brings the
+@@ -103,6 +124,30 @@ float apply_contrast(float value)
+ 		return 1.0 - 0.5 * pow((1.0 - value) / 0.5, contrastExp);
+ }
+ 
++/* k0 + k1*r^2 + k2*r^4 + k3*r^6, evaluated with Horner's rule */
++float lsc_gain(vec4 k, float r2)
++{
++	return k.x + r2 * (k.y + r2 * (k.z + r2 * k.w));
++}
++
++/*
++ * Undo the lens falloff on the demosaiced linear signal, before the white
++ * balance gains. Multiplying before the black level came off would scale the
++ * black too and colour it.
++ */
++vec3 apply_lsc(vec3 rgb, vec2 pos)
++{
++	if (!lscEnabled)
++		return rgb;
++
++	vec2 d = pos - lscCentre;
++	float r2 = dot(d, d) * lscScale;
++	vec3 gain = vec3(lsc_gain(lscR, r2), lsc_gain(lscG, r2),
++			 lsc_gain(lscB, r2));
++	gain = vec3(1.0) + lscStrength * (gain - vec3(1.0));
++	return rgb * clamp(gain, vec3(1.0 / lscMaxGain), vec3(lscMaxGain));
++}
++
+ void main(void)
+ {
+ 	vec3 rgb;
+@@ -255,6 +300,13 @@ void main(void)
+ 	 */
+ 	rgb = (rgb - blacklevel) / (1.0 - blacklevel);
+ 
++	/*
++	 * Correct the falloff of the lens on the linear signal, before the
++	 * colour gains. center_pixel is the position on the sensor the output
++	 * pixel samples, not its position in the output.
++	 */
++	rgb = apply_lsc(rgb, center_pixel);
++
+ 	/*
+ 	 * Apply AWB gains, and saturate each channel at sensor range. Where the
+ 	 * sensor clipped every channel the colour is unknown, so it stays white
+diff --git a/src/libcamera/shaders/bayer_unpacked.frag b/src/libcamera/shaders/bayer_unpacked.frag
+index 575e313..7223df1 100644
+--- a/src/libcamera/shaders/bayer_unpacked.frag
++++ b/src/libcamera/shaders/bayer_unpacked.frag
+@@ -31,6 +31,30 @@ uniform float           gamma;
+ uniform float           contrastExp;
+ uniform float           digitalGain;
+ 
++/*
++ * Radial lens shading correction. The gain of each channel is the polynomial
++ *
++ *   gain_c(r) = k0 + k1*r^2 + k2*r^4 + k3*r^6
++ *
++ * where r is the distance from the lens centre, normalised so that r = 1 at
++ * the corners of the sensor image, as the flat-field fit of the falloff used.
++ *
++ * lscCentre is in pixels of the input image and lscScale is 4 / (W^2 + H^2)
++ * for that image, so a position sampled from the full sensor keeps the fit
++ * even when the output stream is scaled down.
++ */
++uniform bool            lscEnabled;
++uniform vec2            lscCentre;
++uniform vec4            lscR;
++uniform vec4            lscG;
++uniform vec4            lscB;
++uniform float           lscStrength;
++uniform float           lscMaxGain;
++uniform float           lscScale;
++
++/* Pixel position of the first red pixel, as in the vertex shader. */
++uniform vec2            tex_bayer_first_red;
++
+ /*
+  * Digital gain gives back the stops the exposure algorithm took off the sensor
+  * to keep highlights. Above half of white a rational shoulder brings the
+@@ -62,6 +86,30 @@ float apply_contrast(float value)
+         return 1.0 - 0.5 * pow((1.0 - value) / 0.5, contrastExp);
+ }
+ 
++/* k0 + k1*r^2 + k2*r^4 + k3*r^6, evaluated with Horner's rule */
++float lsc_gain(vec4 k, float r2)
++{
++    return k.x + r2 * (k.y + r2 * (k.z + r2 * k.w));
++}
++
++/*
++ * Undo the lens falloff on the demosaiced linear signal, before the white
++ * balance gains. Multiplying before the black level came off would scale the
++ * black too and colour it.
++ */
++vec3 apply_lsc(vec3 rgb, vec2 pos)
++{
++    if (!lscEnabled)
++        return rgb;
++
++    vec2 d = pos - lscCentre;
++    float r2 = dot(d, d) * lscScale;
++    vec3 gain = vec3(lsc_gain(lscR, r2), lsc_gain(lscG, r2),
++                     lsc_gain(lscB, r2));
++    gain = vec3(1.0) + lscStrength * (gain - vec3(1.0));
++    return rgb * clamp(gain, vec3(1.0 / lscMaxGain), vec3(lscMaxGain));
++}
++
+ void main(void) {
+     vec3 rgb;
+ 
+@@ -158,6 +206,13 @@ void main(void) {
+      */
+     rgb = (rgb - blacklevel) / (1.0 - blacklevel);
+ 
++    /*
++     * Correct the falloff of the lens on the linear signal, before the colour
++     * gains. center.zw is the position on the sensor the output pixel
++     * samples, less the first red offset the vertex shader added to it.
++     */
++    rgb = apply_lsc(rgb, center.zw - tex_bayer_first_red);
++
+     /*
+      * Apply AWB gains, and saturate each channel at sensor range. Where the
+      * sensor clipped every channel the colour is unknown, so it stays white
+diff --git a/src/libcamera/software_isp/debayer.cpp b/src/libcamera/software_isp/debayer.cpp
+index 56446f5..1327b84 100644
+--- a/src/libcamera/software_isp/debayer.cpp
++++ b/src/libcamera/software_isp/debayer.cpp
+@@ -43,6 +43,12 @@ namespace libcamera {
+  * \brief Contrast value to be used as an exponent
+  */
+ 
++/**
++ * \var DebayerParams::lsc
++ * \brief Radial lens shading correction, applied to the linear signal before
++ * the colour gains, and disabled unless a fit is tuned
++ */
++
+ /**
+  * \class Debayer
+  * \brief Base debayering class
+diff --git a/src/libcamera/software_isp/debayer_cpu.cpp b/src/libcamera/software_isp/debayer_cpu.cpp
+index 0156e4c..7bbffcd 100644
+--- a/src/libcamera/software_isp/debayer_cpu.cpp
++++ b/src/libcamera/software_isp/debayer_cpu.cpp
+@@ -1010,6 +1010,18 @@ void DebayerCpu::updateGammaTable(const DebayerParams &params)
+ 
+ void DebayerCpu::updateLookupTables(const DebayerParams &params)
+ {
++	/*
++	 * The gains, colour matrix and gamma of the CPU debayer are lookup
++	 * tables on the pixel value alone, so a gain that changes across the
++	 * frame does not fit them. Say so once instead of silently ignoring
++	 * the tuning.
++	 */
++	if (params.lsc.enabled && !lscWarned_) {
++		lscWarned_ = true;
++		LOG(Debayer, Warning)
++			<< "Lens shading correction is not implemented on the CPU, ignoring it";
++	}
++
+ 	const bool gammaUpdateNeeded =
+ 		params.gamma != params_.gamma ||
+ 		params.blackLevel != params_.blackLevel ||
+diff --git a/src/libcamera/software_isp/debayer_cpu.h b/src/libcamera/software_isp/debayer_cpu.h
+index 5281c65..67b54b6 100644
+--- a/src/libcamera/software_isp/debayer_cpu.h
++++ b/src/libcamera/software_isp/debayer_cpu.h
+@@ -147,6 +147,8 @@ private:
+ 	std::array<double, kGammaLookupSize> gammaTable_;
+ 	LookupTable gammaLut_;
+ 	bool ccmEnabled_;
++	/* Only the GPU debayer applies lens shading, warn once when it is on. */
++	bool lscWarned_ = false;
+ 	DebayerParams params_;
+ 
+ 	debayerFn debayer0_;
+diff --git a/src/libcamera/software_isp/debayer_egl.cpp b/src/libcamera/software_isp/debayer_egl.cpp
+index 97e6323..18d8f07 100644
+--- a/src/libcamera/software_isp/debayer_egl.cpp
++++ b/src/libcamera/software_isp/debayer_egl.cpp
+@@ -123,6 +123,15 @@ int DebayerEGL::getShaderVariableLocations(void)
+ 	contrastExpUniformDataIn_ = glGetUniformLocation(programId_, "contrastExp");
+ 	digitalGainUniformDataIn_ = glGetUniformLocation(programId_, "digitalGain");
+ 
++	lscEnabledUniformDataIn_ = glGetUniformLocation(programId_, "lscEnabled");
++	lscCentreUniformDataIn_ = glGetUniformLocation(programId_, "lscCentre");
++	lscRUniformDataIn_ = glGetUniformLocation(programId_, "lscR");
++	lscGUniformDataIn_ = glGetUniformLocation(programId_, "lscG");
++	lscBUniformDataIn_ = glGetUniformLocation(programId_, "lscB");
++	lscStrengthUniformDataIn_ = glGetUniformLocation(programId_, "lscStrength");
++	lscMaxGainUniformDataIn_ = glGetUniformLocation(programId_, "lscMaxGain");
++	lscScaleUniformDataIn_ = glGetUniformLocation(programId_, "lscScale");
++
+ 	textureUniformStep_ = glGetUniformLocation(programId_, "tex_step");
+ 	textureUniformSize_ = glGetUniformLocation(programId_, "tex_size");
+ 	textureUniformStrideFactor_ = glGetUniformLocation(programId_, "stride_factor");
+@@ -517,6 +526,29 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
+ 	glUniform1f(digitalGainUniformDataIn_, params.digitalGain);
+ 	LOG(Debayer, Debug) << " contrastExpUniformDataIn_ " << contrastExpUniformDataIn_ << " data " << params.contrastExp;
+ 
++	/*
++	 * Lens shading correction. The gain is fitted in fractions of the input
++	 * image, the shader works in input pixels: convert the centre, and the
++	 * 4 / (W^2 + H^2) that brings r^2 to 1 at the corners of the image.
++	 */
++	GLfloat lscCentre[] = { params.lsc.centre[0] * width_,
++				params.lsc.centre[1] * height_ };
++	GLfloat lscScale = 4.0f / (static_cast<GLfloat>(width_) * width_ +
++				   static_cast<GLfloat>(height_) * height_);
++	glUniform1i(lscEnabledUniformDataIn_, params.lsc.enabled ? 1 : 0);
++	glUniform2fv(lscCentreUniformDataIn_, 1, lscCentre);
++	glUniform4fv(lscRUniformDataIn_, 1, params.lsc.coefficients[0]);
++	glUniform4fv(lscGUniformDataIn_, 1, params.lsc.coefficients[1]);
++	glUniform4fv(lscBUniformDataIn_, 1, params.lsc.coefficients[2]);
++	glUniform1f(lscStrengthUniformDataIn_,
++		    params.lsc.enabled ? params.lsc.strength : 0.0f);
++	glUniform1f(lscMaxGainUniformDataIn_, params.lsc.maxGain);
++	glUniform1f(lscScaleUniformDataIn_, lscScale);
++	LOG(Debayer, Debug) << " lscUniformDataIn_ " << lscEnabledUniformDataIn_
++			    << " enabled " << params.lsc.enabled
++			    << " centre " << lscCentre[0] << ","
++			    << lscCentre[1];
++
+ 	return;
+ }
+ 
+diff --git a/src/libcamera/software_isp/debayer_egl.h b/src/libcamera/software_isp/debayer_egl.h
+index d4ba146..eb229bc 100644
+--- a/src/libcamera/software_isp/debayer_egl.h
++++ b/src/libcamera/software_isp/debayer_egl.h
+@@ -112,6 +112,16 @@ private:
+ 	GLint contrastExpUniformDataIn_;
+ 	GLint digitalGainUniformDataIn_;
+ 
++	/* Radial lens shading correction */
++	GLint lscEnabledUniformDataIn_;
++	GLint lscCentreUniformDataIn_;
++	GLint lscRUniformDataIn_;
++	GLint lscGUniformDataIn_;
++	GLint lscBUniformDataIn_;
++	GLint lscStrengthUniformDataIn_;
++	GLint lscMaxGainUniformDataIn_;
++	GLint lscScaleUniformDataIn_;
++
+ 	Size nativeOutputSize_;
+ 	Rectangle window_;
+ 	std::unique_ptr<SwStatsCpu> stats_;
