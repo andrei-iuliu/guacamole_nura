@@ -1604,7 +1604,10 @@ run_install() {
     expected_hook_version="$CANDIDATE_HOOK_VERSION"
     [[ "$hook_version" = "$expected_hook_version" ]] ||
         die "refusing netboot hook version $hook_version (expected $expected_hook_version)"
-    [[ "$libcamera_version" = 0.7.2-r0 ]] || die "refusing libcamera-rear version $libcamera_version"
+    local expected_libcamera_version
+    read -r expected_libcamera_version < <(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["apks"]["libcamera-rear"]["version"])' "$TMP/source.json")
+    [[ "$libcamera_version" = "$expected_libcamera_version" ]] ||
+        die "refusing libcamera-rear version $libcamera_version (expected $expected_libcamera_version)"
     [[ "$MODEM_VERSION" == 1.25.95* ]] || die "refusing modemmanager version $MODEM_VERSION"
     [[ "$LIMM_GLIB_VERSION" = "$MODEM_VERSION" ]] ||
         die "libmm-glib $LIMM_GLIB_VERSION does not match modemmanager $MODEM_VERSION"
