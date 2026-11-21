@@ -1,0 +1,104 @@
+libcamera: software_isp: take the exposure target from tuning
+
+The exposure loop aimed for a mean sample value of 2.5, the middle of its five
+histogram bins, for every sensor, and on the OnePlus 7 Pro's IMX586 that settled
+about a stop too bright, at a luma of about 121 out of 255 indoors. Read an
+optional "exposureTarget" from the Agc tuning data, the mean sample value over
+the same five bins, in the range 1.0 to 4.0 and defaulting to 2.5 so behaviour
+is unchanged without the key. Values outside the range are refused with a
+warning, and an empty "Agc:" entry, as the sensor tuning files have today, keeps
+the compiled-in target.
+
+---
+diff --git a/src/ipa/simple/algorithms/agc.cpp b/src/ipa/simple/algorithms/agc.cpp
+index 9afdf32..895464f 100644
+--- a/src/ipa/simple/algorithms/agc.cpp
++++ b/src/ipa/simple/algorithms/agc.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include <algorithm>
+ #include <cmath>
++#include <optional>
+ #include <stdint.h>
+ 
+ #include <libcamera/base/log.h>
+@@ -28,9 +29,12 @@ static constexpr unsigned int kExposureBinsCount = 5;
+ 
+ /*
+  * The exposure is optimal when the mean sample value of the histogram is
+- * in the middle of the range.
++ * in the middle of the range. A sensor's tuning file may replace this with
++ * a brighter or darker target, within the range below.
+  */
+ static constexpr float kExposureOptimal = kExposureBinsCount / 2.0;
++static constexpr float kExposureTargetMin = 1.0;
++static constexpr float kExposureTargetMax = 4.0;
+ 
+ /*
+  * This implements the hysteresis for the exposure adjustment.
+@@ -78,9 +82,34 @@ static constexpr double kMaxHeadroom = 3.0;
+ static constexpr double kHeadroomStep = 0.25;
+ 
+ Agc::Agc()
++	: exposureTarget_(kExposureOptimal)
+ {
+ }
+ 
++int Agc::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
++{
++	/*
++	 * A sensor's tuning may aim the loop at a brighter or darker image than
++	 * the middle of the histogram, as its exposure latitude requires.
++	 */
++	std::optional<float> target = tuningData["exposureTarget"].get<float>();
++
++	if (target) {
++		if (*target >= kExposureTargetMin && *target <= kExposureTargetMax)
++			exposureTarget_ = *target;
++		else
++			LOG(IPASoftExposure, Warning)
++				<< "Ignoring exposure target " << *target
++				<< ", outside of " << kExposureTargetMin
++				<< " to " << kExposureTargetMax;
++	}
++
++	LOG(IPASoftExposure, Debug)
++		<< "Exposure target " << exposureTarget_;
++
++	return 0;
++}
++
+ bool Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext,
+ 			 double exposureMSV)
+ {
+@@ -94,7 +123,7 @@ bool Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext,
+ 	const int32_t oldExposure = exposure;
+ 	const double oldAgain = again;
+ 
+-	double error = kExposureOptimal - exposureMSV;
++	double error = exposureTarget_ - exposureMSV;
+ 
+ 	if (std::abs(error) <= kExposureSatisfactory)
+ 		return false;
+diff --git a/src/ipa/simple/algorithms/agc.h b/src/ipa/simple/algorithms/agc.h
+index 0fa3b74..56bb1ef 100644
+--- a/src/ipa/simple/algorithms/agc.h
++++ b/src/ipa/simple/algorithms/agc.h
+@@ -19,6 +19,7 @@ public:
+ 	Agc();
+ 	~Agc() = default;
+ 
++	int init(IPAContext &context, const ValueNode &tuningData) override;
+ 	void prepare(IPAContext &context, const uint32_t frame,
+ 		     IPAFrameContext &frameContext,
+ 		     DebayerParams *params) override;
+@@ -33,6 +34,9 @@ private:
+ 	void updateHeadroom(IPAContext &context, const SwIspStats::Histogram &histogram,
+ 			    unsigned int first, unsigned int size);
+ 	void applyHeadroom(const IPAContext &context, IPAFrameContext &frameContext) const;
++
++	/* The mean sample value the loop aims for, from the tuning data. */
++	double exposureTarget_;
+ };
+ 
+ } /* namespace ipa::soft::algorithms */

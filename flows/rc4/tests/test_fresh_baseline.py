@@ -76,8 +76,13 @@ class Recipes(unittest.TestCase):
                 v(self.apkbuild(bad))
 
     def test_real_libcamera_rear_recipe(self):
-        self.assertEqual(self.clc.apkbuild_version(REPO / self.clc.LIBCAMERA_REAR_RECIPE / "APKBUILD"),
+        self.assertEqual(self.clc.apkbuild_version(self.clc.ROOT / self.clc.LIBCAMERA_REAR_RECIPE / "APKBUILD"),
                          self.clc.LIBRARY_REAR)
+
+    def test_libcamera_rear_version_follows_the_baseline(self):
+        # A fresh baseline builds the recipe (r1); rear1 baseline APKs are r0.
+        self.assertEqual(self.clc.LIBRARY_REAR, "0.7.2-r1")
+        self.assertEqual(load_checker(NURA_LOCAL_USERDATA="1").LIBRARY_REAR, "0.7.2-r0")
 
     def test_fresh_pins_need_matching_recipes(self):
         with tempfile.TemporaryDirectory() as tmp:
