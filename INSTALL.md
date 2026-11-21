@@ -40,7 +40,8 @@ cp build-env.example.sh build-env.local.sh         # then edit; ./nura loads it
 ```
 
 - `fetch` downloads, verifies and never overwrites: platform-tools
-  (fastboot), mkbootimg, avbtool, the kernel source archive and the DTB tools.
+  (fastboot), mkbootimg, avbtool, the kernel source archive, the pinned
+  `apk.static` 3.0.9 for pmbootstrap and the DTB tools.
   It also extracts the stock `dtbo.img` from the OTA. `./nura fetch --check`
   only verifies.
 - `firmware` extracts the two bundles and installs each one only if it

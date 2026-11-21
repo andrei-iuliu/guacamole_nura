@@ -16,6 +16,7 @@
 #   avbtool.py      android.googlesource.com platform/external/avb @0cf9e8f
 #   bc              the system bc if installed, else flows/rc4/scripts/toolshim/bc
 #   kernel source   local/sources/linux-*.tar.gz (APKBUILD source URL, SHA-512 pin)
+#   apk.static      local/sources/apk-tools-static-3.0.9-r0.apk (Alpine v3.23; apk-tools#11231)
 #   DTB tools       scripts/build_host_tools.sh (system dtc + libufdt test app)
 #   dtbo.img        from --lineage-ota, accepted only if its entry 0 is the pinned one
 # No sudo, no phone access. Existing files are never overwritten: a file with
@@ -29,7 +30,7 @@ while (($#)); do
     case "$1" in
         --check) CHECK=1 ;;
         --lineage-ota) OTA="$(realpath -e -- "${2:?--lineage-ota needs a zip}")"; shift ;;
-        -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -156,6 +157,15 @@ else
         bad "$kdest: download from $kurl failed or does not match the pin"
     fi
 fi
+
+echo "== apk-tools-static (pinned for pmbootstrap)"
+# apk-tools 3.0.10 fails to commit systemd files on fresh installs
+# (alpine/apk-tools#11231); the rootfs flow makes pmbootstrap use this 3.0.9
+# package. Same pin as APK_STATIC_* in rootfs_prepare_local.sh.
+APK_STATIC_FILE="apk-tools-static-3.0.9-r0.apk"
+apk_static_get() { curl -sfL -o "$1" "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/$APK_STATIC_FILE"; }
+verify_or_fetch "local/sources/$APK_STATIC_FILE" \
+    ea77b2533566e70c9566c03748199b79348010c3199ba02d97e0634cf0fa9ef7 apk_static_get
 
 echo "== DTB host tools"
 if ((CHECK)); then
