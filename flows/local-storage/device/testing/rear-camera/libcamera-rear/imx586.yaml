@@ -3,7 +3,11 @@
 # Base: the OnePlus 7T Pro bring-up's imx586.yaml (CC0-1.0).
 # Colour matrices: Copyright 2019-2020 Raspberry Pi Ltd (BSD-2-Clause), the
 # measured IMX519 table from libcamera's src/ipa/rpi/vc4/data/imx519.json,
-# standing in until the IMX586 is calibrated. The IMX519 is a similar-era Sony
+# standing in until the IMX586 is calibrated, blended halfway to identity
+# (each entry = 0.5 * IMX519 + 0.5 * I). At full strength the shadows went
+# cyan (red clamped to 0 in 84% of dark pixels) and colours oversaturated;
+# phone A/B 2026-11-21, half: 47% and neutral whites, keeps outdoor colour.
+# The IMX519 is a similar-era Sony
 # stacked sensor; beside the IMX708's, its table gave the more natural greens.
 %YAML 1.1
 ---
@@ -15,17 +19,17 @@ algorithms:
   - Ccm:
       ccms:
         - ct: 2890
-          ccm: [ 1.3675, -0.1845, -0.1831, -0.3236, 1.4483, -0.1247, -0.0041, -0.6994, 1.7035 ]
+          ccm: [ 1.1837, -0.0922, -0.0916, -0.1618, 1.2241, -0.0624, -0.0021, -0.3497, 1.3518 ]
         - ct: 2920
-          ccm: [ 1.2670, 0.0162, -0.2833, -0.2852, 1.3893, -0.1042, -0.0485, -0.8221, 1.8707 ]
+          ccm: [ 1.1335, 0.0081, -0.1416, -0.1426, 1.1946, -0.0521, -0.0243, -0.4111, 1.4354 ]
         - ct: 3550
-          ccm: [ 1.4284, -0.2723, -0.1560, -0.2875, 1.4107, -0.1232, -0.0181, -0.5485, 1.5666 ]
+          ccm: [ 1.2142, -0.1361, -0.0780, -0.1437, 1.2054, -0.0616, -0.0091, -0.2742, 1.2833 ]
         - ct: 4500
-          ccm: [ 1.3633, -0.1957, -0.1676, -0.2525, 1.5225, -0.2699, -0.0158, -0.5315, 1.5473 ]
+          ccm: [ 1.1816, -0.0979, -0.0838, -0.1263, 1.2612, -0.1349, -0.0079, -0.2657, 1.2736 ]
         - ct: 5700
-          ccm: [ 1.4921, -0.3725, -0.1196, -0.2149, 1.4001, -0.1851, -0.0378, -0.3878, 1.4256 ]
+          ccm: [ 1.2460, -0.1862, -0.0598, -0.1075, 1.2001, -0.0925, -0.0189, -0.1939, 1.2128 ]
         - ct: 7900
-          ccm: [ 1.3485, -0.0542, -0.2942, -0.2218, 1.7768, -0.5550, -0.0740, -0.5534, 1.6274 ]
+          ccm: [ 1.1743, -0.0271, -0.1471, -0.1109, 1.3884, -0.2775, -0.0370, -0.2767, 1.3137 ]
   # Defaults for apps that do not set these controls (patch 0014).
   - Adjust:
       contrast: 1.2
