@@ -1,0 +1,144 @@
+libcamera: software_isp: leave clipped pixels out of white balance
+
+Grey-world white balance summed every sampled pixel. Clipped pixels read
+the same in all channels whatever the light, so a bright window or sky
+pulled the red and blue gains towards 1 and the whole picture went green
+(the sensor's raw green is about twice red and blue). The statistics now
+also sum only pixels with no channel at or above 240 (8-bit scale), and
+AWB uses those, falling back to all pixels when under 2% of the frame is
+left.
+---
+diff --git a/include/libcamera/internal/software_isp/swisp_stats.h b/include/libcamera/internal/software_isp/swisp_stats.h
+index e0213ed..395261e 100644
+--- a/include/libcamera/internal/software_isp/swisp_stats.h
++++ b/include/libcamera/internal/software_isp/swisp_stats.h
+@@ -31,6 +31,20 @@ struct SwIspStats {
+ 	 * \brief Sums of colour channels of all the sampled pixels
+ 	 */
+ 	RGB<uint64_t> sum_;
++	/**
++	 * \brief Sums of colour channels of the sampled pixels that have no
++	 *        channel at or above SwIspStats::kAwbSaturation, for white balance
++	 */
++	RGB<uint64_t> awbSum_;
++	/**
++	 * \brief Number of sampled pixels included in awbSum_
++	 */
++	uint64_t awbPixels;
++	/**
++	 * \brief Channel level (8-bit scale) from which a pixel is treated as
++	 *        clipped and left out of awbSum_
++	 */
++	static constexpr unsigned int kAwbSaturation = 240;
+ 	/**
+ 	 * \brief Number of bins in the yHistogram
+ 	 */
+diff --git a/src/ipa/simple/algorithms/awb.cpp b/src/ipa/simple/algorithms/awb.cpp
+index 5f13c13..e9b7554 100644
+--- a/src/ipa/simple/algorithms/awb.cpp
++++ b/src/ipa/simple/algorithms/awb.cpp
+@@ -67,13 +67,22 @@ void Awb::process(IPAContext &context,
+ 	 */
+ 	const uint64_t nPixels = std::accumulate(
+ 		histogram.begin(), histogram.end(), uint64_t(0));
+-	const uint64_t offset = blackLevel * nPixels;
++	/*
++	 * Leave clipped pixels out: they read equal in all channels whatever
++	 * the light, so a bright window or sky pulls the gains towards 1 and
++	 * the whole picture goes green. Fall back to all pixels only when
++	 * almost nothing is left (a frame that is nearly all clipped).
++	 */
++	const bool useUnclipped = stats->awbPixels * 50 >= nPixels;
++	const uint64_t n = useUnclipped ? stats->awbPixels : nPixels;
++	const RGB<uint64_t> &rawSum = useUnclipped ? stats->awbSum_ : stats->sum_;
++	const uint64_t offset = blackLevel * n;
+ 	const uint64_t minValid = 1;
+ 	/*
+ 	 * Make sure the sums are at least minValid, while preventing unsigned
+ 	 * integer underflow.
+ 	 */
+-	const RGB<uint64_t> sum = stats->sum_.max(offset + minValid) - offset;
++	const RGB<uint64_t> sum = rawSum.max(offset + minValid) - offset;
+ 
+ 	/*
+ 	 * Calculate red and blue gains for AWB.
+diff --git a/src/libcamera/software_isp/swstats_cpu.cpp b/src/libcamera/software_isp/swstats_cpu.cpp
+index a0a2298..1b145f2 100644
+--- a/src/libcamera/software_isp/swstats_cpu.cpp
++++ b/src/libcamera/software_isp/swstats_cpu.cpp
+@@ -11,6 +11,8 @@
+ 
+ #include "libcamera/internal/software_isp/swstats_cpu.h"
+ 
++#include <algorithm>
++
+ #include <libcamera/base/log.h>
+ 
+ #include <libcamera/stream.h>
+@@ -178,6 +180,10 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	uint64_t sumR = 0;                \
+ 	uint64_t sumG = 0;                \
+ 	uint64_t sumB = 0;                \
++	uint64_t awbR = 0;                \
++	uint64_t awbG = 0;                \
++	uint64_t awbB = 0;                \
++	uint64_t awbN = 0;                \
+ 	uint64_t sharpness = 0;           \
+ 	pixel_t previousG = 0;            \
+ 	bool havePreviousG = false;       \
+@@ -192,6 +198,12 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	sumR += r;                                                                    \
+ 	sumG += g;                                                                    \
+ 	sumB += b;                                                                    \
++	if (std::max({ r, g, b }) < SwIspStats::kAwbSaturation * (div)) {          \
++		awbR += r;                                                            \
++		awbG += g;                                                            \
++		awbB += b;                                                            \
++		++awbN;                                                               \
++	}                                                                           \
+                                                                                       \
+ 	yVal = r * kRedYMul;                                                          \
+ 	yVal += g * kGreenYMul;                                                       \
+@@ -217,6 +229,8 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	stats.sum_.r() += sumR;     \
+ 	stats.sum_.g() += sumG;     \
+ 	stats.sum_.b() += sumB;     \
++	stats.awbSum_ += RGB<uint64_t>({ awbR, awbG, awbB }); \
++	stats.awbPixels += awbN;    \
+ 	stats.sharpness += sharpness;
+ 
+ void SwStatsCpu::statsBGGR8Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+@@ -416,6 +430,8 @@ void SwStatsCpu::startFrame(uint32_t frame)
+ 
+ 	for (auto &s : stats_) {
+ 		s.sum_ = RGB<uint64_t>({ 0, 0, 0 });
++		s.awbSum_ = RGB<uint64_t>({ 0, 0, 0 });
++		s.awbPixels = 0;
+ 		s.yHistogram.fill(0);
+ 		s.sharpness = 0;
+ 		s.afSharpness.fill(0);
+@@ -436,12 +452,16 @@ void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+ 
+ 	if (valid) {
+ 		sharedStats_->sum_ = RGB<uint64_t>({ 0, 0, 0 });
++		sharedStats_->awbSum_ = RGB<uint64_t>({ 0, 0, 0 });
++		sharedStats_->awbPixels = 0;
+ 		sharedStats_->yHistogram.fill(0);
+ 		sharedStats_->afSharpness.fill(0);
+ 		sharedStats_->afGreen.fill(0);
+ 		uint64_t sharpness = 0;
+ 		for (const auto &s : stats_) {
+ 			sharedStats_->sum_ += s.sum_;
++			sharedStats_->awbSum_ += s.awbSum_;
++			sharedStats_->awbPixels += s.awbPixels;
+ 			sharpness += s.sharpness;
+ 			for (unsigned int j = 0; j < SwIspStats::kAfGridSize; ++j) {
+ 				sharedStats_->afSharpness[j] += s.afSharpness[j];
+@@ -452,6 +472,7 @@ void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+ 		}
+ 
+ 		sharedStats_->sum_ >>= sumShift_;
++		sharedStats_->awbSum_ >>= sumShift_;
+ 		const uint64_t green = sharedStats_->sum_.g();
+ 		constexpr uint64_t scale = 1000000;
+ 		sharedStats_->sharpness = green
