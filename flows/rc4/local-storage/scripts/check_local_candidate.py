@@ -1000,6 +1000,38 @@ def prepare_phosh_ui(candidate: Path) -> tuple[Path, dict]:
     }
 
 
+APK_STATIC_PIN_MARK = "    # nura: pinned apk-tools-static"
+APK_STATIC_PIN = (
+    APK_STATIC_PIN_MARK + " (apk-tools 3.0.10 fails to commit systemd files,\n"
+    "    # alpine/apk-tools#11231). The signature and version checks still run.\n"
+    '    pinned = os.environ.get("NURA_APK_STATIC_APK")\n'
+    "    if pinned:\n"
+    '        version = os.environ["NURA_APK_STATIC_VERSION"]\n'
+    "        pmb.helpers.apk.check_outdated(version)\n"
+    "        extract(version, Path(pinned))\n"
+    "        return\n"
+)
+
+
+def pin_apk_static(bootstrap_candidate: Path) -> None:
+    """Let the candidate pmbootstrap take apk.static from a pinned local package.
+
+    Upstream init() always downloads the newest apk-tools-static of the Alpine
+    channel. With NURA_APK_STATIC_APK/_VERSION set (rootfs_prepare_local.sh
+    verifies the file's SHA-256 first) it extracts that package instead.
+    """
+    path = bootstrap_candidate / "pmb/helpers/apk_static.py"
+    text = path.read_text(encoding="utf-8")
+    if APK_STATIC_PIN_MARK in text:
+        if APK_STATIC_PIN not in text:
+            die(f"{path}: an older apk.static pin is present; move the candidate pmbootstrap aside")
+        return
+    anchor = '    """Download, verify, extract $WORK/apk.static."""\n'
+    if text.count(anchor) != 1 or "def extract(version: str, apk_path: Path)" not in text:
+        die("pmbootstrap apk_static.init changed; cannot safely pin apk.static")
+    path.write_text(text.replace(anchor, anchor + APK_STATIC_PIN), encoding="utf-8")
+
+
 def prepare_state(args: argparse.Namespace) -> dict:
     raw_state = Path(args.state)
     raw_candidate = Path(args.candidate_pmaports)
@@ -1174,6 +1206,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         if args_text.count(anchor) != 1 or "context.ignore_depends =" in args_text:
             die("pmbootstrap argument handling changed; cannot safely repair --ignore-depends")
         bootstrap_args.write_text(args_text.replace(anchor, anchor + ignore_assignment), encoding="utf-8")
+    pin_apk_static(bootstrap_candidate)
     bootstrap_commit = git_rev(bootstrap_source)
     if receipt_path.is_file():
         previous_receipt = read_json(receipt_path)

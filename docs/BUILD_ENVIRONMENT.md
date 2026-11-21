@@ -83,6 +83,8 @@ pinned 1.7.2 binaries. The same OTA is the input for
 | Destination in this checkout | Needed for | Source / validation |
 | --- | --- | --- |
 | `$RC4_KERNEL_ROOT/kernel-state/linux-v7.0.0-sm8150.tar.gz` | kernel | Source archive (about 250 MB); its SHA-512 is pinned in the kernel APKBUILD and checked by the builder |
+| `local/sources/linux-v7.0.0-sm8150.tar.gz` | kernel | Kernel source archive fetched by `./nura fetch` (or reflinked from an earlier kernel state); SHA-512 pinned in the kernel APKBUILD |
+| `local/sources/apk-tools-static-3.0.9-r0.apk` | rootfs | `apk.static` for pmbootstrap, from Alpine v3.23, SHA-256 pinned in `rootfs_prepare_local.sh`. apk-tools 3.0.10 fails to commit systemd files on fresh installs ([apk-tools#11231](https://gitlab.alpinelinux.org/alpine/apk-tools/-/work_items/11231)); the flow patches its pmbootstrap copy to use this package instead of downloading the newest one |
 | `local/bin/bc` | kernel | Host build tool used by kbuild; the builder puts `local/bin` first on `PATH` |
 | `local/bin/{dtc,fdtget,fdtput,fdtoverlay}` | boot image | Exact binaries pinned in `scripts/prepare_temporary_dtb.py:TOOL_HASHES` |
 | `local/lib/libfdt.so.1` | boot image | Shared library pinned in the same table |

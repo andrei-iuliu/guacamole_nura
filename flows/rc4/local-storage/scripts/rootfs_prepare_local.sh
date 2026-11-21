@@ -86,6 +86,11 @@ LOCAL_USERDATA="${NURA_LOCAL_USERDATA:-0}"
 # 1: build libcamera 0.8 and libcamera-rear from their recipes instead of
 # reusing the historical rear1 APKs (no build/rear-camera needed). Local only.
 FRESH_BASELINE="${NURA_FRESH_BASELINE:-0}"
+# apk.static for pmbootstrap, pinned: apk-tools 3.0.10 fails to commit systemd
+# files on fresh installs (alpine/apk-tools#11231). ./nura fetch provides it.
+APK_STATIC_VERSION=3.0.9-r0
+APK_STATIC_APK="${NURA_APK_STATIC_APK:-$SOURCE_ROOT/local/sources/apk-tools-static-$APK_STATIC_VERSION.apk}"
+APK_STATIC_SHA256=ea77b2533566e70c9566c03748199b79348010c3199ba02d97e0634cf0fa9ef7
 CANDIDATE_HOOK_VERSION="${NURA_NETBOOT_HOOK_VERSION:-4.2.1-r4}"
 LOCAL_HOOK_RECIPE="${NURA_LOCAL_HOOK_RECIPE:-}"
 LOCAL_TOOL="${NURA_LOCAL_TOOL:-$ROOT/scripts/local_storage_tool.py}"
@@ -886,6 +891,21 @@ grep -q '^version=7$' "$SRC_STATE/pmaports/pmaports.cfg" ||
 [[ -f "$SRC_STATE/pmbootstrap/pmbootstrap.py" ]] || die "pinned pmbootstrap is incomplete"
 grep -q '^work_version = 8$' "$SRC_STATE/pmbootstrap/pmb/config/__init__.py" 2>/dev/null ||
     die "pinned pmbootstrap does not use work_version 8"
+[[ -f "$APK_STATIC_APK" ]] ||
+    die "missing pinned apk-tools-static: $APK_STATIC_APK (run: ./nura fetch)"
+[[ "$(sha256sum "$APK_STATIC_APK" | cut -d' ' -f1)" = "$APK_STATIC_SHA256" ]] ||
+    die "$APK_STATIC_APK does not match its pinned SHA-256"
+export NURA_APK_STATIC_APK="$APK_STATIC_APK" NURA_APK_STATIC_VERSION="$APK_STATIC_VERSION"
+# A work dir from before the pin keeps its downloaded apk.static while its
+# chroots exist; replace it with the pinned binary (the .apk is SHA-256 pinned).
+if [[ "$MODE" = build && -f "$WORK/apk.static" ]] &&
+    [[ "$("$WORK/apk.static" --version 2>/dev/null)" != "apk-tools $APK_STATIC_VERSION,"* ]]; then
+    tar -xzOf "$APK_STATIC_APK" sbin/apk.static > "$WORK/apk.static.pinned" &&
+        chmod 700 "$WORK/apk.static.pinned" &&
+        mv -f -- "$WORK/apk.static.pinned" "$WORK/apk.static" ||
+        die "could not install the pinned apk.static into $WORK"
+    note "replaced $WORK/apk.static with apk-tools $APK_STATIC_VERSION"
+fi
 [[ -f "$RECIPE_ROOT/rc3/modemmanager/APKBUILD" ]] ||
     die "missing modemmanager recipe under RECIPE_ROOT: $RECIPE_ROOT/rc3/modemmanager/APKBUILD"
 [[ -f "$SOURCE_ROOT/$KERNEL_RECIPE/APKBUILD" ]] ||
