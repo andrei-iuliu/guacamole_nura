@@ -30,6 +30,10 @@ algorithms:
   - Adjust:
       contrast: 1.2
       saturation: 1.1
+  # MSV exposure target (patch 0023; default 2.5 over 5 bins). 2.5 clipped
+  # ~10% of a lit indoor scene on this sensor; 1.7 kept the highlights
+  # (phone A/B 2026-11-21: 2.5 luma 160, 2.0 127, 1.7 109, 1.5 92).
   - Agc:
+      exposureTarget: 1.7
   - Af:
 ...
