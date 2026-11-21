@@ -1,0 +1,439 @@
+libcamera: software_isp: highlight-priority auto exposure
+
+The OnePlus 7 Pro main camera exposes a dim room with a big sunlit window for
+the room: the mean sample value of the histogram is driven to the sensor's
+target, and the window, 13% of the frame, renders white. The highlight
+headroom of 0018 keeps the raw data of those pixels from clipping, but it
+gives the stops back as digital gain with a shoulder that maps the sensor's
+full range to white, so the output still clips. A reference phone exposes for
+the window instead: sky, water and buildings keep their colour and the room
+goes dark.
+
+Agc now reads two optional keys under "- Agc:". maxClipped is the share of the
+output allowed to render near white, 0.001 to 0.5, and its absence keeps the
+old behaviour exactly. maxHighlightEv is how many stops the feature may take
+off the target, 0 to 4, 2.5 by default. Out of range values are ignored with a
+warning.
+
+On every update the algorithm estimates the share of pixels that render near
+white. The statistics' histogram is of raw luma, before the white balance: a
+neutral highlight's channels are scaled apart there, so its luma is the level
+the gains bring it to times 0.299/gainR + 0.587 + 0.114/gainB, 0.79 with the
+red gain 2.4 and blue 1.5 a tungsten-lit room takes, and a window whose green
+is at full scale never reaches the top of the histogram. The estimate divides
+that factor back out from the current gains, clamps the result where the
+debayer clamps after its gains, and follows its chain to the display: the
+headroom's digital gain with the same shoulder, the contrast S-curve and the
+gamma, both from the knobs Adjust::prepare() reads (the two exponents are now
+shared through adjust.h). A pixel counts from 250 of 255. A new highlightEv
+state, kept in IPAActiveState::agc so a configure resets it, steps down by
+0.25 stop while that share is over maxClipped and back up by 0.1 stop once it
+falls under half of it, clamped to [-maxHighlightEv, 0]. highlightEv is added
+to the ExposureValue the target is scaled by, so the loop converges darker and
+stops inside that hysteresis band. Manual exposure and gain still bypass it,
+as they bypass the headroom, and the headroom keeps working at the new
+exposure, where it needs fewer stops. Nothing is published to applications: a
+debug line reports the near-white share, the neutral factor, the first
+histogram bin that counts and the stops in force.
+---
+
+diff --git a/src/ipa/simple/algorithms/adjust.cpp b/src/ipa/simple/algorithms/adjust.cpp
+index 6434270..7c08f63 100644
+--- a/src/ipa/simple/algorithms/adjust.cpp
++++ b/src/ipa/simple/algorithms/adjust.cpp
+@@ -19,7 +19,6 @@ namespace libcamera {
+ 
+ namespace ipa::soft::algorithms {
+ 
+-constexpr float kDefaultContrast = 1.0f;
+ constexpr float kDefaultSaturation = 1.0f;
+ 
+ LOG_DEFINE_CATEGORY(IPASoftAdjust)
+@@ -113,9 +112,9 @@ void Adjust::prepare(IPAContext &context,
+ 		frameContext.saturation = saturation;
+ 	}
+ 
+-	params->gamma = 1.0 / context.activeState.knobs.gamma;
++	params->gamma = gammaExponent(context.activeState.knobs.gamma);
+ 	const float contrast = context.activeState.knobs.contrast.value_or(kDefaultContrast);
+-	params->contrastExp = tan(std::clamp(contrast * M_PI_4, 0.0, M_PI_2 - 0.00001));
++	params->contrastExp = contrastExponent(contrast);
+ }
+ 
+ void Adjust::process([[maybe_unused]] IPAContext &context,
+diff --git a/src/ipa/simple/algorithms/adjust.h b/src/ipa/simple/algorithms/adjust.h
+index ce4781d..d3b303b 100644
+--- a/src/ipa/simple/algorithms/adjust.h
++++ b/src/ipa/simple/algorithms/adjust.h
+@@ -7,6 +7,8 @@
+ 
+ #pragma once
+ 
++#include <algorithm>
++#include <cmath>
+ #include <optional>
+ 
+ #include "libcamera/internal/matrix.h"
+@@ -20,6 +22,24 @@ namespace libcamera {
+ namespace ipa::soft::algorithms {
+ 
+ constexpr float kDefaultGamma = 2.2f;
++constexpr float kDefaultContrast = 1.0f;
++
++/*
++ * The two exponents the image processor applies to the signal after the
++ * digital gain, from the gamma and contrast the application asks for (the
++ * knobs in IPAActiveState): the contrast S-curve's exponent and the gamma.
++ * DebayerCpu::updateGammaTable() applies them and Agc judges the output's
++ * levels through them, so the two must agree.
++ */
++inline float contrastExponent(float contrast)
++{
++	return std::tan(std::clamp(contrast * M_PI_4, 0.0, M_PI_2 - 0.00001));
++}
++
++inline float gammaExponent(float gamma)
++{
++	return 1.0f / gamma;
++}
+ 
+ class Adjust : public Algorithm
+ {
+diff --git a/src/ipa/simple/algorithms/agc.cpp b/src/ipa/simple/algorithms/agc.cpp
+index 64fcd1b..6de3887 100644
+--- a/src/ipa/simple/algorithms/agc.cpp
++++ b/src/ipa/simple/algorithms/agc.cpp
+@@ -7,10 +7,13 @@
+ 
+ #include "agc.h"
+ 
++#include "adjust.h"
++
+ #include <algorithm>
+ #include <cmath>
+ #include <optional>
+ #include <stdint.h>
++#include <string>
+ 
+ #include <libcamera/base/log.h>
+ 
+@@ -88,8 +91,102 @@ static constexpr double kHighlightTarget = 0.9;
+ static constexpr double kMaxHeadroom = 3.0;
+ static constexpr double kHeadroomStep = 0.25;
+ 
++/*
++ * Highlight priority. The headroom keeps the raw data of the brightest pixels
++ * below clipping, and the digital gain brings the sensor's full range back to
++ * white; a window in a dim room then still renders at or near white, as it
++ * should, while the room is exposed for. A sensor whose tuning allows it can
++ * instead give the highlights priority: when more than maxClipped of the
++ * output pixels are near white, the loop aims its target up to maxHighlightEv
++ * stops darker than the ExposureValue control asks for, so the bright part of
++ * the scene keeps its colour and the rest goes dark, as a reference phone
++ * does with a backlit window.
++ */
++static constexpr double kMaxClippedMin = 0.001;
++static constexpr double kMaxClippedMax = 0.5;
++static constexpr double kMaxHighlightEvMax = 4.0;
++static constexpr double kMaxHighlightEvDefault = 2.5;
++
++/*
++ * A pixel at or above this level of the displayed image counts as near white.
++ * 250 of 255 leaves the last steps of the display to rounding, and is where
++ * the eye stops seeing a highlight's colour.
++ */
++static constexpr double kDisplayClip = 250.0 / 255.0;
++
++/*
++ * The weights of the statistics' luma (kRedYMul and the two next to it in
++ * swstats_cpu.cpp), and the range the white balance gains are taken in: the
++ * loop clamps its own at 4, and a gain near zero would make the neutral
++ * factor below meaningless.
++ */
++static constexpr double kLumaRed = 0.299;
++static constexpr double kLumaGreen = 0.587;
++static constexpr double kLumaBlue = 0.114;
++static constexpr double kNeutralGainMin = 0.25;
++static constexpr double kNeutralGainMax = 4.0;
++
++/*
++ * Stops the target moves per update. Small enough to converge smoothly, and
++ * the share must fall to half of maxClipped before the loop takes them back,
++ * which keeps the two from chasing each other around the threshold.
++ */
++static constexpr double kHighlightEvDown = 0.25;
++static constexpr double kHighlightEvUp = 0.1;
++
++/*
++ * The digital gain and shoulder the image processor applies to a 0..1 level
++ * above black, copied from apply_digital_gain() in
++ * src/libcamera/shaders/bayer_unpacked.frag and DebayerCpu::updateGammaTable():
++ * above half of white a rational curve brings the sensor's full range to
++ * exactly white instead of clipping it. Keep the three in sync.
++ */
++static double applyDigitalGain(double level, double gain)
++{
++	if (gain <= 1.0)
++		return level;
++
++	const double x = level * gain;
++	if (x <= 0.5)
++		return x;
++
++	const double s0 = (gain - 0.5) / 0.5;
++	const double t = (x - 0.5) / (gain - 0.5);
++	return 0.5 + 0.5 * s0 * t / (1.0 + (s0 - 1.0) * t);
++}
++
++/*
++ * The contrast S-curve DebayerCpu::updateGammaTable() applies after the
++ * digital gain: 0, 0.5 and 1 stay put and the curve bends around the middle.
++ */
++static double applyContrast(double level, double contrastExp)
++{
++	if (level < 0.5)
++		return 0.5 * std::pow(level / 0.5, contrastExp);
++
++	return 1.0 - 0.5 * std::pow((1.0 - level) / 0.5, contrastExp);
++}
++
++/*
++ * What the displayed image makes of a level the statistics' histogram reports
++ * for a neutral pixel: the raw luma of a neutral highlight is the level the
++ * white balance brings it to, times the neutral factor, so divide that back
++ * out, clamp as the debayer does after the gains, and follow the chain it
++ * applies to a channel value: the digital gain with its shoulder, the
++ * contrast S-curve and the gamma. A window in the sun renders at 255 through
++ * this while its raw luma sits near 0.79 and never reaches the top bins.
++ */
++static double neutralDisplayLevel(double level, double neutral, double digitalGain,
++				  double contrastExp, double gamma)
++{
++	const double balanced = std::min(1.0, level / neutral);
++	const double gained = std::min(1.0, applyDigitalGain(balanced, digitalGain));
++
++	return std::pow(applyContrast(gained, contrastExp), gamma);
++}
++
+ Agc::Agc()
+-	: exposureTarget_(kExposureOptimal)
++	: exposureTarget_(kExposureOptimal), maxHighlightEv_(kMaxHighlightEvDefault)
+ {
+ }
+ 
+@@ -111,8 +208,38 @@ int Agc::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
+ 				<< " to " << kExposureTargetMax;
+ 	}
+ 
++	/*
++	 * Giving the highlights priority is opt-in: without a share of the
++	 * output allowed to be near white, the loop behaves as it always did.
++	 */
++	std::optional<double> maxClipped = tuningData["maxClipped"].get<double>();
++
++	if (maxClipped) {
++		if (*maxClipped >= kMaxClippedMin && *maxClipped <= kMaxClippedMax)
++			maxClipped_ = *maxClipped;
++		else
++			LOG(IPASoftExposure, Warning)
++				<< "Ignoring maximum clipped share " << *maxClipped
++				<< ", outside of " << kMaxClippedMin
++				<< " to " << kMaxClippedMax;
++	}
++
++	/* How far the loop may go below the exposure the application asked for. */
++	std::optional<double> maxHighlightEv = tuningData["maxHighlightEv"].get<double>();
++
++	if (maxHighlightEv) {
++		if (*maxHighlightEv >= 0.0 && *maxHighlightEv <= kMaxHighlightEvMax)
++			maxHighlightEv_ = *maxHighlightEv;
++		else
++			LOG(IPASoftExposure, Warning)
++				<< "Ignoring maximum highlight EV " << *maxHighlightEv
++				<< ", outside of 0 to " << kMaxHighlightEvMax;
++	}
++
+ 	LOG(IPASoftExposure, Debug)
+-		<< "Exposure target " << exposureTarget_;
++		<< "Exposure target " << exposureTarget_ << ", maximum clipped share "
++		<< (maxClipped_ ? std::to_string(*maxClipped_) : "off")
++		<< ", maximum highlight EV " << maxHighlightEv_;
+ 
+ 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true, true);
+ 	context.ctrlMap[&controls::ExposureTimeMode] =
+@@ -180,10 +307,13 @@ double Agc::target(const IPAContext &context) const
+ {
+ 	/*
+ 	 * The mean sample value grows about linearly with the exposure above
+-	 * the first bin, so an EV scales that part of the target.
++	 * the first bin, so an EV scales that part of the target. The
++	 * ExposureValue control and the stops the highlight priority takes
++	 * both add to it, as they both ask for a brighter or darker image.
+ 	 */
+-	const double scaled = (exposureTarget_ - 1.0) *
+-			      std::exp2(context.activeState.ae.ev) + 1.0;
++	const double ev = context.activeState.ae.ev +
++			  context.activeState.agc.highlightEv;
++	const double scaled = (exposureTarget_ - 1.0) * std::exp2(ev) + 1.0;
+ 
+ 	return std::clamp(scaled, 1.0, static_cast<double>(kExposureBinsCount) - 0.5);
+ }
+@@ -306,6 +436,83 @@ void Agc::updateHeadroom(IPAContext &context, const SwIspStats::Histogram &histo
+ 	}
+ }
+ 
++void Agc::updateHighlightEv(IPAContext &context, const SwIspStats::Histogram &histogram,
++			    unsigned int first, unsigned int size, double digitalGain)
++{
++	if (!maxClipped_)
++		return;
++
++	uint64_t total = 0;
++	uint64_t nearWhite = 0;
++	int whiteFrom = -1;
++	/*
++	 * The debayer takes the black level off the signal and scales what is
++	 * left to the sensor's range before applying the digital gain, so a
++	 * bin's level is where it sits in that range. The centre of the bin
++	 * stands for it: half a bin is 1/128 of white, too little for the
++	 * shoulder to tell.
++	 */
++	const double black = static_cast<double>(first) / SwIspStats::kYHistogramSize;
++
++	/*
++	 * The histogram is of raw luma, before the white balance: a neutral
++	 * highlight's channels are not equal there, red at level/gainR and so
++	 * on, so its luma is the level it is balanced to times this factor. With
++	 * the gains of a tungsten-lit room (R 2.4, B 1.5) the factor is 0.79,
++	 * and a window whose green is at full scale reaches only 0.79 of the
++	 * histogram: judging the raw level against the white point is what kept
++	 * the loop from seeing it.
++	 */
++	const auto &gains = context.activeState.awb.gains;
++	const auto gain = [](float g) {
++		return std::clamp(static_cast<double>(g), kNeutralGainMin, kNeutralGainMax);
++	};
++	const double neutral = kLumaRed / gain(gains.r()) + kLumaGreen / gain(gains.g()) +
++			       kLumaBlue / gain(gains.b());
++
++	/* The contrast and gamma this frame is displayed with. */
++	const double contrastExp = contrastExponent(
++		context.activeState.knobs.contrast.value_or(kDefaultContrast));
++	const double gamma = gammaExponent(context.activeState.knobs.gamma);
++
++	for (unsigned int i = 0; i < size; i++) {
++		const uint64_t count = histogram[first + i];
++		const double position = static_cast<double>(first + i + 0.5) /
++					SwIspStats::kYHistogramSize;
++		const double level = (position - black) / (1.0 - black);
++
++		total += count;
++		if (neutralDisplayLevel(level, neutral, digitalGain, contrastExp,
++					gamma) >= kDisplayClip) {
++			nearWhite += count;
++			if (whiteFrom < 0)
++				whiteFrom = first + i;
++		}
++	}
++
++	if (!total)
++		return;
++
++	/*
++	 * Step the target down while too much of the output renders white, and
++	 * back up only once well under the share the tuning allows, so the loop
++	 * settles in that band instead of stepping across the threshold.
++	 */
++	const double share = static_cast<double>(nearWhite) / total;
++	double &highlightEv = context.activeState.agc.highlightEv;
++
++	if (share > *maxClipped_)
++		highlightEv = std::max(-maxHighlightEv_, highlightEv - kHighlightEvDown);
++	else if (share < *maxClipped_ / 2.0)
++		highlightEv = std::min(0.0, highlightEv + kHighlightEvUp);
++
++	LOG(IPASoftExposure, Debug)
++		<< "Near white share " << share << ", allowed " << *maxClipped_
++		<< ", neutral " << neutral << ", near white from bin "
++		<< (whiteFrom < 0 ? std::string("none") : std::to_string(whiteFrom))
++		<< ", highlight EV " << highlightEv;
++}
++
+ void Agc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+ 		  [[maybe_unused]] IPAFrameContext &frameContext, DebayerParams *params)
+ {
+@@ -349,6 +556,7 @@ void Agc::process(IPAContext &context,
+ 		context.activeState.agc.exposure = frameContext.sensor.exposure;
+ 		context.activeState.agc.again = frameContext.sensor.gain;
+ 		context.activeState.agc.headroom = 0.0;
++		context.activeState.agc.highlightEv = 0.0;
+ 		context.activeState.agc.stableSamples = 0;
+ 		context.activeState.agc.validSamples = 0;
+ 		context.activeState.agc.valid = true;
+@@ -416,6 +624,15 @@ void Agc::process(IPAContext &context,
+ 	if (!manual)
+ 		updateHeadroom(context, histogram, blackLevelHistIdx, histogramSize);
+ 	const double digitalGain = std::exp2(context.activeState.agc.headroom);
++
++	/*
++	 * The near-white share uses the same digital gain the mean sample value
++	 * is corrected with, so the two judge the same output image.
++	 */
++	if (!manual)
++		updateHighlightEv(context, histogram, blackLevelHistIdx, histogramSize,
++				  digitalGain);
++
+ 	for (unsigned int i = 0; i < histogramSize; i++) {
+ 		const unsigned int gained = std::min<unsigned int>(
+ 			histogramSize - 1, static_cast<unsigned int>(std::lround(i * digitalGain)));
+diff --git a/src/ipa/simple/algorithms/agc.h b/src/ipa/simple/algorithms/agc.h
+index 3fc3b83..d1bd4e1 100644
+--- a/src/ipa/simple/algorithms/agc.h
++++ b/src/ipa/simple/algorithms/agc.h
+@@ -7,6 +7,8 @@
+ 
+ #pragma once
+ 
++#include <optional>
++
+ #include "algorithm.h"
+ 
+ namespace libcamera {
+@@ -36,11 +38,21 @@ private:
+ 			    double exposureMSV);
+ 	void updateHeadroom(IPAContext &context, const SwIspStats::Histogram &histogram,
+ 			    unsigned int first, unsigned int size);
++	void updateHighlightEv(IPAContext &context, const SwIspStats::Histogram &histogram,
++			       unsigned int first, unsigned int size, double digitalGain);
+ 	void applyHeadroom(const IPAContext &context, IPAFrameContext &frameContext) const;
+ 	double target(const IPAContext &context) const;
+ 
+ 	/* The mean sample value the loop aims for, from the tuning data. */
+ 	double exposureTarget_;
++
++	/*
++	 * The share of near-white output pixels the tuning allows, or nothing
++	 * when the sensor asks for the highlights to be given no priority.
++	 */
++	std::optional<double> maxClipped_;
++	/* How many stops the highlight priority may take off the target. */
++	double maxHighlightEv_;
+ };
+ 
+ } /* namespace ipa::soft::algorithms */
+diff --git a/src/ipa/simple/ipa_context.h b/src/ipa/simple/ipa_context.h
+index 35e3f8f..105efb9 100644
+--- a/src/ipa/simple/ipa_context.h
++++ b/src/ipa/simple/ipa_context.h
+@@ -52,6 +52,11 @@ struct IPAActiveState {
+ 		double again;
+ 		/* Stops the sensor is exposed below them to keep highlights. */
+ 		double headroom;
++		/*
++		 * Stops the target is lowered by to keep the white parts of the
++		 * output from clipping, zero or less.
++		 */
++		double highlightEv;
+ 		unsigned int stableSamples;
+ 		unsigned int validSamples;
+ 		bool valid;

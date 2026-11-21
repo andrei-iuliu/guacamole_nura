@@ -49,5 +49,8 @@ algorithms:
   # (phone A/B 2026-11-21: 2.5 luma 160, 2.0 127, 1.7 109, 1.5 92).
   - Agc:
       exposureTarget: 1.7
+      # Highlight priority (patch 0028): lower the target until at most 2 % of
+      # the output renders white. Window A/B 2026-11-21: clipped 14 % -> 3.4 %.
+      maxClipped: 0.02
   - Af:
 ...
