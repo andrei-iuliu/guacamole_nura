@@ -30,7 +30,15 @@ key_name() {
     local dir=$1
     local -a keys=()
     [[ -d "$dir" ]] || return 0
-    mapfile -t keys < <($SUDO find "$dir" -maxdepth 1 -name '*.rsa' -printf '%f\n' 2>/dev/null | sort)
+    # Listing needs no privilege when the directory is readable (pmbootstrap
+    # makes config_abuild 755); fall back to sudo only when it is not, and let
+    # a sudo failure show instead of reading as "no key".
+    local -a lister=(find)
+    [[ -r "$dir" && -x "$dir" ]] || lister=($SUDO find)
+    local listing
+    listing="$("${lister[@]}" "$dir" -maxdepth 1 -name '*.rsa' -printf '%f\n')" ||
+        die "cannot list $dir (sudo needs a terminal to ask for its password)"
+    mapfile -t keys < <(printf '%s' "$listing" | sed '/^$/d' | sort)
     ((${#keys[@]} <= 1)) || die "more than one private key in $dir: ${keys[*]}"
     ((${#keys[@]})) && echo "${keys[0]%.rsa}"
     return 0
