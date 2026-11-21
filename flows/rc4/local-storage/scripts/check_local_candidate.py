@@ -194,7 +194,8 @@ LIBCAMERA_ABI = "99990.8.0-r1"
 CAMERA_APP = UI_PROFILE["camera_app"]
 CAMERA_APP_LIBCAMERA_ABI = "so:libcamera.so.0.8"
 # The historical rear1 APKs are 0.7.2-r0; the recipe built by a fresh baseline
-# is r1 (patches 0023 exposure target, 0024 manual exposure controls).
+# is r1 (patches 0023 exposure target, 0024 manual exposure controls,
+# 0025 white balance without clipped pixels).
 LIBRARY_REAR = "0.7.2-r1" if FRESH_BASELINE else "0.7.2-r0"
 BASELINE_HOOK_VERSION = "4.2.1-r4"
 CANDIDATE_HOOK_VERSION = os.environ.get("NURA_NETBOOT_HOOK_VERSION", BASELINE_HOOK_VERSION)
