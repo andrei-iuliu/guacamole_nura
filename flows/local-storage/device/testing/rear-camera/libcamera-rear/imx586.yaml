@@ -15,6 +15,16 @@ version: 1
 algorithms:
   - BlackLevel:
       blackLevel: 4096
+  # Radial lens shading (patch 0026), fitted from a raw flat field of a wall
+  # (16 frames, 2026-11-21): corners get 25-32 % of the centre's light, red
+  # falls off most. gain = k0 + k1 r^2 + k2 r^4 + k3 r^6, r = 1 at the corners.
+  # Wall check after 0027: corners 0.49-0.58 of the centre -> 0.87-0.99.
+  - LensShading:
+      centre: [ 0.510, 0.460 ]
+      r: [ 0.987, 2.0296, 0.7373, -0.3394 ]
+      g: [ 0.9982, 1.5947, 1.2865, -0.7828 ]
+      b: [ 1.0, 1.4739, 1.2465, -0.738 ]
+      strength: 1.0
   - Awb:
   - Ccm:
       ccms:

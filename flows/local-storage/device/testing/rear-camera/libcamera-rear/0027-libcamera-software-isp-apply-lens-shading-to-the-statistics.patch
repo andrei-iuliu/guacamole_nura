@@ -1,0 +1,523 @@
+libcamera: software_isp: apply lens shading to the statistics
+
+The exposure, the white balance and the luminance histogram are computed by
+SwStatsCpu from the raw Bayer data, before the debayer shaders apply the lens
+shading correction. On a scene with a bright object near the edge of the
+frame that made the correction counter-productive: with the gain on, clipping
+went from 0.7% to 33% and mean luma from 102 to 134, because the loop never
+saw the corners it had just brightened.
+
+SwStatsCpu now takes the same DebayerParams::LensShading values and black
+level as the debayer and, when they change, builds the gain of each channel
+of a 16x16 block of the input image, with the same formula, strength and
+clamp as the shaders. Like them it multiplies the signal above the black
+level and leaves the level itself in place, so the pedestal is not stretched,
+the white balance still subtracts it from the sums and the histogram keeps
+its blacks where they were. A sample then costs three table lookups and three
+multiplications before the colour sums, the saturation test of the white
+balance and the luminance histogram, and is clipped at the channel maximum so
+that a brightened pixel still counts as saturated. The autofocus sharpness
+and green sums keep using the raw data. The line functions come in two
+variants, chosen per line, so a sensor without a lens shading fit pays
+nothing for it.
+---
+diff --git a/include/libcamera/internal/software_isp/swstats_cpu.h b/include/libcamera/internal/software_isp/swstats_cpu.h
+index 1f07f31..3bac718 100644
+--- a/include/libcamera/internal/software_isp/swstats_cpu.h
++++ b/include/libcamera/internal/software_isp/swstats_cpu.h
+@@ -21,6 +21,7 @@
+ 
+ #include "libcamera/internal/bayer_format.h"
+ #include "libcamera/internal/shared_mem_object.h"
++#include "libcamera/internal/software_isp/debayer_params.h"
+ #include "libcamera/internal/software_isp/swisp_stats.h"
+ 
+ #include "benchmark.h"
+@@ -52,6 +53,8 @@ public:
+ 
+ 	int configure(const StreamConfiguration &inputCfg, unsigned int statsBufferCount = 1);
+ 	void setWindow(const Rectangle &window);
++	void setLensShading(const DebayerParams::LensShading &lsc,
++			    const RGB<float> &blackLevel);
+ 	void startFrame(uint32_t frame);
+ 	void finishFrame(uint32_t frame, uint32_t bufferId);
+ 	void processFrame(uint32_t frame, uint32_t bufferId, MappedFrameBuffer &input);
+@@ -65,7 +68,7 @@ public:
+ 		    y >= (window_.y + window_.height))
+ 			return;
+ 
+-		(this->*stats0_)(y, src, stats_[statsBufferIndex]);
++		(this->*(lscEnabled_ ? stats0Lsc_ : stats0_))(y, src, stats_[statsBufferIndex]);
+ 	}
+ 
+ 	void processLine2(uint32_t frame, unsigned int y, const uint8_t *src[], unsigned int statsBufferIndex = 0)
+@@ -88,17 +91,29 @@ private:
+ 	using processFrameFn = void (SwStatsCpu::*)(MappedFrameBuffer &in);
+ 
+ 	int setupStandardBayerOrder(BayerFormat::Order order);
++	void buildLensShadingGains();
++	/*
++	 * The line functions come in two variants, without and with the lens
++	 * shading gain, so that the gain costs nothing when it is off.
++	 */
+ 	/* Bayer 8 bpp unpacked */
++	template<bool lscEnabled>
+ 	void statsBGGR8Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
+ 	/* Bayer 10 bpp unpacked */
++	template<bool lscEnabled>
+ 	void statsBGGR10Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
+ 	/* Bayer 12 bpp unpacked */
++	template<bool lscEnabled>
+ 	void statsBGGR12Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
+ 	/* Bayer 10 bpp packed */
++	template<bool lscEnabled>
+ 	void statsBGGR10PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
++	template<bool lscEnabled>
+ 	void statsGBRG10PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
+ 	/* Bayer 12 bpp packed */
++	template<bool lscEnabled>
+ 	void statsBGGR12PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
++	template<bool lscEnabled>
+ 	void statsGBRG12PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats);
+ 
+ 	void processBayerFrame2(MappedFrameBuffer &in);
+@@ -107,6 +122,7 @@ private:
+ 
+ 	/* Variables set by configure(), used every line */
+ 	statsProcessFn stats0_;
++	statsProcessFn stats0Lsc_;
+ 	statsProcessFn stats2_;
+ 	bool swapLines_;
+ 
+@@ -120,6 +136,25 @@ private:
+ 	unsigned int stride_;
+ 	unsigned int sumShift_;
+ 
++	/*
++	 * Lens shading correction of the statistics: a gain per channel per
++	 * block of the input image, in 1 / (1 << kLscGainShift) units, so that
++	 * a sample is corrected with three lookups and three multiplications.
++	 * The gain applies to the signal above the black level, which is kept
++	 * per channel in the scale of the pixel values.
++	 */
++	static constexpr unsigned int kLscBlockSize = 16;
++	static constexpr unsigned int kLscGainShift = 8;
++
++	DebayerParams::LensShading lsc_;
++	RGB<float> blackLevel_;
++	std::vector<uint16_t> lscGain_;
++	Size inputSize_;
++	unsigned int lscBlack_[3] = { 0, 0, 0 };
++	unsigned int lscBlockWidth_ = 0;
++	unsigned int lscBlockHeight_ = 0;
++	bool lscEnabled_ = false;
++
+ 	std::vector<SwIspStats> stats_;
+ 	SharedMemObject<SwIspStats> sharedStats_;
+ 	Benchmark bench_;
+diff --git a/src/libcamera/software_isp/debayer_cpu.cpp b/src/libcamera/software_isp/debayer_cpu.cpp
+index 7bbffcd..88512fe 100644
+--- a/src/libcamera/software_isp/debayer_cpu.cpp
++++ b/src/libcamera/software_isp/debayer_cpu.cpp
+@@ -1097,6 +1097,12 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
+ 
+ 	std::vector<DmaSyncer> dmaSyncers;
+ 
++	/*
++	 * The statistics must see the lens shading the frames get, or exposure
++	 * and white balance would aim at the darker raw frame.
++	 */
++	stats_->setLensShading(params.lsc, params.blackLevel);
++
+ 	dmaSyncBegin(dmaSyncers, input, output);
+ 
+ 	updateLookupTables(params);
+diff --git a/src/libcamera/software_isp/debayer_egl.cpp b/src/libcamera/software_isp/debayer_egl.cpp
+index 18d8f07..645b246 100644
+--- a/src/libcamera/software_isp/debayer_egl.cpp
++++ b/src/libcamera/software_isp/debayer_egl.cpp
+@@ -671,6 +671,12 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
+ {
+ 	bench_.startFrame();
+ 
++	/*
++	 * The statistics must see the lens shading the frames get, or exposure
++	 * and white balance would aim at the darker raw frame.
++	 */
++	stats_->setLensShading(params.lsc, params.blackLevel);
++
+ 	/* Copy metadata from the input buffer */
+ 	FrameMetadata &metadata = output->_d()->metadata();
+ 	metadata.status = input->metadata().status;
+diff --git a/src/libcamera/software_isp/swstats_cpu.cpp b/src/libcamera/software_isp/swstats_cpu.cpp
+index 1b145f2..1816eba 100644
+--- a/src/libcamera/software_isp/swstats_cpu.cpp
++++ b/src/libcamera/software_isp/swstats_cpu.cpp
+@@ -12,6 +12,8 @@
+ #include "libcamera/internal/software_isp/swstats_cpu.h"
+ 
+ #include <algorithm>
++#include <cmath>
++#include <iterator>
+ 
+ #include <libcamera/base/log.h>
+ 
+@@ -192,39 +194,84 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	const unsigned int samplesPerLine = std::max(1U, window_.width / 4); \
+ 	const unsigned int tileY = std::min(SwIspStats::kAfGridHeight - 1, \
+ 		static_cast<unsigned int>(y - window_.y) * SwIspStats::kAfGridHeight / \
+-		std::max(1U, window_.height));
++		std::max(1U, window_.height)); \
++	/* Row of this line in the gain table, and the black levels */ \
++	[[maybe_unused]] const unsigned int lscRow = \
++		static_cast<unsigned int>(y) / kLscBlockSize * lscBlockWidth_; \
++	[[maybe_unused]] const unsigned int lscBlackR = lscBlack_[0]; \
++	[[maybe_unused]] const unsigned int lscBlackG = lscBlack_[1]; \
++	[[maybe_unused]] const unsigned int lscBlackB = lscBlack_[2];
+ 
+-#define SWSTATS_ACCUMULATE_LINE_STATS(div)                                            \
+-	sumR += r;                                                                    \
+-	sumG += g;                                                                    \
+-	sumB += b;                                                                    \
+-	if (std::max({ r, g, b }) < SwIspStats::kAwbSaturation * (div)) {          \
+-		awbR += r;                                                            \
+-		awbG += g;                                                            \
+-		awbB += b;                                                            \
++/*
++ * Scale a sample by the lens shading gain of its block, so that exposure,
++ * white balance and the histogram see the frame the debayer produces instead
++ * of the darker one the sensor delivers. The gain multiplies the signal above
++ * the black level, as the shaders do it on the black-corrected signal, and
++ * leaves the black level itself in place: the white balance subtracts it from
++ * the sums, so the pedestal must not be stretched by the gain. Samples cover
++ * four columns of the input image, hence sample << 2. The result is clipped
++ * at the channel maximum the accumulation works with, so that a brightened
++ * pixel still counts as saturated for the white balance.
++ */
++#define SWSTATS_SHADE_CHANNEL(value, black, gain)                                     \
++	((black) + std::min(lscMax - (black),                                         \
++		((static_cast<unsigned int>(value) > (black) ?                        \
++		  static_cast<unsigned int>(value) - (black) : 0) * (gain) + lscRound) \
++		>> kLscGainShift))
++
++#define SWSTATS_SHADE_LINE_STATS(div)                                                  \
++	const uint16_t *lscGain = lscGain_.data() +                                    \
++		(lscRow + (window_.x + (sample << 2)) / kLscBlockSize) * 3;            \
++	const unsigned int lscMax = 255 * (div);                                       \
++	const unsigned int lscRound = 1 << (kLscGainShift - 1);                        \
++	const unsigned int sr = SWSTATS_SHADE_CHANNEL(r, lscBlackR, lscGain[0]);       \
++	const unsigned int sg = SWSTATS_SHADE_CHANNEL(g, lscBlackG, lscGain[1]);       \
++	const unsigned int sb = SWSTATS_SHADE_CHANNEL(b, lscBlackB, lscGain[2]);
++
++/*
++ * Accumulate one sample. The channels given are the ones the exposure, the
++ * white balance and the histogram see; the autofocus statistics always use
++ * the raw green, as the sharpness must not depend on the correction.
++ */
++#define SWSTATS_ACCUMULATE_SHADED_LINE_STATS(div, vr, vg, vb)                         \
++	sumR += (vr);                                                                 \
++	sumG += (vg);                                                                 \
++	sumB += (vb);                                                                 \
++	if (std::max({ vr, vg, vb }) < SwIspStats::kAwbSaturation * (div)) {          \
++		awbR += (vr);                                                         \
++		awbG += (vg);                                                         \
++		awbB += (vb);                                                         \
+ 		++awbN;                                                               \
+-	}                                                                           \
++	}                                                                             \
+                                                                                       \
+-	yVal = r * kRedYMul;                                                          \
+-	yVal += g * kGreenYMul;                                                       \
+-	yVal += b * kBlueYMul;                                                        \
++	yVal = (vr) * kRedYMul;                                                       \
++	yVal += (vg) * kGreenYMul;                                                    \
++	yVal += (vb) * kBlueYMul;                                                     \
+ 	stats.yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++; \
+ 	const unsigned int tileX = std::min(SwIspStats::kAfGridWidth - 1,             \
+-		sample * SwIspStats::kAfGridWidth / samplesPerLine);                    \
++		sample * SwIspStats::kAfGridWidth / samplesPerLine);                  \
+ 	const unsigned int tile = tileY * SwIspStats::kAfGridWidth + tileX;           \
+-	stats.afGreen[tile] += g;                                                      \
++	stats.afGreen[tile] += g;                                                     \
+ 	if (havePreviousG) {                                                          \
+ 		const int64_t delta = static_cast<int64_t>(g) - previousG;            \
+ 		const uint64_t energy = static_cast<uint64_t>(delta * delta);         \
+-		sharpness += energy;                                                   \
++		sharpness += energy;                                                  \
+ 		if (tile == previousTile)                                             \
+-			stats.afSharpness[tile] += energy;                              \
++			stats.afSharpness[tile] += energy;                            \
+ 	}                                                                             \
+ 	previousG = g;                                                                \
+ 	previousTile = tile;                                                          \
+ 	havePreviousG = true;                                                         \
+ 	++sample;
+ 
++#define SWSTATS_ACCUMULATE_LINE_STATS(div)                                            \
++	if constexpr (lscEnabled) {                                                   \
++		SWSTATS_SHADE_LINE_STATS(div)                                         \
++		SWSTATS_ACCUMULATE_SHADED_LINE_STATS(div, sr, sg, sb)                 \
++	} else {                                                                      \
++		SWSTATS_ACCUMULATE_SHADED_LINE_STATS(div, r, g, b)                    \
++	}
++
+ #define SWSTATS_FINISH_LINE_STATS() \
+ 	stats.sum_.r() += sumR;     \
+ 	stats.sum_.g() += sumG;     \
+@@ -233,6 +280,7 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	stats.awbPixels += awbN;    \
+ 	stats.sharpness += sharpness;
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsBGGR8Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint8_t *src0 = src[1] + window_.x;
+@@ -258,6 +306,7 @@ void SwStatsCpu::statsBGGR8Line0(unsigned int y, const uint8_t *src[], SwIspStat
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsBGGR10Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint16_t *src0 = (const uint16_t *)src[1] + window_.x;
+@@ -284,6 +333,7 @@ void SwStatsCpu::statsBGGR10Line0(unsigned int y, const uint8_t *src[], SwIspSta
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsBGGR12Line0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint16_t *src0 = (const uint16_t *)src[1] + window_.x;
+@@ -310,6 +360,7 @@ void SwStatsCpu::statsBGGR12Line0(unsigned int y, const uint8_t *src[], SwIspSta
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsBGGR10PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
+@@ -336,6 +387,7 @@ void SwStatsCpu::statsBGGR10PLine0(unsigned int y, const uint8_t *src[], SwIspSt
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsGBRG10PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
+@@ -362,6 +414,7 @@ void SwStatsCpu::statsGBRG10PLine0(unsigned int y, const uint8_t *src[], SwIspSt
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsBGGR12PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint8_t *src0 = src[1] + window_.x * 3 / 2;
+@@ -388,6 +441,7 @@ void SwStatsCpu::statsBGGR12PLine0(unsigned int y, const uint8_t *src[], SwIspSt
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
++template<bool lscEnabled>
+ void SwStatsCpu::statsGBRG12PLine0(unsigned int y, const uint8_t *src[], SwIspStats &stats)
+ {
+ 	const uint8_t *src0 = src[1] + window_.x * 3 / 2;
+@@ -541,6 +595,18 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
+ 	stride_ = inputCfg.stride;
+ 	stats_.resize(statsBufferCount);
+ 
++	/*
++	 * The lens shading gain table covers the whole input image, and is
++	 * built again from the tuning the next time the parameters arrive.
++	 */
++	inputSize_ = inputCfg.size;
++	lscBlockWidth_ = (inputSize_.width + kLscBlockSize - 1) / kLscBlockSize;
++	lscBlockHeight_ = (inputSize_.height + kLscBlockSize - 1) / kLscBlockSize;
++	lscGain_.clear();
++	lscEnabled_ = false;
++	lsc_ = DebayerParams::LensShading{};
++	blackLevel_ = RGB<float>({ 0.0, 0.0, 0.0 });
++
+ 	BayerFormat bayerFormat =
+ 		BayerFormat::fromPixelFormat(inputCfg.pixelFormat);
+ 
+@@ -549,15 +615,18 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
+ 		processFrame_ = &SwStatsCpu::processBayerFrame2;
+ 		switch (bayerFormat.bitDepth) {
+ 		case 8:
+-			stats0_ = &SwStatsCpu::statsBGGR8Line0;
++			stats0_ = &SwStatsCpu::statsBGGR8Line0<false>;
++			stats0Lsc_ = &SwStatsCpu::statsBGGR8Line0<true>;
+ 			sumShift_ = 0;
+ 			return 0;
+ 		case 10:
+-			stats0_ = &SwStatsCpu::statsBGGR10Line0;
++			stats0_ = &SwStatsCpu::statsBGGR10Line0<false>;
++			stats0Lsc_ = &SwStatsCpu::statsBGGR10Line0<true>;
+ 			sumShift_ = 2;
+ 			return 0;
+ 		case 12:
+-			stats0_ = &SwStatsCpu::statsBGGR12Line0;
++			stats0_ = &SwStatsCpu::statsBGGR12Line0<false>;
++			stats0Lsc_ = &SwStatsCpu::statsBGGR12Line0<true>;
+ 			sumShift_ = 4;
+ 			return 0;
+ 		}
+@@ -583,12 +652,24 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
+ 		switch (bayerFormat.order) {
+ 		case BayerFormat::BGGR:
+ 		case BayerFormat::GRBG:
+-			stats0_ = (bitDepth == 10) ? &SwStatsCpu::statsBGGR10PLine0 : &SwStatsCpu::statsBGGR12PLine0;
++			if (bitDepth == 10) {
++				stats0_ = &SwStatsCpu::statsBGGR10PLine0<false>;
++				stats0Lsc_ = &SwStatsCpu::statsBGGR10PLine0<true>;
++			} else {
++				stats0_ = &SwStatsCpu::statsBGGR12PLine0<false>;
++				stats0Lsc_ = &SwStatsCpu::statsBGGR12PLine0<true>;
++			}
+ 			swapLines_ = bayerFormat.order == BayerFormat::GRBG;
+ 			return 0;
+ 		case BayerFormat::GBRG:
+ 		case BayerFormat::RGGB:
+-			stats0_ = (bitDepth == 10) ? &SwStatsCpu::statsGBRG10PLine0 : &SwStatsCpu::statsGBRG12PLine0;
++			if (bitDepth == 10) {
++				stats0_ = &SwStatsCpu::statsGBRG10PLine0<false>;
++				stats0Lsc_ = &SwStatsCpu::statsGBRG10PLine0<true>;
++			} else {
++				stats0_ = &SwStatsCpu::statsGBRG12PLine0<false>;
++				stats0Lsc_ = &SwStatsCpu::statsGBRG12PLine0<true>;
++			}
+ 			swapLines_ = bayerFormat.order == BayerFormat::RGGB;
+ 			return 0;
+ 		default:
+@@ -643,6 +724,123 @@ void SwStatsCpu::setWindow(const Rectangle &window)
+ 	window_.height &= ~(patternSize_.height - 1);
+ }
+ 
++/**
++ * \brief Set the lens shading correction to apply to the statistics
++ * \param[in] lsc The correction, as the debayer applies it
++ * \param[in] blackLevel The black level the signal starts above
++ *
++ * The exposure, the white balance and the luminance histogram must see the
++ * frame the debayer produces. Without this, a correction that brightens the
++ * corners by more than three times leaves them out of the exposure loop and
++ * clips anything bright near the edge of the frame.
++ *
++ * Like the shaders, the gain multiplies the signal above the black level and
++ * leaves the level itself in place, so that the white balance can subtract it
++ * from the sums and the black stays out of the histogram as it is without the
++ * correction.
++ *
++ * The correction is static for a camera session, so the gain table is built
++ * here, from the values passed in, and only when they differ from the ones in
++ * use. The autofocus statistics are left on the raw data.
++ */
++void SwStatsCpu::setLensShading(const DebayerParams::LensShading &lsc,
++				const RGB<float> &blackLevel)
++{
++	bool same = lsc_.enabled == lsc.enabled &&
++		    lsc_.strength == lsc.strength &&
++		    lsc_.maxGain == lsc.maxGain &&
++		    lsc_.centre[0] == lsc.centre[0] &&
++		    lsc_.centre[1] == lsc.centre[1] &&
++		    blackLevel_ == blackLevel;
++
++	for (unsigned int channel = 0; channel < 3 && same; channel++)
++		same = std::equal(std::begin(lsc_.coefficients[channel]),
++				  std::end(lsc_.coefficients[channel]),
++				  std::begin(lsc.coefficients[channel]));
++
++	if (same)
++		return;
++
++	lsc_ = lsc;
++	blackLevel_ = blackLevel;
++
++	if (!lsc_.enabled) {
++		lscEnabled_ = false;
++		return;
++	}
++
++	buildLensShadingGains();
++	/* Only sample the table when it holds a gain for every block. */
++	lscEnabled_ = !lscGain_.empty();
++}
++
++/*
++ * Build the per-channel gain of every block of the input image, in
++ * 1 / (1 << kLscGainShift) units, with the same formula, strength and clamp as
++ * the shaders: the gain is fitted in fractions of the image size, normalised
++ * so that r = 1 at the corners of a centred lens.
++ *
++ * The black level is carried in fractions of the sensor range, and the pixel
++ * values are in 8-bit units times the divisor of the input format, which the
++ * sums are shifted back by in finishFrame(). Convert it once here rather than
++ * per sample.
++ */
++void SwStatsCpu::buildLensShadingGains()
++{
++	if (!inputSize_.width || !inputSize_.height)
++		return;
++
++	const unsigned int maxLevel = 255 * (1U << sumShift_);
++
++	for (unsigned int channel = 0; channel < 3; channel++) {
++		const long level = std::lround(blackLevel_[channel] * 255.0f *
++					       (1U << sumShift_));
++		lscBlack_[channel] = static_cast<unsigned int>(
++			std::clamp<long>(level, 0, maxLevel));
++	}
++
++	const float width = inputSize_.width;
++	const float height = inputSize_.height;
++	const float scale = 4.0f / (width * width + height * height);
++	const float centreX = lsc_.centre[0] * width;
++	const float centreY = lsc_.centre[1] * height;
++	const float maxGain = std::max(lsc_.maxGain, 1.0f);
++	const float minGain = 1.0f / maxGain;
++	constexpr float blockCentre = kLscBlockSize / 2.0f;
++
++	/*
++	 * One block row more than the image has, so that a caller passing a
++	 * window that reaches just past the last line still reads a gain
++	 * instead of the heap.
++	 */
++	lscGain_.resize(lscBlockWidth_ * (lscBlockHeight_ + 1) * 3);
++
++	for (unsigned int blockY = 0; blockY <= lscBlockHeight_; blockY++) {
++		const float dy = blockY * kLscBlockSize + blockCentre - centreY;
++
++		for (unsigned int blockX = 0; blockX < lscBlockWidth_; blockX++) {
++			const float dx = blockX * kLscBlockSize + blockCentre - centreX;
++			const float r2 = (dx * dx + dy * dy) * scale;
++			uint16_t *gains = &lscGain_[(blockY * lscBlockWidth_ + blockX) * 3];
++
++			for (unsigned int channel = 0; channel < 3; channel++) {
++				const float *k = lsc_.coefficients[channel];
++				float gain = k[0] + r2 * (k[1] + r2 * (k[2] + r2 * k[3]));
++
++				gain = 1.0f + lsc_.strength * (gain - 1.0f);
++				gain = std::clamp(gain, minGain, maxGain);
++				gains[channel] = static_cast<uint16_t>(std::clamp<long>(
++					std::lround(gain * (1 << kLscGainShift)),
++					0, UINT16_MAX));
++			}
++		}
++	}
++
++	LOG(SwStatsCpu, Debug)
++		<< "Lens shading gain table of " << lscBlockWidth_ << "x"
++		<< lscBlockHeight_ << " blocks for the statistics";
++}
++
+ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
+ {
+ 	const uint8_t *src = in.planes()[0].data();
+@@ -660,7 +858,7 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
+ 		/* linePointers[0] is not used by any stats0_ functions */
+ 		linePointers[1] = src;
+ 		linePointers[2] = src + stride_;
+-		(this->*stats0_)(window_.y + y, linePointers, stats_[0]);
++		(this->*(lscEnabled_ ? stats0Lsc_ : stats0_))(window_.y + y, linePointers, stats_[0]);
+ 		src += stride_ * 2;
+ 	}
+ }
