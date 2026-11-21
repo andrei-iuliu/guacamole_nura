@@ -15,6 +15,7 @@
 #   mkbootimg       android.googlesource.com platform/system/tools/mkbootimg @64dc2d4
 #   avbtool.py      android.googlesource.com platform/external/avb @0cf9e8f
 #   bc              the system bc if installed, else flows/rc4/scripts/toolshim/bc
+#   kernel source   local/sources/linux-*.tar.gz (APKBUILD source URL, SHA-512 pin)
 #   DTB tools       scripts/build_host_tools.sh (system dtc + libufdt test app)
 #   dtbo.img        from --lineage-ota, accepted only if its entry 0 is the pinned one
 # No sudo, no phone access. Existing files are never overwritten: a file with
@@ -28,7 +29,7 @@ while (($#)); do
     case "$1" in
         --check) CHECK=1 ;;
         --lineage-ota) OTA="$(realpath -e -- "${2:?--lineage-ota needs a zip}")"; shift ;;
-        -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -124,6 +125,36 @@ else
     mkdir -p "$REPO/local/bin"
     install -m 755 "$REPO/flows/rc4/scripts/toolshim/bc" "$REPO/local/bin/bc"
     got "local/bin/bc (toolshim: kernel timeconst.bc only; install bc for the real one)"
+fi
+
+echo "== kernel source archive"
+# Pinned by SHA-512 in the rc4 kernel APKBUILD; the kernel builder looks for it
+# in local/sources/ when its state directory has no copy.
+KRECIPE="$REPO/flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"
+apkvar() { sh -c '. "$1"; eval "printf \"%s\\n\" \"\$$2\""' sh "$KRECIPE/APKBUILD" "$1"; }
+read -r ksha kname < <(apkvar sha512sums | awk '$2 ~ /^linux-.*\.tar\./ {print; exit}')
+kurl=$(apkvar source | awk -v n="$kname" 'index($1, n "::") == 1 {sub(/^[^:]*::/, "", $1); print $1; exit}')
+kdest="local/sources/$kname"
+sha512() { sha512sum "$1" | cut -d' ' -f1; }
+if [[ -e "$REPO/$kdest" ]]; then
+    [[ "$(sha512 "$REPO/$kdest")" = "$ksha" ]] && ok "$kdest" || bad "$kdest: hash differs from the APKBUILD pin (left untouched)"
+elif ((CHECK)); then
+    bad "$kdest: missing"
+else
+    # Reuse a verified copy from an earlier kernel build before downloading ~250 MB.
+    src=""
+    for c in "${NURA_KERNEL_SOURCE_STATE:-}/$kname" "$REPO"/.work/*/kernel-state/"$kname" \
+             "$REPO/flows/rc4/build-source/kernel-state/$kname"; do
+        [[ -f "$c" && "$(sha512 "$c")" = "$ksha" ]] && { src="$c"; break; }
+    done
+    mkdir -p "$REPO/local/sources"
+    if [[ -n "$src" ]]; then
+        cp --reflink=auto -- "$src" "$REPO/$kdest"; got "$kdest (copied from ${src#"$REPO"/})"
+    elif curl -fL --progress-bar -o "$TMP/kernel.tar" "$kurl" && [[ "$(sha512 "$TMP/kernel.tar")" = "$ksha" ]]; then
+        install -m 644 "$TMP/kernel.tar" "$REPO/$kdest"; got "$kdest"
+    else
+        bad "$kdest: download from $kurl failed or does not match the pin"
+    fi
 fi
 
 echo "== DTB host tools"
