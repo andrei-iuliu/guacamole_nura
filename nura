@@ -18,6 +18,8 @@
 #   ./nura preflight                     read-only pre-install checklist (host + phone)
 #   ./nura install [--dry-run] [...]     guarded userdata install onto the phone
 #   ./nura shutdown [--dry-run]          clear leftover pmbootstrap chroot mounts
+#   ./nura clean [--apply] [--rootfs]    list/remove stale .work dirs (read-only
+#                                        without --apply; never touches outputs)
 #   ./nura env                           show the settings in use
 #
 # Global option: --ui phosh|plasma (or NURA_UI; default phosh), before or after
@@ -31,7 +33,7 @@ REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd -P)"
 FLOW="$REPO/flows/rc4/local-storage"
 
 die() { echo "nura: $*" >&2; exit 1; }
-usage() { sed -n '2,27p' "$0"; }
+usage() { sed -n '2,29p' "$0"; }
 
 # --- global options and settings --------------------------------------------
 args=()
@@ -140,6 +142,7 @@ PY
     debug-image) exec bash "$FLOW/scripts/local_storage_debug_bootimg.sh" "$@" ;;
     preflight) exec python3 "$FLOW/scripts/install_userdata.py" --fastboot "$NURA_FASTBOOT" --preflight "$@" ;;
     install) exec python3 "$FLOW/scripts/install_userdata.py" --fastboot "$NURA_FASTBOOT" "$@" ;;
+    clean) exec bash "$REPO/scripts/clean_work.sh" "$@" ;;
     shutdown) exec bash "$REPO/flows/rc4/scripts/rc4.sh" shutdown --ui "$NURA_UI" "$@" ;;
 
     *) usage >&2; die "unknown command: $cmd" ;;

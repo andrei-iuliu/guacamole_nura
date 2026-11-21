@@ -14,6 +14,7 @@ current (rc4 local-userdata) flow uses it. Superseded generations are in
 | `build_host_tools.sh` | System `dtc` tools plus `ufdt_overlay_test_app` from AOSP libufdt, recorded in `local/TOOLS.json` |
 | `bootstrap_baseline.sh` | Pinned pmaports/pmbootstrap baseline from public sources (`./nura baseline`) |
 | `signing_key.sh` | One package-signing key across pmbootstrap work directories (`./nura signing-key`) |
+| `clean_work.sh` | List/remove stale `.work` dirs, the per-UI kernel copy and (with `--rootfs`) pmbootstrap work dirs; read-only without `--apply` (`./nura clean`) |
 | `extract_lineage_firmware.py` | Firmware bundle from a Lineage OTA (`./nura firmware`) |
 | `prepare_sensor_bundle.py` | Sensor bundle from the OTA's vendor/dsp images (`./nura firmware`) |
 
