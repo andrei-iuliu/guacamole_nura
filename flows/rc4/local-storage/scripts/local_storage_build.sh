@@ -12,10 +12,18 @@
 # --ui plasma|phosh (or NURA_UI) selects the UI; phosh is the default and uses
 # .work/local-userdata-phosh and build/local-userdata-phosh; plasma keeps
 # .work/local-userdata and build/local-userdata.
+# --pmaports-ref REF (or NURA_PMAPORTS_REF) builds against that ref of Nura's
+# pmaports instead of the pinned baseline copy (see rootfs_prepare_local.sh);
+# it gets its own state and output, with the -nura suffix
+# (.work/local-userdata-nura, build/local-userdata-nura for plasma), so the
+# pinned build stays the rollback.
 # --fresh-baseline builds libcamera 0.8 and libcamera-rear from their recipes
 # instead of reusing the historical rear1 APKs, so NURA_BASELINE_ROOT only
 # needs what scripts/bootstrap_baseline.sh creates.
 #
+# A Plasma build always builds the flow's local plasma-mobile recipe
+# (device/testing/plasma-mobile: upstream's quick-settings fix, 6.8.3-r101) and
+# fails unless the image carries it; Phosh never builds or installs it.
 # --shutdown clears leftover chroots of the selected UI after a failed build
 # (pmbootstrap's own shutdown; nothing is ever force-unmounted) and is safe to
 # run when nothing is mounted.  --shutdown --dry-run only prints the exact
@@ -47,6 +55,12 @@ CHECKER="$FLOW_DIR/scripts/check_local_candidate.py"
 SERVED_RECORD="${NURA_SERVED_RECORD:-$SOURCE_ROOT/.work/delivery-plasma-mobile/served-image.json}"
 HELPER_SCRIPTS="$FLOW_DIR/scripts"
 BUILD=0
+# --pmaports-ref: build against Nura's pmaports instead of the pinned baseline.
+PMAPORTS_REF="${NURA_PMAPORTS_REF:-}"
+# Opt-in Plasma change for the Nura pmaports trial; it defaults off, so the
+# package set and exclusions stay exactly today's.
+#   NURA_PLASMA_NO_XWAYLAND=1 drop xwayland + xwaylandvideobridge
+NO_XWAYLAND="${NURA_PLASMA_NO_XWAYLAND:-0}"
 REFRESH_KERNEL=0
 FRESH_BASELINE="${NURA_FRESH_BASELINE:-0}"
 SHUTDOWN=0
@@ -55,7 +69,8 @@ AUTHORIZED_KEY=""
 SNAP_BEFORE=""
 
 usage() {
-    sed -n '2,22p' "$0"
+    # The header comment block; no line numbers to drift.
+    awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$0"
 }
 
 die() {
@@ -81,7 +96,7 @@ overlap() {
 # anything is attempted.
 state_mounts() {
     local mounts target root
-    root="$(realpath -m -- "$LOCAL_STATE")"
+    root="$(realpath -m -- "${1:-$LOCAL_STATE}")"
     command -v findmnt >/dev/null 2>&1 || die "findmnt is required to inspect mounts"
     mounts="$(findmnt -rn -o TARGET)" || die "findmnt failed; cannot inspect mounts"
     while IFS= read -r target; do
@@ -97,10 +112,27 @@ state_mounts() {
 shutdown_chroots() {
     local mounts target
     local -a shutdown
+    local sibling_base="" sibling
+    [[ "$NURA_UI" != phosh ]] || sibling_base="-phosh"
+    if [[ -n "$PMAPORTS_REF" ]]; then
+        sibling="$FLOW_DIR/.work/local-userdata$sibling_base"
+    else
+        sibling="$FLOW_DIR/.work/local-userdata$sibling_base-nura"
+    fi
     mounts="$(state_mounts)"
     if [[ -z "$mounts" ]]; then
         note "$NURA_UI: no active mounts under $LOCAL_STATE"
         note "nothing to shut down"
+        # The other build of this UI (pinned baseline vs --pmaports-ref) is a
+        # separate state; name its command instead of touching it here.
+        if [[ "$(realpath -m -- "$sibling")" != "$(realpath -m -- "$LOCAL_STATE")" ]] &&
+            [[ -n "$(state_mounts "$sibling")" ]]; then
+            if [[ -n "$PMAPORTS_REF" ]]; then
+                note "the pinned $NURA_UI state still has mounts: bash $RC4_WRAPPER shutdown --ui $NURA_UI"
+            else
+                note "the --pmaports-ref $NURA_UI state still has mounts: rerun with --pmaports-ref REF"
+            fi
+        fi
         return 0
     fi
     note "$NURA_UI: active mounts under $LOCAL_STATE:"
@@ -142,6 +174,12 @@ while (( $# )); do
         --build) BUILD=1 ;;
         --refresh-kernel) REFRESH_KERNEL=1 ;;
         --fresh-baseline) FRESH_BASELINE=1 ;;
+        --pmaports-ref)
+            (( $# >= 2 )) && [[ -n "$2" ]] || die "--pmaports-ref needs a ref (branch, tag or commit)"
+            PMAPORTS_REF=$2
+            shift
+            ;;
+        --pmaports-ref=*) PMAPORTS_REF=${1#*=} ;;
         --shutdown) SHUTDOWN=1 ;;
         --dry-run) DRY_RUN=1 ;;
         --authorized-key)
@@ -175,7 +213,23 @@ case "$NURA_UI" in
     phosh) UI_SUFFIX="-phosh" ;;
     *) die "--ui/NURA_UI must be plasma or phosh, got: $NURA_UI" ;;
 esac
-export NURA_UI
+# --pmaports-ref builds get their own state and output too (-nura), so the
+# pinned Plasma build (.work/local-userdata, build/local-userdata) stays as the
+# rollback of this change.
+if [[ -n "$PMAPORTS_REF" ]]; then
+    [[ "$PMAPORTS_REF" != -* && "$PMAPORTS_REF" =~ ^[0-9A-Za-z._/-]+$ ]] ||
+        die "--pmaports-ref is not a plain ref: $PMAPORTS_REF"
+    UI_SUFFIX="$UI_SUFFIX-nura"
+fi
+case "$NO_XWAYLAND" in
+    0|1) ;;
+    *) die "NURA_PLASMA_NO_XWAYLAND must be 0 or 1" ;;
+esac
+if [[ "$NURA_UI" != plasma && "$NO_XWAYLAND" != 0 ]]; then
+    die "NURA_PLASMA_NO_XWAYLAND is Plasma-only (--ui $NURA_UI)"
+fi
+export NURA_UI NURA_PMAPORTS_REF="$PMAPORTS_REF" \
+    NURA_PLASMA_NO_XWAYLAND="$NO_XWAYLAND"
 LOCAL_STATE="$FLOW_DIR/.work/local-userdata$UI_SUFFIX"
 LOCAL_OUT="$FLOW_DIR/build/local-userdata$UI_SUFFIX"
 KERNEL_STATE="$LOCAL_STATE/kernel-state"
@@ -425,6 +479,8 @@ run_rootfs() {
     NURA_KERNEL_BUILD="$KERNEL_BUILD" \
     NURA_LOCAL_USERDATA=1 \
     NURA_FRESH_BASELINE="${FRESH_BASELINE:-0}" \
+    NURA_PMAPORTS_REF="$PMAPORTS_REF" \
+    NURA_PLASMA_NO_XWAYLAND="$NO_XWAYLAND" \
     NURA_LOCAL_HOOK_RECIPE="$HOOK_RECIPE" \
     NURA_NETBOOT_HOOK_VERSION="$HOOK_VERSION" \
     NURA_LOCAL_TOOL="$TOOL" \
@@ -477,6 +533,19 @@ if (( ! BUILD )); then
     echo "kernel source copy: $KERNEL_STATE (source package $KERNEL_BUILD read-only)"
     echo "guarded hook:       $HOOK_VERSION from $FLOW_HOOK_RECIPE"
     echo "baseline:           ${NURA_BASELINE_ROOT:-$SOURCE_ROOT}$( (( FRESH_BASELINE )) && echo ' (fresh: libcamera built from recipes)')"
+    if [[ -n "$PMAPORTS_REF" ]]; then
+        echo "pmaports source:    Nura pmaports $PMAPORTS_REF (cloned to $SOURCE_ROOT/.work/pmaports-nura/<sha>, baseline overlays applied)"
+    else
+        echo "pmaports source:    pinned baseline copy"
+    fi
+    if [[ "$NURA_UI" = plasma ]]; then
+        if [[ "$NO_XWAYLAND" = 1 ]]; then
+            echo "Plasma exclusions:  xwayland,xwaylandvideobridge (opt-in NURA_PLASMA_NO_XWAYLAND=1)"
+        else
+            echo "Plasma exclusions:  none (default; xwayland and xwaylandvideobridge stay)"
+        fi
+        echo "local Plasma recipe: plasma-mobile 6.8.3-r101 (upstream quick-settings fix)"
+    fi
     echo "release:            $RELEASE"
     echo "rootfs script:      $ROOTFS_SCRIPT (local intermediate mode)"
     echo "final manifest:     $LOCAL_OUT/DELIVERY.local.json"

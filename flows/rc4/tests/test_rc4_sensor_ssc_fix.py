@@ -268,8 +268,8 @@ class WiringTest(unittest.TestCase):
 
     def test_checker_links_and_pins(self):
         checker = CHECKER.read_text()
-        links = checker.split("def prepare_state(", 1)[1].split(
-            "for relative, target in", 1)[0]
+        links = checker.split("def local_recipe_links(", 1)[1].split(
+            "return links", 1)[0]
         self.assertIn('"main/libssc": "device/testing/libssc"', links)
         self.assertIn('"main/iio-sensor-proxy": "device/testing/iio-sensor-proxy"', links)
         # libssc is the daemon's makedepend, so its recipe is linked first.

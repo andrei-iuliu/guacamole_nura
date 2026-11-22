@@ -41,6 +41,8 @@ file does).
 | --- | --- |
 | `NURA_SOURCE_ROOT` | Current checkout, derived from the environment file's location |
 | `NURA_BASELINE_ROOT` | Preserved runtime containing `.work/rear-camera` and `build/rear-camera` |
+| `NURA_PMAPORTS_REF` | Build against this ref of Nura's pmaports instead of the pinned copy (same as `--pmaports-ref`); own `-nura` state and output |
+| `NURA_PLASMA_NO_XWAYLAND` | Plasma opt-in (`0` default): drop `xwayland` + `xwaylandvideobridge` |
 | `RC4_KERNEL_ROOT` | Kernel build directory for one candidate; use a fresh one per candidate (for example `.work/rc4n-build`) and never reuse an old one |
 | `NURA_KERNEL_BUILD` | Kernel output containing `Image`, `kernel-package`, `kernel-inputs.json` |
 | `NURA_KERNEL_SOURCE_STATE` | Candidate kernel source and kbuild output for the local rootfs entrypoint |
@@ -55,6 +57,78 @@ The example targets Phosh. For Plasma use the flow's documented Plasma paths;
 the three explicit retry paths above must also change. Do not export
 `NURA_KERNEL_STATE` globally: the kernel builder, rootfs entrypoint and packer
 use it at different stages, and the rootfs entrypoint manages an isolated copy.
+
+### Building against current Nura pmaports (`--pmaports-ref`)
+
+The default build copies the pinned pmaports out of `NURA_BASELINE_ROOT`
+upstream commit `286d3b4`, so it builds the same sources every time. To build
+against Nura's current pmaports instead (postmarketOS is called Nura now;
+`gitlab.postmarketos.org` redirects to `gitlab.nura.eco`), add
+`--pmaports-ref REF` to `./nura build` or set `NURA_PMAPORTS_REF`:
+
+```bash
+./nura --ui plasma build --pmaports-ref main
+NURA_PMAPORTS_REF=main bash flows/rc4/local-storage/scripts/local_storage_build.sh --ui plasma --build
+```
+
+`REF` is a branch, tag or full commit of
+`https://gitlab.nura.eco/nura/pmaports.git` (override the URL with
+`NURA_PMAPORTS_URL`). It is resolved to a full commit sha with `git ls-remote`
+and the checkout is kept at `$NURA_SOURCE_ROOT/.work/pmaports-nura/<sha>`;
+an existing checkout at that sha is reused, and one that drifted (a hand edit,
+or a different baseline) is refused instead of used. On a fresh clone the flow
+overlays the baseline's local recipe paths (`check_local_candidate.py
+nura-overlay`): the recipes this flow supplies itself shadow upstream's copies,
+and the baseline's own worktree changes are copied in (never symlinked - the
+baseline's overlay entries point into its own workspace). A checkout that no
+longer matches that overlay is refused instead of built.
+
+### The local plasma-mobile recipe (every Plasma build)
+
+Every Plasma image builds exactly one local recipe from
+`flows/rc4/device/testing/`, with or without `--pmaports-ref`:
+`plasma-mobile` `6.8.3-r101`. Its one patch is upstream plasma-mobile commit
+`7d58ddd8`, "quicksettings: Never use a negative page size", which fixes the
+empty Plasma Mobile quick-settings drawer; the APKBUILD header has the symptom,
+why Qt 6.12 triggers it, and when to drop the recipe. `rootfs_prepare_local.sh`
+builds it, pins `plasma-mobile=6.8.3-r101` in `/etc/apk/world` and fails the
+build unless the image installs exactly that version. Phosh never builds or
+installs it, and every other Plasma package stays the stock repository build:
+rebuilding the 20 packages that link `Qt_6_PRIVATE_API` against `qt6-qtbase`
+6.12 was tried on 2026-11-22 and did not fix quick settings, so don't retry it.
+
+### Plasma opt-in
+
+One Plasma-only opt-in rides on this, and it is **off by default**, so a plain
+`--pmaports-ref main` build installs exactly today's Plasma package set and
+exclusions:
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `NURA_PLASMA_NO_XWAYLAND` | `0` | `1`: drop `xwayland` and `xwaylandvideobridge` from the Plasma image (nothing installed hard-depends on them; the bridge is `install_if` on `xwayland`) |
+
+`xwayland` is installed on purpose by default: without it KWin opens its lazy
+X11 socket and PulseAudio's X11 integration / Plasma Camera startup stalled
+(`docs/NURA_RC2.md` 1.2).
+
+A `--pmaports-ref` build gets its own state and output, with the `-nura`
+suffix: `.work/local-userdata-nura` and `build/local-userdata-nura` for Plasma
+(`-phosh-nura` for Phosh). The pinned build's directories are left untouched as
+the rollback, and `--pmaports-ref` also has to be passed to `shutdown` for that
+state. The candidate receipt (`$STATE/rootfs/candidate-state.json`) records
+`source_pmaports_url`, `source_pmaports_ref` and `source_pmaports_sha` next to
+the pinned identity it always recorded, the local-recipe links it carries
+(`local_links`) and the Plasma opt-in the copy was made for
+(`plasma_no_xwayland`).
+
+Switching that opt-in, or building after the flow's local recipe set changed,
+is self-service on an existing `-nura` state: the receipt says which opt-in the
+candidate pmaports copy was made for and which local-recipe links it carries, so
+the next build reconciles the paths whose recipe set changed (the local recipe
+link, or the upstream recipe it replaced, comes back) and re-applies the shared
+`.work/pmaports-nura/<sha>` overlay in place (`nura-overlay --sync`) instead of
+asking for a fresh 250 MB clone. A checkout with a real hand edit in it is still
+refused.
 
 ## Required ignored files
 
@@ -186,7 +260,8 @@ bash flows/rc4/scripts/rc4.sh shutdown --ui "$NURA_UI"
 ```
 
 Outputs are in `flows/rc4/local-storage/build/local-userdata-phosh/` (boot image
-and manifest) and the rootfs path specified by `NURA_LOCAL_ROOTFS_IMAGE`.
+and manifest; `.../local-userdata-nura/` for a `--pmaports-ref` build) and the
+rootfs path specified by `NURA_LOCAL_ROOTFS_IMAGE`.
 These commands do not flash the phone. Hardware readiness remains a separate
 check.
 
@@ -215,6 +290,11 @@ can issue only `devices`, `getvar`, `-S 64M flash userdata` and `boot`.
 If the bootloader's `product` is not recognised (for example `msmnile`), the
 script stops. Rerun it with `--accept-product <exact value>` after checking
 that the device really is the OnePlus 7 Pro.
+
+`--no-debug-boot` skips the debug image and the `e2fsck` in the initramfs
+shell: it needs no `local-debug` build (`./nura debug-image`), RAM-boots the
+normal image straight after the flash and waits for SSH. It cannot be combined
+with `--no-continue`, which needs the debug shell.
 
 ## Boot image from a kernel build, without a rootfs build
 

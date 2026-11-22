@@ -36,6 +36,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -62,6 +63,32 @@ RELEASE_PATTERN = re.compile(
     r"7\.0\.0-sm8150-(?:guacamole-rc[0-9]+|rc[0-9]+|rear[0-9]+)")
 # rc4 keeps the rc/rear rollback names valid; the release this flow builds is
 # 7.0.0-sm8150-guacamole-rc4.
+# The Plasma image always builds the local plasma-mobile recipe
+# (flows/rc4/device/testing/plasma-mobile): its one patch is upstream's
+# quick-settings fix, and pkgrel 101 keeps it above the repository's 6.8.3-r0.
+# This is the version the image must carry, not an opt-in.
+PLASMA_MOBILE_VERSION = "6.8.3-r101"
+# Opt-in Plasma change for the Nura pmaports trial.  Default OFF, so a build
+# with --pmaports-ref and no opt-in installs exactly today's Plasma package
+# set and exclusions.
+#
+# NURA_PLASMA_NO_XWAYLAND=1 drops Xwayland from the Plasma image.  The flow
+# installs xwayland on purpose (docs/NURA_RC2.md 1.2: without it KWin opens its
+# lazy X11 socket and PulseAudio's X11 integration / Plasma Camera startup
+# stalled), so this stays off unless a build asks for it.  Nothing installed may
+# hard-depend on the pair; xwaylandvideobridge is
+# install_if="xwayland xdg-desktop-portal-kde", so dropping one drops the other.
+PLASMA_NO_XWAYLAND = os.environ.get("NURA_PLASMA_NO_XWAYLAND") == "1"
+XWAYLAND_PACKAGES = ("xwayland", "xwaylandvideobridge")
+# pmbootstrap's own sudo timer (pmb/core/config.py: sudo_timer, and
+# pmb/helpers/run_core.py sudo_timer_start): pmbootstrap runs "sudo -v" every
+# 60 s from inside the build, so one typed password covers a whole build.  The
+# candidate config always sets it: a package that compiles for longer than
+# sudo's 15-minute ticket (libplasma took 38m46s in a one-off rebuild) would
+# otherwise make the next zap prompt for a password, and an unattended build
+# dies with "sudo: timed out reading password".  It only refreshes an existing
+# ticket - it never prompts.
+SUDO_TIMER = "true"
 # UI selector.  Everything UI-specific lives in this table; the kernel,
 # device, firmware, libcamera, ModemManager and audio pins are shared.
 UI_PROFILES = {
@@ -113,10 +140,13 @@ if UI not in UI_PROFILES:
 UI_PROFILE = UI_PROFILES[UI]
 UI_PACKAGE = UI_PROFILE["ui_package"]
 # Packages this UI must not install, even though pmbootstrap's
-# _pmb_recommends walk would add them.  Empty for Plasma; the build removes
-# the Phosh entries from the rootfs chroot before the image is written and
-# verify_installed() fails if any of them survives.
+# _pmb_recommends walk would add them.  Empty for Plasma unless
+# NURA_PLASMA_NO_XWAYLAND=1; the build removes the entries from the rootfs
+# chroot before the image is written and verify_installed() fails if any of
+# them survives.
 EXCLUDED_PACKAGES = UI_PROFILE["excluded_packages"]
+if UI == "plasma" and PLASMA_NO_XWAYLAND:
+    EXCLUDED_PACKAGES = EXCLUDED_PACKAGES + XWAYLAND_PACKAGES
 RELEASE_SERIES = UI_PROFILE["series"]
 RELEASE_CANDIDATE = f"{RELEASE_SERIES}-rc4"
 ARTIFACT_NAME = f"{RELEASE_CANDIDATE}-oneplus-guacamole"
@@ -200,6 +230,9 @@ LIBRARY_REAR = "0.7.2-r1" if FRESH_BASELINE else "0.7.2-r0"
 BASELINE_HOOK_VERSION = "4.2.1-r4"
 CANDIDATE_HOOK_VERSION = os.environ.get("NURA_NETBOOT_HOOK_VERSION", BASELINE_HOOK_VERSION)
 LOCAL_USERDATA = os.environ.get("NURA_LOCAL_USERDATA") == "1"
+# PowerDevil is pinned to the repository build the image carries.  The
+# candidate-only AutoSuspendAction policy is unchanged: it is the same 6.8.3
+# schema.
 POWERDEVIL_VERSION = "6.8.3-r0"
 SYSTEM_LIBCAMERA_APKS = {
     "libcamera": (
@@ -238,6 +271,10 @@ POWERDEVIL_CONFIG = (
     "AutoSuspendAction=0\n"
 )
 OFFICIAL_PMAPORTS = (
+    # postmarketOS is called Nura now; gitlab.postmarketos.org and
+    # gitlab.com/postmarketos redirect to the Nura instance.  A candidate built
+    # from a --pmaports-ref checkout carries the Nura remote.
+    "https://gitlab.nura.eco/nura/pmaports.git",
     "https://gitlab.postmarketos.org/postmarketOS/pmaports.git",
     "https://gitlab.com/postmarketos/pmaports.git",
 )
@@ -778,7 +815,7 @@ def source_contract(source_build: Path, source_state: Path, recipe: str,
     return kernel
 
 
-def official_remote(pmaports: Path) -> list[str]:
+def remote_urls(pmaports: Path) -> list[str]:
     try:
         output = subprocess.check_output(
             ["git", "-C", str(pmaports), "remote", "-v"], text=True,
@@ -791,6 +828,11 @@ def official_remote(pmaports: Path) -> list[str]:
         fields = line.split()
         if len(fields) >= 2:
             urls.append(fields[1])
+    return urls
+
+
+def official_remote(pmaports: Path) -> list[str]:
+    urls = remote_urls(pmaports)
     official = tuple(url.lower() for url in OFFICIAL_PMAPORTS)
     if not any(url.lower() in official for url in urls):
         die(
@@ -1035,6 +1077,118 @@ def pin_apk_static(bootstrap_candidate: Path) -> None:
     path.write_text(text.replace(anchor, anchor + APK_STATIC_PIN), encoding="utf-8")
 
 
+def pmaports_source_fields(source: Path, url: str | None, ref: str | None) -> dict[str, str]:
+    """Receipt fields for a --pmaports-ref build (empty for the pinned copy).
+
+    The pinned identity is already recorded as source_pmaports/source_commit;
+    these three fields sit next to it and name the exact Nura pmaports URL, the
+    requested ref and the resolved commit.
+    """
+    url = (url or "").strip()
+    ref = (ref or "").strip()
+    if not url and not ref:
+        return {}
+    if not url or not ref:
+        die("--source-pmaports-url and --source-pmaports-ref belong together")
+    if not re.fullmatch(r"[0-9A-Za-z._/-]+", ref):
+        die(f"unexpected pmaports ref: {ref!r}")
+    commit = git_rev(source)
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        die(f"pmaports checkout has no commit: {source}")
+    if url.lower() not in tuple(known.lower() for known in remote_urls(source)):
+        die(f"pmaports checkout does not come from {url}: {source}")
+    return {
+        "source_pmaports_url": url,
+        "source_pmaports_ref": ref,
+        "source_pmaports_sha": commit,
+    }
+
+
+def local_recipe_links() -> dict[str, str]:
+    """Candidate-pmaports path -> local recipe directory, for this UI.
+
+    One table for the flow and for ``nura-overlay``: the overlay removes any
+    real path that sits where one of these symlinks has to go, so a fresh
+    Nura checkout (which still carries upstream's device/kernel/hook recipes)
+    ends up with the same tree the pinned baseline produces.
+    """
+    links = {
+        "device/testing/device-oneplus-guacamole": "device/testing/device-oneplus-guacamole",
+        "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
+        "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
+        "main/hexagonrpcd": "device/testing/hexagonrpcd",
+        # Both UIs: the SSC claim fix (iio-sensor-proxy 3.9-r100) and its
+        # blocking-wait companion (libssc 0.4.4-r100).  The pinned pmaports
+        # carries neither recipe and Alpine's community/ builds are shadowed
+        # by these two main/ entries.  libssc goes first: the daemon's
+        # makedepends include libssc-dev, and pmbootstrap builds it before
+        # iio-sensor-proxy (rootfs_prepare_local.sh).
+        "main/libssc": "device/testing/libssc",
+        "main/iio-sensor-proxy": "device/testing/iio-sensor-proxy",
+        "main/postmarketos-mkinitfs-hook-netboot":
+            "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot",
+        "temp/libcamera-rear": "device/testing/rear-camera/libcamera-rear",
+        "main/modemmanager": "device/testing/rc3/modemmanager",
+    }
+    if UI == "phosh":
+        # Patched gmobile (guacamole display panel); Phosh image only.
+        links["main/gmobile"] = "device/testing/gmobile"
+        # Patched phoc (null-texture thumbnail guard); Phosh image only.  The
+        # pinned pmaports carries no phoc recipe, so this is the only recipe
+        # that shadows Alpine's community/phoc binary.
+        links["main/phoc"] = "device/testing/phoc"
+    if UI == "plasma":
+        # Patched plasma-mobile (upstream quick-settings fix, pkgrel 101);
+        # every Plasma image builds it, Phosh never does.  The pinned pmaports
+        # carries no plasma-mobile recipe, so this is the only recipe that
+        # shadows Alpine's community/plasma-mobile binary.
+        links["main/plasma-mobile"] = "device/testing/plasma-mobile"
+    return links
+
+
+def read_receipt(path: Path) -> dict:
+    """The previous candidate receipt, or {} when there is none yet."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def refresh_local_recipe_paths(candidate: Path, source: Path, stale: set[str] | dict,
+                               current: dict[str, str]) -> list[str]:
+    """Undo another recipe set's local-recipe links in the candidate copy.
+
+    ``local_recipe_links()`` decides which recipes the link farm shadows, and
+    the candidate pmaports copy is made once and reused.  For every path either
+    set links, put the copy back to the source tree's state: a path the current
+    recipes still shadow is cleared so the link loop can create the symlink, a
+    path they no longer shadow gets the upstream recipe back.  Returns the
+    paths restored from source.
+    """
+    restored: list[str] = []
+    for relative in sorted(set(stale) | set(current)):
+        target = candidate / relative
+        if not (target.exists() or target.is_symlink()):
+            continue
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        else:
+            shutil.rmtree(target)
+        if relative in current:
+            continue
+        upstream = source / relative
+        resolved = upstream.resolve() if upstream.is_symlink() else upstream
+        if resolved.is_dir():
+            shutil.copytree(resolved, target)
+        elif resolved.is_file():
+            shutil.copy2(resolved, target)
+        else:
+            continue
+        restored.append(relative)
+    return restored
+
+
 def prepare_state(args: argparse.Namespace) -> dict:
     raw_state = Path(args.state)
     raw_candidate = Path(args.candidate_pmaports)
@@ -1063,37 +1217,27 @@ def prepare_state(args: argparse.Namespace) -> dict:
         die(f"{cfg}: empty channel")
     official_remote(candidate)
 
-    links = {
-        "device/testing/device-oneplus-guacamole": "device/testing/device-oneplus-guacamole",
-        "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
-        "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
-        "main/hexagonrpcd": "device/testing/hexagonrpcd",
-        # Both UIs: the SSC claim fix (iio-sensor-proxy 3.9-r100) and its
-        # blocking-wait companion (libssc 0.4.4-r100).  The pinned pmaports
-        # carries neither recipe and Alpine's community/ builds are shadowed
-        # by these two main/ entries.  libssc goes first: the daemon's
-        # makedepends include libssc-dev, and pmbootstrap builds it before
-        # iio-sensor-proxy (rootfs_prepare_local.sh).
-        "main/libssc": "device/testing/libssc",
-        "main/iio-sensor-proxy": "device/testing/iio-sensor-proxy",
-        "main/postmarketos-mkinitfs-hook-netboot":
-            "device/testing/rear-camera/postmarketos-mkinitfs-hook-netboot",
-        "temp/libcamera-rear": "device/testing/rear-camera/libcamera-rear",
-        "main/modemmanager": "device/testing/rc3/modemmanager",
-    }
+    links = local_recipe_links()
     optional_links = {
         "main/nura-clock": "device/testing/nura-clock",
     }
-    if UI == "phosh":
-        # Patched gmobile (guacamole display panel); Phosh image only.
-        links["main/gmobile"] = "device/testing/gmobile"
-        # Patched phoc (null-texture thumbnail guard); Phosh image only.  The
-        # pinned pmaports carries no phoc recipe, so this is the only recipe
-        # that shadows Alpine's community/phoc binary.
-        links["main/phoc"] = "device/testing/phoc"
     for relative, target in optional_links.items():
         if (ROOT / target / "APKBUILD").is_file():
             links[relative] = target
+    # An existing candidate copy was made for the recipe set and opt-ins in
+    # force at the time (the receipt records both), so a recipe that was added
+    # or dropped since, or a switched NURA_PLASMA_NO_XWAYLAND, changes which
+    # paths are local-recipe links.  Reconcile those paths instead of asking
+    # for a fresh copy.
+    previous = read_receipt(Path(args.receipt))
+    stale_links = set(previous.get("local_links") or {})
+    opt_ins = {"plasma_no_xwayland": PLASMA_NO_XWAYLAND}
+    if stale_links and (stale_links != set(links) or
+                        any(previous.get(key) != value for key, value in opt_ins.items())):
+        restored = refresh_local_recipe_paths(candidate, source, stale_links, links)
+        print(f"  refreshed the candidate pmaports copy for the current local recipes "
+              f"({len(stale_links | set(links))} local-recipe paths, "
+              f"{len(restored)} upstream paths restored)")
     resolved_links: dict[str, str] = {}
     for relative, target in links.items():
         link = candidate / relative
@@ -1178,6 +1322,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "locale": "en_US.UTF-8",
         "service_manager": "systemd",
         "ssh_keys": "false",
+        "sudo_timer": SUDO_TIMER,
         "timezone": "UTC",
         "ui": UI_PROFILE["pmbootstrap_ui"],
         "user": "user",
@@ -1191,6 +1336,11 @@ def prepare_state(args: argparse.Namespace) -> dict:
     os.chmod(candidate_cfg, 0o600)
 
     source_commit = git_rev(source)
+    pinned_source = pmaports_source_fields(
+        source,
+        getattr(args, "source_pmaports_url", None),
+        getattr(args, "source_pmaports_ref", None),
+    )
     bootstrap_source = Path(args.source_pmbootstrap).resolve()
     bootstrap_candidate = Path(args.candidate_pmbootstrap).resolve()
     if bootstrap_candidate == bootstrap_source:
@@ -1209,6 +1359,21 @@ def prepare_state(args: argparse.Namespace) -> dict:
         if args_text.count(anchor) != 1 or "context.ignore_depends =" in args_text:
             die("pmbootstrap argument handling changed; cannot safely repair --ignore-depends")
         bootstrap_args.write_text(args_text.replace(anchor, anchor + ignore_assignment), encoding="utf-8")
+    # ...and its Context never copies the config's sudo_timer into
+    # context.sudo_timer (pmb/core/context.py: Context.__init__ stores only log
+    # and config), so "sudo_timer = true" in the config alone is inert and
+    # pmb/helpers/run_core.py never starts the 60-second "sudo -v" timer.  A
+    # package that compiles longer than sudo's 15-minute ticket then makes the
+    # next zap prompt for a password (libplasma: 38m46s) and an unattended build
+    # dies with "sudo: timed out reading password".
+    args_text = bootstrap_args.read_text(encoding="utf-8")
+    timer_assignment = "    context.sudo_timer = config.sudo_timer\n"
+    if timer_assignment not in args_text:
+        anchor = "    context = Context(config)\n"
+        if args_text.count(anchor) != 1:
+            die("pmbootstrap context creation changed; cannot safely wire sudo_timer")
+        bootstrap_args.write_text(args_text.replace(anchor, anchor + timer_assignment),
+                                  encoding="utf-8")
     pin_apk_static(bootstrap_candidate)
     bootstrap_commit = git_rev(bootstrap_source)
     if receipt_path.is_file():
@@ -1233,6 +1398,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "created_at": utc_now(),
         "source_pmaports": str(source),
         "source_commit": source_commit,
+        **pinned_source,
         "candidate_pmaports": str(candidate),
         "source_pmbootstrap": str(bootstrap_source),
         "source_pmbootstrap_commit": bootstrap_commit,
@@ -1247,6 +1413,7 @@ def prepare_state(args: argparse.Namespace) -> dict:
         "ui_apkbuild_sha256": digest(ui_apkbuild),
         "libcamera_apkbuild_sha256": digest(libcamera_apkbuild),
         "local_links": resolved_links,
+        "plasma_no_xwayland": PLASMA_NO_XWAYLAND,
     }
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     write_atomic(receipt_path, json.dumps(receipt, indent=2) + "\n")
@@ -1554,6 +1721,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
     if UI == "plasma":
         required[CAMERA_APP] = None
         required["powerdevil"] = POWERDEVIL_VERSION
+        # The local plasma-mobile build, not the repository's 6.8.3-r0.
+        required["plasma-mobile"] = args.plasma_mobile_version or PLASMA_MOBILE_VERSION
     else:
         required[CAMERA_APP] = None
         required["greetd-phrog"] = None
@@ -1661,6 +1830,8 @@ def verify_installed(args: argparse.Namespace) -> dict:
         "camera_app_version": packages[CAMERA_APP].get("V"),
         "libcamera_version": packages["libcamera"].get("V"),
         "powerdevil_version": packages.get("powerdevil", {}).get("V"),
+        "plasma_mobile_version": (packages.get("plasma-mobile", {}).get("V")
+                                  if UI == "plasma" else None),
         "gmobile_version": packages.get("gmobile", {}).get("V") if UI == "phosh" else None,
         "phoc_version": packages.get("phoc", {}).get("V") if UI == "phosh" else None,
         "iio_sensor_proxy_version": packages.get("iio-sensor-proxy", {}).get("V"),
@@ -1858,6 +2029,8 @@ def manifest(args: argparse.Namespace) -> dict:
         "camera_app_version": packages.get(CAMERA_APP, {}).get("V", ""),
         "libcamera_version": packages.get("libcamera", {}).get("V", ""),
         "powerdevil_version": packages.get("powerdevil", {}).get("V", ""),
+        "plasma_mobile_version": (packages.get("plasma-mobile", {}).get("V", "")
+                                  if UI == "plasma" else None),
         "modemmanager_version": args.modemmanager_version,
         "libmm_glib_version": args.libmm_glib_version,
         "nura_clock_version": args.nura_clock_version or None,
@@ -2378,6 +2551,203 @@ def authorized_key(args: argparse.Namespace) -> dict:
     }
 
 
+def git_status_entries(tree: Path) -> list[tuple[str, str]]:
+    """(status, path) for every worktree change, in porcelain -z form."""
+    try:
+        output = subprocess.check_output(
+            ["git", "-C", str(tree), "status", "--porcelain", "-z", "--untracked-files=all"],
+            text=True, stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        die(f"cannot read the git status of {tree}")
+    entries: list[tuple[str, str]] = []
+    skip_next = False
+    for chunk in output.split("\0"):
+        if skip_next:
+            # rename/copy: this chunk is the source path, not a new entry
+            skip_next = False
+            continue
+        if len(chunk) < 4:
+            continue
+        status, path = chunk[:2], chunk[3:]
+        entries.append((status, path))
+        if status[0] in "RC":
+            skip_next = True
+    return entries
+
+
+def overlay_covers(path: str, expected: dict[str, str]) -> bool:
+    """True when a git-status path is explained by the overlay plan."""
+    if path in expected:
+        return True
+    return any(status == "shadow" and path.startswith(shadow + "/")
+               for shadow, status in expected.items())
+
+
+def overlay_plan(baseline: Path) -> tuple[dict[str, str], list[str]]:
+    """What the pinned baseline changes on top of its own commit, and the
+    candidate paths that must not exist so the local recipes can be linked."""
+    delta = {path: status for status, path in git_status_entries(baseline)}
+    shadows = sorted(local_recipe_links())
+    return delta, shadows
+
+
+def overlay_expected(shadows: list[str], delta: dict[str, str]) -> dict[str, str]:
+    """The plan: every shadow path cleared, every baseline delta path applied."""
+    expected: dict[str, str] = {}
+    for relative in shadows:
+        for path in list(expected):
+            if path == relative or path.startswith(relative + "/"):
+                del expected[path]
+        expected[relative] = "shadow"
+    for path, status in delta.items():
+        if any(path == shadow or path.startswith(shadow + "/") for shadow in shadows):
+            continue
+        expected[path] = "delete" if "D" in status else "copy"
+    return expected
+
+
+def overlay_apply(baseline: Path, checkout: Path, shadows: list[str],
+                  expected: dict[str, str]) -> list[str]:
+    """Clear every shadow path and copy the baseline's delta into the checkout."""
+    for relative in shadows:
+        path = checkout / relative
+        if path.is_symlink() or path.is_file():
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path)
+        if path.exists() or path.is_symlink():
+            die(f"could not clear the shadowed path: {path}")
+    copied = []
+    for path, status in sorted(expected.items()):
+        if status != "copy":
+            continue
+        source = baseline / path
+        target = checkout / path
+        # Copy, never reproduce a symlink: the baseline's own overlay is
+        # symlinks into its workspace, whose relative targets do not exist
+        # from a Nura checkout.
+        resolved = source.resolve() if source.is_symlink() else source
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if resolved.is_dir():
+            if target.is_symlink() or target.is_file():
+                target.unlink()
+            elif target.is_dir():
+                shutil.rmtree(target)
+            shutil.copytree(resolved, target)
+        elif resolved.is_file():
+            shutil.copy2(resolved, target)
+        else:
+            die(f"baseline overlay source is missing: {source}")
+        copied.append(path)
+    return copied
+
+
+def overlay_is_a_previous_apply(entries: list[tuple[str, str]], delta: dict[str, str]) -> bool:
+    """True when every worktree change is what an earlier --apply wrote.
+
+    A previous apply deleted the tracked recipes it had to shadow and copied
+    the baseline's overlay files in; both leave git status entries.  Anything
+    else is a hand edit, which stays a refusal.
+    """
+    for status, path in entries:
+        if any(path == copy or path.startswith(copy + "/") for copy in delta):
+            continue  # the overlay's own copy of a baseline change
+        if "D" in status:
+            continue  # an earlier apply's shadow removal
+        return False
+    return True
+
+
+def nura_overlay(args: argparse.Namespace) -> dict:
+    """Reproduce the baseline's local overlay on a fresh Nura pmaports checkout.
+
+    ``--apply`` copies the baseline's worktree delta onto a pristine checkout
+    (copy, never a symlink into the read-only baseline) and removes every real
+    path that a local recipe has to shadow.  ``--verify`` re-derives the same
+    state from the baseline and refuses a checkout that drifted.  ``--sync``
+    re-applies the overlay in place when the checkout carries an earlier
+    ``--apply`` for a different recipe set or opt-in (either switches which
+    recipes have to be shadowed, so the same clone is reused); a checkout with
+    anything else in it is still refused.
+    """
+    baseline = Path(args.baseline).resolve()
+    checkout = Path(args.checkout)
+    if checkout.is_symlink():
+        die(f"Nura pmaports checkout must not be a symlink: {checkout}")
+    checkout = checkout.resolve()
+    if not baseline.is_dir() or not (baseline / "pmaports.cfg").is_file():
+        die(f"baseline pmaports is not a pmaports tree: {baseline}")
+    if checkout == baseline:
+        die("the Nura checkout must not be the read-only baseline")
+    if not checkout.is_dir() or not (checkout / "pmaports.cfg").is_file():
+        die(f"Nura pmaports checkout is not a pmaports tree: {checkout}")
+    delta, shadows = overlay_plan(baseline)
+    expected = overlay_expected(shadows, delta)
+    sync = bool(getattr(args, "sync", False))
+    if getattr(args, "apply", False) or sync:
+        status = git_status_entries(checkout)
+        if sync:
+            if status and not overlay_is_a_previous_apply(status, delta):
+                die(f"Nura pmaports checkout holds more than an earlier overlay: "
+                    f"{status[0][1]} ({status[0][0]}); delete {checkout} and let the "
+                    "flow clone it again")
+            if status:
+                for command in (("checkout", "-q", "--", "."), ("clean", "-qfdx")):
+                    restored = subprocess.run(["git", "-C", str(checkout), *command],
+                                              capture_output=True, text=True)
+                    if restored.returncode:
+                        die(f"could not restore {checkout} to its commit: "
+                            f"{restored.stderr.strip()}")
+                if git_status_entries(checkout):
+                    die(f"could not restore {checkout} to its commit; delete it and "
+                        "let the flow clone it again")
+        elif status:
+            die(f"Nura pmaports checkout is not pristine: {status[0][1]} "
+                f"({status[0][0]}); delete it and let the flow clone it again")
+        copied = overlay_apply(baseline, checkout, shadows, expected)
+        print(f"  overlaid {len(shadows)} local-recipe paths and {len(copied)} baseline files")
+    else:
+        problems = []
+        for path, status in sorted(expected.items()):
+            target = checkout / path
+            if status == "shadow":
+                if target.exists() or target.is_symlink():
+                    problems.append(f"{path} must not exist (local recipe shadow)")
+                continue
+            if status == "delete":
+                if target.exists():
+                    problems.append(f"{path} must be deleted (baseline overlay)")
+                continue
+            source = baseline / path
+            resolved = source.resolve() if source.is_symlink() else source
+            if target.is_symlink() or not target.exists():
+                problems.append(f"{path} must be a copy, not a link")
+            elif resolved.is_file() and target.read_bytes() != resolved.read_bytes():
+                problems.append(f"{path} does not match the baseline overlay")
+        for status, path in git_status_entries(checkout):
+            if not overlay_covers(path, expected):
+                problems.append(f"{path} ({status}) is not part of the overlay")
+        if problems:
+            die("Nura pmaports overlay drifted: " + "; ".join(problems[:5]) +
+                (" ..." if len(problems) > 5 else "") +
+                f"; delete {checkout} and let the flow clone it again")
+    cfg = (checkout / "pmaports.cfg").read_text(encoding="utf-8")
+    if not re.search(r"^version=7$", cfg, re.M):
+        die(f"{checkout}/pmaports.cfg is not pmaports version=7")
+    if not re.search(r"^channel=.+$", cfg, re.M):
+        die(f"{checkout}/pmaports.cfg has no channel")
+    return {
+        "status": "synced" if sync else ("overlaid" if getattr(args, "apply", False) else "verified"),
+        "baseline": str(baseline),
+        "checkout": str(checkout),
+        "checkout_commit": git_rev(checkout),
+        "shadowed_paths": shadows,
+        "baseline_paths": {path: status for path, status in sorted(expected.items())
+                           if status != "shadow"},
+    }
+
+
 def authorized_key_config(args: argparse.Namespace) -> dict:
     source = Path(args.source_config)
     output = Path(args.output_config)
@@ -2517,6 +2887,24 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_argument("--work", type=Path, required=True)
     prepare.add_argument("--state", type=Path, required=True)
     prepare.add_argument("--receipt", type=Path, required=True)
+    prepare.add_argument("--source-pmaports-url",
+                         help="--pmaports-ref build: the Nura pmaports URL the source came from")
+    prepare.add_argument("--source-pmaports-ref",
+                         help="--pmaports-ref build: the requested ref (the commit is in the receipt)")
+
+    overlay = sub.add_parser(
+        "nura-overlay",
+        help="overlay the pinned baseline's local changes onto a Nura pmaports checkout",
+    )
+    overlay.add_argument("--baseline", type=Path, required=True)
+    overlay.add_argument("--checkout", type=Path, required=True)
+    overlay_action = overlay.add_mutually_exclusive_group(required=True)
+    overlay_action.add_argument("--apply", action="store_true",
+                                help="apply the overlay to a pristine checkout")
+    overlay_action.add_argument("--verify", action="store_true",
+                                help="re-derive the overlay and refuse a checkout that drifted")
+    overlay_action.add_argument("--sync", action="store_true",
+                                help="re-apply the overlay when only the opt-in set changed")
 
     verify = sub.add_parser("verify", help="compare the installed rootfs with the staged kernel")
     verify.add_argument("--release", default=RELEASE)
@@ -2532,6 +2920,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--expected-module-payload-sha", required=True)
     verify.add_argument("--expected-module-count", type=int, required=True)
     verify.add_argument("--ui-version", required=True)
+    verify.add_argument("--plasma-mobile-version")
     verify.add_argument("--kernel-version")
     verify.add_argument("--device-version")
     verify.add_argument("--firmware-version")
@@ -2599,6 +2988,8 @@ def main(argv: list[str] | None = None) -> int:
             resign_apk(args)
         elif args.command == "prepare":
             print(json.dumps(prepare_state(args), indent=2))
+        elif args.command == "nura-overlay":
+            print(json.dumps(nura_overlay(args), indent=2))
         elif args.command == "verify":
             print(json.dumps(verify_installed(args), indent=2))
         elif args.command == "authorized-key":

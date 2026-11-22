@@ -10,13 +10,24 @@
 #   ./nura signing-key [status|adopt WORK|seed WORK]
 #   ./nura kernel                        build the rc4 kernel (rootless)
 #   ./nura check                         read-only recipe + rootfs preflight
-#   ./nura build [--fresh-baseline] [--authorized-key KEY] [--refresh-kernel]
-#                                        build rootfs + boot image (pmbootstrap, sudo);
+#   ./nura build [--pmaports-ref REF] [--fresh-baseline] [--authorized-key KEY]
+#                [--refresh-kernel]       build rootfs + boot image (pmbootstrap, sudo);
 #                                        asks once for the phone user's password, or
-#                                        reads NURA_USER_PASSWORD_FILE (first line)
+#                                        reads NURA_USER_PASSWORD_FILE (first line);
+#                                        --pmaports-ref REF (or NURA_PMAPORTS_REF)
+#                                        builds from that ref of Nura's pmaports
+#                                        (gitlab.nura.eco/nura/pmaports) in its own
+#                                        -nura state/output instead of the pinned copy.
+#                                        A Plasma build always adds the flow's
+#                                        local plasma-mobile recipe (6.8.3-r101,
+#                                        upstream quick-settings fix); the only
+#                                        Plasma opt-in, off by default, is
+#                                        NURA_PLASMA_NO_XWAYLAND=1 to drop
+#                                        xwayland + xwaylandvideobridge
 #   ./nura debug-image                   build the matching debug boot image
 #   ./nura preflight                     read-only pre-install checklist (host + phone)
 #   ./nura install [--dry-run] [...]     guarded userdata install onto the phone
+#                [--no-debug-boot]       install/preflight without the debug image + fsck
 #   ./nura shutdown [--dry-run]          clear leftover pmbootstrap chroot mounts
 #   ./nura clean [--apply] [--rootfs]    list/remove stale .work dirs (read-only
 #                                        without --apply; never touches outputs)
@@ -33,7 +44,8 @@ REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd -P)"
 FLOW="$REPO/flows/rc4/local-storage"
 
 die() { echo "nura: $*" >&2; exit 1; }
-usage() { sed -n '2,29p' "$0"; }
+# The header comment block; no line numbers to drift.
+usage() { awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$0"; }
 
 # --- global options and settings --------------------------------------------
 args=()
@@ -68,9 +80,10 @@ case "$cmd" in
     help|-h|--help) usage ;;
 
     env)
-        for v in NURA_UI NURA_SOURCE_ROOT NURA_BASELINE_ROOT RC4_KERNEL_ROOT NURA_KERNEL_BUILD \
-                 NURA_KERNEL_SOURCE_STATE NURA_KERNEL_DIR NURA_SSH_PUBLIC_KEY NURA_FASTBOOT \
-                 NURA_SIGNING_KEY_DIR; do
+        for v in NURA_UI NURA_SOURCE_ROOT NURA_BASELINE_ROOT NURA_PMAPORTS_REF \
+                 NURA_PLASMA_NO_XWAYLAND RC4_KERNEL_ROOT \
+                 NURA_KERNEL_BUILD NURA_KERNEL_SOURCE_STATE NURA_KERNEL_DIR NURA_SSH_PUBLIC_KEY \
+                 NURA_FASTBOOT NURA_SIGNING_KEY_DIR; do
             printf '%-26s %s\n' "$v" "${!v:-(default)}"
         done
         [[ -f "$REPO/build-env.local.sh" ]] && echo "settings file              build-env.local.sh" ||

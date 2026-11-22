@@ -398,7 +398,9 @@ def preflight(args) -> int:
         add("ok", "build manifest re-verified", f"{manifest['release']}, image {manifest['image_size']} B")
     except InstallError as e:
         add("FAIL", "build manifest", str(e))
-    if manifest:
+    if manifest and args.no_debug_boot:
+        add("skip", "debug image", "--no-debug-boot: the normal image is RAM-booted after the flash")
+    elif manifest:
         try:
             check_debug_image(manifest["boot"], args.debug_boot)
             add("ok", "debug image matches the build", str(args.debug_boot))
@@ -470,6 +472,9 @@ def preflight(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ui_suffix = "" if os.environ.get("NURA_UI", "phosh") == "plasma" else "-phosh"
+    # A --pmaports-ref build writes the -nura state/output pair.
+    if os.environ.get("NURA_PMAPORTS_REF"):
+        ui_suffix += "-nura"
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--manifest", type=Path,
                    default=FLOW / f"build/local-userdata{ui_suffix}/DELIVERY.local.json")
@@ -483,11 +488,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--accept-product", help="exact fastboot product string to accept")
     p.add_argument("--no-continue", action="store_true",
                    help="stop in the debug shell after the filesystem check")
+    p.add_argument("--no-debug-boot", action="store_true",
+                   help="no debug image and no fsck: RAM-boot the normal image after the flash")
     p.add_argument("--dry-run", action="store_true",
                    help="host checks and read-only getvars only; no reboot, flash or boot")
     p.add_argument("--preflight", action="store_true",
                    help="read-only checklist of everything the install needs (reports all items)")
     args = p.parse_args(argv)
+    if args.no_debug_boot and args.no_continue:
+        p.error("--no-continue needs the debug shell; drop --no-debug-boot")
     if args.preflight:
         return preflight(args)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -496,7 +505,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # 1. host
         m = load_manifest(args.manifest)
-        check_debug_image(m["boot"], args.debug_boot)
+        if not args.no_debug_boot:
+            check_debug_image(m["boot"], args.debug_boot)
         if not args.fastboot.is_file():
             die(f"missing fastboot: {args.fastboot}")
         fb = Fastboot(args.fastboot, args.dry_run)
@@ -533,35 +543,47 @@ def main(argv: list[str] | None = None) -> int:
         r = fb.stream(["-S", "64M", "flash", "userdata", str(m["image"])], timeout=3600)
         if r.returncode != 0:
             die(f"flash failed:\n{r.stdout}{r.stderr}")
+        first_boot = m["boot"] if args.no_debug_boot else args.debug_boot
         if args.dry_run:
-            say(f"dry run, would RAM-boot {args.debug_boot} and fsck in the debug shell; done")
+            say(f"dry run, would RAM-boot {first_boot}"
+                + ("" if args.no_debug_boot else " and fsck in the debug shell") + "; done")
             return 0
 
-        # 5. debug boot + read-only fsck
         logdir.mkdir(parents=True, exist_ok=True)
         (logdir / "bootloader.json").write_text(json.dumps(facts, indent=2) + "\n")
-        say(f"RAM-booting the debug image {args.debug_boot}")
         env = dict(os.environ, PATH=f"{args.fastboot.parent}:{os.environ['PATH']}")
-        if subprocess.run(["bash", str(REPO / "scripts/fastboot_boot.sh"), str(args.debug_boot)],
-                          env=env).returncode != 0:
-            die("debug image did not boot; userdata is flashed, the phone is still in fastboot")
-        say("waiting for the initramfs debug shell (telnet 23)")
-        if not wait_for(lambda: port_open(args.phone_ip, 23), 240, what="the debug shell"):
-            die("debug shell did not appear; check the host USB network (172.16.42.2/24)")
-        say("running a read-only e2fsck of both subpartitions in the debug shell")
-        rc, transcript = debug_shell(args.phone_ip, 23, FSCK_SCRIPT, DONE, 900)
-        (logdir / "debug-fsck.txt").write_text(transcript)
-        if rc != 0:
-            die(f"read-only e2fsck reported rc={rc}; the phone is left in the debug shell "
-                f"(nc {args.phone_ip} 23). Transcript: {logdir / 'debug-fsck.txt'}")
-        say("read-only e2fsck clean on both subpartitions")
-        if args.no_continue:
-            say(f"stopping as requested; continue by hand: nc {args.phone_ip} 23, pmos_continue_boot")
-            return 0
+        if args.no_debug_boot:
+            # 5'. normal image straight from RAM; no debug shell, no fsck
+            say(f"RAM-booting the normal image {first_boot} (no debug shell, no fsck)")
+            if subprocess.run(["bash", str(REPO / "scripts/fastboot_boot.sh"), str(first_boot)],
+                              env=env).returncode != 0:
+                die("normal image did not boot from RAM; userdata is flashed, the phone is still "
+                    "in fastboot. If boot_b already holds a working image, power off and boot it "
+                    "with the power key instead")
+            say("first boot grows the filesystem, this can take several minutes")
+        else:
+            # 5. debug boot + read-only fsck
+            say(f"RAM-booting the debug image {first_boot}")
+            if subprocess.run(["bash", str(REPO / "scripts/fastboot_boot.sh"), str(first_boot)],
+                              env=env).returncode != 0:
+                die("debug image did not boot; userdata is flashed, the phone is still in fastboot")
+            say("waiting for the initramfs debug shell (telnet 23)")
+            if not wait_for(lambda: port_open(args.phone_ip, 23), 240, what="the debug shell"):
+                die("debug shell did not appear; check the host USB network (172.16.42.2/24)")
+            say("running a read-only e2fsck of both subpartitions in the debug shell")
+            rc, transcript = debug_shell(args.phone_ip, 23, FSCK_SCRIPT, DONE, 900)
+            (logdir / "debug-fsck.txt").write_text(transcript)
+            if rc != 0:
+                die(f"read-only e2fsck reported rc={rc}; the phone is left in the debug shell "
+                    f"(nc {args.phone_ip} 23). Transcript: {logdir / 'debug-fsck.txt'}")
+            say("read-only e2fsck clean on both subpartitions")
+            if args.no_continue:
+                say(f"stopping as requested; continue by hand: nc {args.phone_ip} 23, pmos_continue_boot")
+                return 0
 
-        # 6. continue and check
-        continue_boot(args.phone_ip, 23)
-        say("continuing boot; first boot grows the filesystem, this can take several minutes")
+            # 6. continue and check
+            continue_boot(args.phone_ip, 23)
+            say("continuing boot; first boot grows the filesystem, this can take several minutes")
         if not wait_for(lambda: ssh_ok(args), 900, 5, what="SSH on the booted rootfs"):
             die("SSH did not come up within 15 minutes; check the screen")
         release = subprocess.run(ssh_argv(args) + ["uname -r"], capture_output=True, text=True).stdout.strip()
@@ -572,7 +594,18 @@ def main(argv: list[str] | None = None) -> int:
         # 7. print-only next steps
         fbq = shlex.quote(str(args.fastboot))
         boot = shlex.quote(str(m["boot"]))
-        print(f"""
+        if args.no_debug_boot:
+            steps = f"""
+Next steps (NOT run by this script). The phone runs the normal image from RAM now;
+if it is good:
+  1. reboot to the bootloader:
+       ssh -t {args.ssh_user}@{args.phone_ip} 'sync; sudo sh -c "sync; reboot bootloader"'
+  2. from the bootloader:
+       sha256sum {boot}   # expect {m['boot_sha256']}
+       {fbq} flash boot_b {boot}
+       {fbq} reboot"""
+        else:
+            steps = f"""
 Next steps (NOT run by this script):
   1. reboot to the bootloader:
        ssh -t {args.ssh_user}@{args.phone_ip} 'sync; sudo sh -c "sync; reboot bootloader"'
@@ -581,8 +614,8 @@ Next steps (NOT run by this script):
   3. if it is good, from the bootloader again:
        sha256sum {boot}   # expect {m['boot_sha256']}
        {fbq} flash boot_b {boot}
-       {fbq} reboot
-Restore files from {logdir}/home-user.tar.gz selectively (not the whole home).""")
+       {fbq} reboot"""
+        print(steps + f"\nRestore files from {logdir}/home-user.tar.gz selectively (not the whole home).")
         return 0
     except InstallError as e:
         print(f"ERROR: {e}", file=sys.stderr)

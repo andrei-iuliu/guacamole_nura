@@ -315,6 +315,10 @@ def main():
     check(re.search(r"^pkgrel=100$", iio_apk, re.M) is not None and
           "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch" in iio_apk,
           "flow: link farm carries the patched iio-sensor-proxy (async SSC claims)")
+    plasma_mobile_apk = read(farm / "plasma-mobile/APKBUILD")
+    check(re.search(r"^pkgrel=101$", plasma_mobile_apk, re.M) is not None and
+          "0001-quicksettings-never-use-a-negative-page-size.patch" in plasma_mobile_apk,
+          "flow: link farm carries the patched plasma-mobile (quick-settings page size)")
     check((farm / "linux-postmarketos-qcom-sm8150").resolve() == recipe.resolve(),
           "flow: RECIPE_ROOT resolves the kernel recipe to the rc4 recipe",
           str((farm / "linux-postmarketos-qcom-sm8150").resolve()))

@@ -24,7 +24,8 @@ else
 fi
 ''')
                 env = dict(os.environ, ROOTFS_SCRIPT=str(fake), AUTHORIZED_KEY=(directory+'/key with spaces.pub' if use_key else ''))
-                names = ('NURA_UI SOURCE_ROOT ROOTFS_STATE LOCAL_OUT KERNEL_STATE KERNEL_BUILD HOOK_RECIPE HOOK_VERSION TOOL HELPER_SCRIPTS')
+                names = ('NURA_UI SOURCE_ROOT ROOTFS_STATE LOCAL_OUT KERNEL_STATE KERNEL_BUILD '
+                         'HOOK_RECIPE HOOK_VERSION TOOL HELPER_SCRIPTS PMAPORTS_REF NO_XWAYLAND')
                 shell = 'set -euo pipefail\n'
                 shell += '\n'.join(name+'=fixture' for name in names.split())+'\n'
                 shell += 'run_rootfs() {'+function+'\nrun_rootfs\n'

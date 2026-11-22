@@ -6,16 +6,26 @@
 # FLOW_DIR owns all state/output.  The default is a read-only preflight;
 # --build performs the user-run privileged packaging.
 #
-#   bash scripts/rootfs_prepare_local.sh --check-only
-#   bash scripts/rootfs_prepare_local.sh --build [--authorized-key PATH]
+#   bash scripts/rootfs_prepare_local.sh --check-only [--pmaports-ref REF]
+#   bash scripts/rootfs_prepare_local.sh --build [--pmaports-ref REF] [--authorized-key PATH]
 #   bash scripts/rootfs_prepare_local.sh --restore <rollback-dir>
+#
+# --pmaports-ref REF (or NURA_PMAPORTS_REF, set by ./nura build --pmaports-ref)
+# builds from that ref of Nura's pmaports (https://gitlab.nura.eco/nura/pmaports)
+# instead of the pinned baseline copy: the ref is resolved to a commit, the
+# checkout is kept at $SOURCE_ROOT/.work/pmaports-nura/<sha>, the baseline's
+# local recipe paths are overlaid on it, and the checkout gets its own state
+# and output (suffix -nura).  Unset keeps today's paths and content.
 #
 # NURA_UI=plasma|phosh selects the UI (default phosh since 2026-11-14).  Both UIs share the
 # rc4 kernel, device/firmware packages, pinned libcamera/ModemManager, the
 # PulseAudio backend, the /etc/apk/world pins and a graphical package
 # manager; Phosh state/output defaults live in *-phosh directories so the
 # Plasma state is never touched.  Phosh is supported in the local-userdata
-# profile only (local_storage_build.sh --ui phosh).
+# profile only (local_storage_build.sh --ui phosh).  Every Plasma build also
+# builds the local plasma-mobile recipe (device/testing/plasma-mobile, the
+# upstream quick-settings fix, 6.8.3-r101) and fails unless the image carries
+# exactly that version; Phosh never builds or installs it.
 #
 # --authorized-key is an explicit, build-only opt-in: PATH must contain one or
 # more plain OpenSSH PUBLIC keys (an existing authorized_keys file is fine).
@@ -40,6 +50,8 @@ FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # Default: the checkout that contains this flow (flows/rc4/local-storage).
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$FLOW_DIR/../../.." && pwd -P)}"
 ROOT="$FLOW_DIR"
+# Absolute self path: the cd below makes a relative $0 unusable.
+SELF="$FLOW_DIR/scripts/$(basename "${BASH_SOURCE[0]}")"
 cd "$ROOT"
 NURA_UI="${NURA_UI:-phosh}"
 case "$NURA_UI" in
@@ -58,6 +70,20 @@ case "$NURA_UI" in
         exit 2
         ;;
 esac
+# --pmaports-ref REF (or NURA_PMAPORTS_REF): build against that ref of Nura's
+# pmaports instead of the pinned baseline copy.  Empty keeps today's behaviour
+# (the read-only baseline tree, byte for byte).  A set ref gets its own state
+# and output directories (suffix -nura), so this flow's existing Plasma build
+# stays the rollback, and the checkout lives at
+# $SOURCE_ROOT/.work/pmaports-nura/<full commit sha>.
+PMAPORTS_REF="${NURA_PMAPORTS_REF:-}"
+PMAPORTS_URL="${NURA_PMAPORTS_URL:-https://gitlab.nura.eco/nura/pmaports.git}"
+PMAPORTS_NURA_ROOT="$SOURCE_ROOT/.work/pmaports-nura"
+# pmbootstrap names the pmaports remote by matching its hardcoded postmarketOS
+# URLs (pmb/helpers/git.py:get_upstream_remote) to read channels.cfg from
+# <remote>/main; the Nura URL is not in that table, so a Nura checkout carries
+# the old URL as a second fetch URL for origin (see add_pmaports_upstream_url).
+PMAPORTS_LEGACY_URL="https://gitlab.postmarketos.org/postMarketOS/pmaports.git"
 # check_local_candidate.py reads the same selector.
 export NURA_UI
 [[ -d "$SOURCE_ROOT" ]] || { echo "ERROR: missing source checkout: $SOURCE_ROOT" >&2; exit 1; }
@@ -86,6 +112,11 @@ LOCAL_USERDATA="${NURA_LOCAL_USERDATA:-0}"
 # 1: build libcamera 0.8 and libcamera-rear from their recipes instead of
 # reusing the historical rear1 APKs (no build/rear-camera needed). Local only.
 FRESH_BASELINE="${NURA_FRESH_BASELINE:-0}"
+# Opt-in Plasma change for the Nura pmaports trial.  It defaults to 0, so a
+# --pmaports-ref build installs exactly today's Plasma package set and
+# exclusions; the exclusion list only applies when asked for.
+#   NURA_PLASMA_NO_XWAYLAND=1 drop xwayland + xwaylandvideobridge
+NO_XWAYLAND="${NURA_PLASMA_NO_XWAYLAND:-0}"
 # apk.static for pmbootstrap, pinned: apk-tools 3.0.10 fails to commit systemd
 # files on fresh installs (alpine/apk-tools#11231). ./nura fetch provides it.
 APK_STATIC_VERSION=3.0.9-r0
@@ -104,6 +135,10 @@ INSTALL_CONFIG=""
 MODEM_VERSION=""
 LIMM_GLIB_VERSION=""
 NURA_CLOCK_VERSION=""
+# The one local recipe every Plasma image builds (upstream quick-settings
+# fix); run_pmbootstrap_builds, run_install and verify_installed all compare
+# against it, and the install list pins plasma-mobile to it.
+PLASMA_MOBILE_VERSION="6.8.3-r101"
 KERNEL_SOURCE=""
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOG=""
@@ -145,16 +180,47 @@ while (( $# )); do
             RESTORE_FROM=${1#*=}
             ;;
         -h | --help)
-            sed -n '2,19p' "$0"
+            # The header comment block; no line numbers to drift.
+            awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$SELF"
             exit 0
             ;;
+        --pmaports-ref)
+            (( $# >= 2 )) && [[ -n "$2" ]] || {
+                echo "error: --pmaports-ref needs a ref (branch, tag or commit)" >&2
+                exit 2
+            }
+            PMAPORTS_REF=$2
+            shift
+            ;;
+        --pmaports-ref=*)
+            PMAPORTS_REF=${1#*=}
+            [[ -n "$PMAPORTS_REF" ]] || {
+                echo "error: --pmaports-ref needs a ref (branch, tag or commit)" >&2
+                exit 2
+            }
+            ;;
         *)
-            echo "error: unknown argument: $1 (use --check-only, --build [--authorized-key PATH] or --restore DIR)" >&2
+            echo "error: unknown argument: $1 (use --check-only, --build [--pmaports-ref REF] [--authorized-key PATH] or --restore DIR)" >&2
             exit 2
             ;;
     esac
     shift
 done
+
+# --pmaports-ref gets its own state and output (suffix -nura) so this flow's
+# existing build stays the rollback.  The flag is parsed now, so the defaults
+# are recomputed once here.
+if [[ -n "$PMAPORTS_REF" ]]; then
+    [[ "$PMAPORTS_REF" != -* && "$PMAPORTS_REF" =~ ^[0-9A-Za-z._/-]+$ ]] || {
+        echo "error: --pmaports-ref is not a plain ref: $PMAPORTS_REF" >&2
+        exit 2
+    }
+    UI_SUFFIX="$UI_SUFFIX-nura"
+    STATE="${NURA_ROOTFS_STATE:-$ROOT/.work/local-userdata$UI_SUFFIX/rootfs-state}"
+    WORK="$STATE/pmbootstrap-work"
+    OUT="${NURA_ROOTFS_OUT:-$ROOT/build/local-userdata$UI_SUFFIX}"
+    BOOT_INITRAMFS="$OUT/boot-initramfs"
+fi
 
 # Read-only check mode may inspect the source kernel state; a local --build
 # still requires the isolated copy made by the entrypoint.
@@ -182,6 +248,15 @@ case "$FRESH_BASELINE" in
     0|1) ;;
     *) die "NURA_FRESH_BASELINE must be 0 or 1" ;;
 esac
+case "$NO_XWAYLAND" in
+    0|1) ;;
+    *) die "NURA_PLASMA_NO_XWAYLAND must be 0 or 1" ;;
+esac
+if [[ "$NURA_UI" != plasma && "$NO_XWAYLAND" != 0 ]]; then
+    die "NURA_PLASMA_NO_XWAYLAND is Plasma-only (NURA_UI=$NURA_UI)"
+fi
+# check_local_candidate.py reads the same opt-in.
+export NURA_PLASMA_NO_XWAYLAND="$NO_XWAYLAND"
 if [[ "$FRESH_BASELINE" = 1 && "$LOCAL_USERDATA" != 1 && "$MODE" != check ]]; then
     die "NURA_FRESH_BASELINE=1 is supported in the local-userdata profile only"
 fi
@@ -865,6 +940,101 @@ refuse_active_mounts "$SRC_STATE/pmaports" "read-only pmaports source"
 refuse_active_mounts "$SRC_STATE/pmbootstrap" "read-only pmbootstrap source"
 refuse_active_mounts "$KERNEL_STATE" "rc4 kernel state"
 refuse_active_mounts "$KERNEL_OUT" "rc4 kernel output"
+[[ -z "$PMAPORTS_REF" ]] || refuse_active_mounts "$PMAPORTS_NURA_ROOT" "Nura pmaports checkouts"
+
+# ---------------------------------------------------------------------------
+# Nura pmaports (--pmaports-ref): clone once per commit, overlay the baseline
+# ---------------------------------------------------------------------------
+
+# A Nura pmaports tree keeps origin's Nura URL first and carries the old
+# postmarketOS URL as a second fetch URL: pmbootstrap only knows the old URL
+# (pmb/helpers/git.py:get_upstream_remote), finds "origin" for it, and then
+# reads channels.cfg from origin/main with the refs the clone already has.  git
+# fetch still uses the Nura URL first; the receipt records the real URL and sha.
+add_pmaports_upstream_url() {
+    local tree="$1"
+    git -C "$tree" config --get-all remote.origin.url |
+        grep -qxF -- "$PMAPORTS_LEGACY_URL" ||
+        git -C "$tree" config --add remote.origin.url "$PMAPORTS_LEGACY_URL" ||
+        die "could not add the upstream pmaports URL to $tree"
+}
+
+# Resolve REF to the full commit sha without cloning: ls-remote is enough for
+# branches, tags and annotated tags; a 40-hex REF is taken as the sha itself.
+resolve_pmaports_ref() {
+    local ref="$1" url="$2" value candidate
+    if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+        printf '%s' "$ref"
+        return 0
+    fi
+    for candidate in "$ref" "refs/heads/$ref" "refs/tags/$ref^{}" "refs/tags/$ref"; do
+        value="$(git ls-remote "$url" "$candidate" 2>/dev/null | awk 'NR==1 {print $1}')" || true
+        if [[ -n "$value" ]]; then
+            printf '%s' "$value"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# PMAPORTS_SRC is the tree the candidate copy and every pmaports check read
+# from: the pinned baseline by default, the Nura checkout with --pmaports-ref.
+select_pmaports_source() {
+    local sha dir
+    PMAPORTS_SRC="$SRC_STATE/pmaports"
+    [[ -n "$PMAPORTS_REF" ]] || return 0
+    sha="$(resolve_pmaports_ref "$PMAPORTS_REF" "$PMAPORTS_URL")" ||
+        die "cannot resolve $PMAPORTS_REF in $PMAPORTS_URL (network or a bad ref?)"
+    [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || die "resolved an unexpected commit for $PMAPORTS_REF: $sha"
+    PMAPORTS_SHA="$sha"
+    dir="$PMAPORTS_NURA_ROOT/$sha"
+    if [[ -e "$dir" || -L "$dir" ]]; then
+        [[ -d "$dir" && ! -L "$dir" ]] || die "Nura pmaports checkout is not a real directory: $dir"
+    elif [[ "$MODE" = build ]]; then
+        note "cloning $PMAPORTS_URL ($PMAPORTS_REF -> $sha)"
+        [[ ! -L "$PMAPORTS_NURA_ROOT" ]] || die "Nura pmaports root must not be a symlink: $PMAPORTS_NURA_ROOT"
+        mkdir -p -- "$PMAPORTS_NURA_ROOT"
+        rm -rf -- "$dir.partial"
+        git clone --quiet "$PMAPORTS_URL" "$dir.partial" ||
+            die "could not clone $PMAPORTS_URL"
+        if ! git -C "$dir.partial" checkout --quiet --detach "$sha" 2>/dev/null; then
+            git -C "$dir.partial" fetch --quiet origin "$sha" ||
+                die "clone of $PMAPORTS_URL has no commit $sha"
+            git -C "$dir.partial" checkout --quiet --detach "$sha" ||
+                die "could not check out $sha in $dir.partial"
+        fi
+        [[ "$(git -C "$dir.partial" rev-parse HEAD)" = "$sha" ]] ||
+            die "cloned Nura pmaports is not at $sha"
+        mv -- "$dir.partial" "$dir" || die "could not install the Nura pmaports checkout"
+    else
+        note "Nura pmaports $PMAPORTS_REF -> $sha: not cloned yet (a build clones it into $dir)"
+        PMAPORTS_SRC=""
+        return 0
+    fi
+    [[ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" = "$sha" ]] ||
+        die "Nura pmaports checkout is not at $sha: $dir (delete it and rebuild)"
+    # A pristine clone gets the overlay once; anything else must already be
+    # exactly the overlaid tree (re-derived from the baseline every time, so a
+    # hand edit or a newer baseline is refused instead of silently used).
+    if [[ -z "$(git -C "$dir" status --porcelain --untracked-files=all)" ]]; then
+        note "overlaying the baseline's local recipe paths onto the Nura pmaports checkout"
+        python3 "$ROOT/scripts/check_local_candidate.py" nura-overlay --apply \
+            --baseline "$SRC_STATE/pmaports" --checkout "$dir" > "$TMP/nura-overlay.json" ||
+            die "could not overlay the baseline's local paths onto $dir"
+    elif ! python3 "$ROOT/scripts/check_local_candidate.py" nura-overlay --verify \
+            --baseline "$SRC_STATE/pmaports" --checkout "$dir" > "$TMP/nura-overlay.json"; then
+        # The same clone is reused across builds, and the opt-ins decide which
+        # recipes it has to shadow.  Re-apply the overlay for the current set
+        # instead of demanding a fresh clone; a real hand edit is still refused.
+        note "re-applying the baseline's local recipe paths for the current opt-ins"
+        python3 "$ROOT/scripts/check_local_candidate.py" nura-overlay --sync \
+            --baseline "$SRC_STATE/pmaports" --checkout "$dir" > "$TMP/nura-overlay.json" ||
+            die "the Nura pmaports checkout drifted; delete $dir and rebuild"
+    fi
+    PMAPORTS_SRC="$dir"
+    note "Nura pmaports: $PMAPORTS_URL $PMAPORTS_REF -> $sha (overlaid, $dir)"
+    add_pmaports_upstream_url "$dir"
+}
 
 # ---------------------------------------------------------------------------
 # Source identity: the rc4 kernel build plus the read-only rc2 APK baseline
@@ -888,6 +1058,17 @@ compgen -G "$KERNEL_STATE/linux-*/Makefile" >/dev/null ||
 [[ -f "$SRC_STATE/pmaports/pmaports.cfg" ]] || die "missing pmaports.cfg"
 grep -q '^version=7$' "$SRC_STATE/pmaports/pmaports.cfg" ||
     die "pinned pmaports is not version 7"
+# --pmaports-ref: resolve/clone/overlay the Nura tree now that the pinned
+# baseline it is overlaid from has passed its own checks.
+select_pmaports_source
+# The same version=7 gate for the tree the build really uses (the baseline
+# stays the reference for the overlay and its APK pins).
+if [[ -n "$PMAPORTS_SRC" ]]; then
+    [[ -d "$PMAPORTS_SRC" ]] || die "missing Nura pmaports checkout: $PMAPORTS_SRC"
+    [[ -f "$PMAPORTS_SRC/pmaports.cfg" ]] || die "missing pmaports.cfg in $PMAPORTS_SRC"
+    grep -q '^version=7$' "$PMAPORTS_SRC/pmaports.cfg" ||
+        die "Nura pmaports checkout is not version 7"
+fi
 [[ -f "$SRC_STATE/pmbootstrap/pmbootstrap.py" ]] || die "pinned pmbootstrap is incomplete"
 grep -q '^work_version = 8$' "$SRC_STATE/pmbootstrap/pmb/config/__init__.py" 2>/dev/null ||
     die "pinned pmbootstrap does not use work_version 8"
@@ -939,6 +1120,7 @@ This flow uses the actual rc4 kernel and writes only flow-local state/output:
   flow directory:  $FLOW_DIR
   release:         $RELEASE (kernel package $(json_get vmlinuz_sha256))
   DTB:             $(json_get dtb_sha256)
+$( [[ -z "$PMAPORTS_REF" ]] || printf '  pmaports source: %s %s -> %s\n' "$PMAPORTS_URL" "$PMAPORTS_REF" "$PMAPORTS_SHA" )
   local entrypoint: bash scripts/local_storage_build.sh --build
 
 The normal netboot scripts/artifacts are untouched. The local entrypoint
@@ -974,16 +1156,31 @@ read_user_password() {
     fi
     [[ -n "$USER_PASSWORD" ]] || die "the phone user's password must not be empty"
 }
+# Say what the Plasma recipe set and opt-in decided before asking for any
+# password.  The other 20 Qt-private-API packages stay repository builds:
+# rebuilding them was tried and did not change the quick-settings bug.
+if [[ "$NURA_UI" = plasma ]]; then
+    echo "  local Plasma recipe: plasma-mobile 6.8.3-r101 (upstream quick-settings fix)"
+    if [[ "$NO_XWAYLAND" = 1 ]]; then
+        echo "  Plasma exclusions: xwayland, xwaylandvideobridge (opt-in NURA_PLASMA_NO_XWAYLAND=1)"
+    else
+        echo "  Plasma exclusions: none (default; xwayland and xwaylandvideobridge stay)"
+    fi
+fi
 USER_PASSWORD=""
 read_user_password
 
 exec > >(tee -a "$LOG") 2>&1
 trap 'status=$?; echo "$UI_LABEL packaging failed at line $LINENO (exit $status). Log: $LOG" >&2; exit "$status"' ERR
 echo "Build log: $LOG"
+if [[ -n "$PMAPORTS_REF" ]]; then
+    echo "  pmaports source:  $PMAPORTS_URL $PMAPORTS_REF -> $PMAPORTS_SHA"
+    echo "  pmaports tree:    $PMAPORTS_SRC"
+fi
 
 [[ -f "$SRC_STATE/pmbootstrap/pmbootstrap.py" ]] || die "pinned pmbootstrap disappeared"
-[[ -f "$SRC_STATE/pmaports/temp/libcamera/APKBUILD" ]] ||
-    die "pinned pmaports has no system libcamera 0.8 recipe"
+[[ -f "$PMAPORTS_SRC/temp/libcamera/APKBUILD" ]] ||
+    die "$PMAPORTS_SRC has no system libcamera 0.8 recipe"
 
 prepare_work() {
     local version backup
@@ -1014,11 +1211,17 @@ prepare_pmaports_copy() {
         [[ -d "$STATE/pmaports" ]] || die "candidate pmaports is not a directory"
         [[ -f "$STATE/rootfs/candidate-state.json" ]] ||
             die "candidate pmaports exists without a preparation receipt; move it aside instead of reusing a partial copy"
+        [[ -z "$PMAPORTS_REF" ]] || add_pmaports_upstream_url "$STATE/pmaports"
         return 0
     fi
-    note "copying pinned pmaports into the isolated Plasma state"
-    cp -a --reflink=auto "$SRC_STATE/pmaports" "$STATE/pmaports" ||
+    if [[ -n "$PMAPORTS_REF" ]]; then
+        note "copying Nura pmaports $PMAPORTS_SHA into the isolated $UI_LABEL state"
+    else
+        note "copying pinned pmaports into the isolated Plasma state"
+    fi
+    cp -a --reflink=auto "$PMAPORTS_SRC" "$STATE/pmaports" ||
         die "could not copy pmaports; the source tree was not modified"
+    [[ -z "$PMAPORTS_REF" ]] || add_pmaports_upstream_url "$STATE/pmaports"
 }
 
 prepare_pmbootstrap_copy() {
@@ -1082,8 +1285,8 @@ copy_file() {
 }
 
 KERNEL_PKG="linux-postmarketos-qcom-sm8150"
-CHANNEL="$(sed -n 's/^channel=//p' "$SRC_STATE/pmaports/pmaports.cfg" | head -1)"
-[[ -n "$CHANNEL" ]] || die "cannot read channel from pinned pmaports"
+CHANNEL="$(sed -n 's/^channel=//p' "$PMAPORTS_SRC/pmaports.cfg" | head -1)"
+[[ -n "$CHANNEL" ]] || die "cannot read channel from $PMAPORTS_SRC"
 [[ "$CHANNEL" =~ ^[A-Za-z0-9._-]+$ ]] || die "unsafe pmaports channel name: $CHANNEL"
 PKGDIR="$WORK/packages/$CHANNEL/aarch64"
 
@@ -1265,15 +1468,25 @@ PY
 }
 
 package_version() {
-    local name="$1" value f v
-    local -a files=() package_dirs=("$PKGDIR")
-    local noarch="$WORK/packages/$CHANNEL/noarch"
-    [[ ! -d "$noarch" ]] || package_dirs+=("$noarch")
+    # pmbootstrap routes a recipe under extra-repos/<repo>/ into its own
+    # channel directory: extra-repos/systemd/plasma-workspace builds into
+    # packages/systemd-edge/, not packages/edge/.  Search every channel of this
+    # work dir instead of only packages/$CHANNEL/aarch64, or a package built
+    # from such a recipe is invisible (a build once died on "found none" with
+    # the APK sitting in systemd-edge/aarch64).  apk installs the highest
+    # version, so the pick below still reports the one that would be used.
+    local name="$1" value f v dir
+    local -a files=() package_dirs=()
+    for dir in "$PKGDIR" "$WORK"/packages/*/aarch64 "$WORK"/packages/*/noarch; do
+        [[ -d "$dir" ]] || continue
+        case " ${package_dirs[*]-} " in *" $dir "*) continue ;; esac
+        package_dirs+=("$dir")
+    done
     mapfile -t files < <(
         find "${package_dirs[@]}" -maxdepth 1 -type f -name "${name}-[0-9]*.apk"
     )
     (( ${#files[@]} >= 1 )) ||
-        die "expected a built $name APK in $PKGDIR or $noarch, found none"
+        die "expected a built $name APK in ${package_dirs[*]}, found none"
     if (( ${#files[@]} > 1 )); then
         # Stale builds stay in the local repo; apk installs the highest
         # version, so report that one (sort -V on the version suffix).
@@ -1368,9 +1581,13 @@ install_add_string() {
     )
     case "$NURA_UI" in
         plasma)
-            # Discover with its apk backend installs system packages.
+            # Discover with its apk backend installs system packages.  The
+            # local plasma-mobile (quick-settings fix) and the repository
+            # PowerDevil are pinned to the exact versions the image must
+            # carry, so a plain `apk upgrade` cannot swap in other builds.
             add+=(
                 "plasma-camera"
+                "plasma-mobile=$PLASMA_MOBILE_VERSION"
                 "powerdevil=6.8.3-r0"
                 "discover"
                 "discover-backend-apk"
@@ -1392,8 +1609,11 @@ install_add_string() {
             )
             ;;
     esac
+    # Xwayland stays unless the (Plasma-only) opt-in drops it: KWin opens its
+    # lazy X11 socket without it and PulseAudio's X11 integration / Plasma
+    # Camera startup stalled (docs/NURA_RC2.md 1.2).
+    [[ "$NO_XWAYLAND" = 1 ]] || add+=("xwayland")
     add+=(
-        "xwayland"
         "libcamera=99990.8.0-r1"
         "libcamera-ipa=99990.8.0-r1"
         "pipewire-spa-libcamera"
@@ -1493,10 +1713,19 @@ run_pmbootstrap_builds() {
     note "building local recipes individually; dependency builds are forbidden"
     local package
     local -a ui_builds=("$UI_PKG")
-    # Phosh: gmobile rebuilt with the guacamole display panel (rounded corners),
-    # phoc rebuilt with the null-texture thumbnail guard.  gmobile is built
-    # first because phoc's makedepends include gmobile-dev.
-    [[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile phoc)
+    if [[ "$NURA_UI" = phosh ]]; then
+        # Phosh: gmobile rebuilt with the guacamole display panel (rounded
+        # corners), phoc rebuilt with the null-texture thumbnail guard.  gmobile
+        # is built first because phoc's makedepends include gmobile-dev.
+        ui_builds+=(gmobile phoc)
+    else
+        # Plasma, every build: the local plasma-mobile carries upstream's
+        # quick-settings fix (device/testing/plasma-mobile, pkgrel 101).  Its
+        # own dependencies stay repository packages - the other 20
+        # Qt-private-API rebuilds did not fix quick settings and are gone.
+        # Built before the UI package, which recommends and depends on it.
+        ui_builds=(plasma-mobile "$UI_PKG")
+    fi
     # Both UIs: libssc is built before iio-sensor-proxy because the daemon's
     # makedepends include libssc-dev (the gmobile-before-phoc rule), and the
     # daemon carries the SSC claim fix that both images need.
@@ -1504,6 +1733,13 @@ run_pmbootstrap_builds() {
         hexagonrpcd iio-sensor-proxy "${ui_builds[@]}" modemmanager; do
         "${PMB[@]}" build --arch aarch64 --ignore-depends --no-depends --force "$package"
     done
+    if [[ "$NURA_UI" = plasma ]]; then
+        local built_plasma_mobile
+        built_plasma_mobile="$(package_version plasma-mobile)"
+        [[ "$built_plasma_mobile" = "$PLASMA_MOBILE_VERSION" ]] ||
+            die "built plasma-mobile is $built_plasma_mobile, expected the local $PLASMA_MOBILE_VERSION"
+        note "built local plasma-mobile: $built_plasma_mobile"
+    fi
     build_optional_recipe main/nura-clock nura-clock
 }
 
@@ -1563,7 +1799,7 @@ run_install() {
     )
     local kernel_version hook_version libcamera_version ui_version add expected_hook_version
     local device_version firmware_version gmobile_version="" phoc_version=""
-    local iio_sensor_proxy_version="" libssc_version=""
+    local iio_sensor_proxy_version="" libssc_version="" plasma_mobile_version=""
     kernel_version="$(package_version "$KERNEL_PKG")"
     hook_version="$(package_version postmarketos-mkinitfs-hook-netboot)"
     libcamera_version="$(package_version libcamera-rear)"
@@ -1587,6 +1823,13 @@ run_install() {
         phoc_version="$(package_version phoc)"
         [[ "$phoc_version" = 0.58.0-r100 ]] ||
             die "refusing phoc version $phoc_version (expected the local 0.58.0-r100 with the null-texture guard)"
+    else
+        # Plasma: the local plasma-mobile recipe carries upstream's
+        # quick-settings fix, so the image must install that build, never the
+        # repository's 6.8.3-r0.
+        plasma_mobile_version="$(package_version plasma-mobile)"
+        [[ "$plasma_mobile_version" = "$PLASMA_MOBILE_VERSION" ]] ||
+            die "refusing plasma-mobile version $plasma_mobile_version (expected the local $PLASMA_MOBILE_VERSION with the quick-settings fix)"
     fi
     MODEM_VERSION="$(package_version modemmanager)"
     LIMM_GLIB_VERSION="$(package_version libmm-glib)"
@@ -1622,6 +1865,8 @@ run_install() {
     note "$UI_LABEL UI: $ui_version"
     [[ -z "$gmobile_version" ]] || note "gmobile (guacamole panel): $gmobile_version"
     [[ -z "$phoc_version" ]] || note "phoc (null-texture guard): $phoc_version"
+    [[ -z "$plasma_mobile_version" ]] ||
+        note "plasma-mobile (quick-settings fix): $plasma_mobile_version"
     note "iio-sensor-proxy: $iio_sensor_proxy_version (async SSC claim path); libssc: $libssc_version (blocking sync wait)"
     note "modemmanager: $MODEM_VERSION (libmm-glib $LIMM_GLIB_VERSION)"
     [[ -z "$NURA_CLOCK_VERSION" ]] || note "nura-clock: $NURA_CLOCK_VERSION"
@@ -1690,6 +1935,7 @@ verify_installed() {
     local ui_version="$1"
     local rootfs="$WORK/chroot_rootfs_oneplus-guacamole"
     local -a clock_args=() gmobile_args=() phoc_args=() sensor_args=() libcamera_args=()
+    local -a plasma_mobile_args=()
     if [[ "$FRESH_BASELINE" = 1 ]]; then
         libcamera_args=(--built-apk-dir "$PKGDIR")
     else
@@ -1698,6 +1944,10 @@ verify_installed() {
     [[ -z "$NURA_CLOCK_VERSION" ]] || clock_args=(--nura-clock-version "$NURA_CLOCK_VERSION")
     [[ "$NURA_UI" != phosh ]] || gmobile_args=(--gmobile-version "$(package_version gmobile)")
     [[ "$NURA_UI" != phosh ]] || phoc_args=(--phoc-version "$(package_version phoc)")
+    # Plasma: the image must carry the local plasma-mobile build (the
+    # quick-settings fix), not the repository's 6.8.3-r0.
+    [[ "$NURA_UI" != plasma ]] ||
+        plasma_mobile_args=(--plasma-mobile-version "$(package_version plasma-mobile)")
     # Both UIs: the r100 daemon and its libssc, plus the binary marker check in
     # check_local_candidate.py (the daemon must import the async *_finish()
     # symbols and none of the *_open_sync() ones).
@@ -1719,6 +1969,7 @@ verify_installed() {
         --firmware-version "$(package_version firmware-oneplus-guacamole)" \
         "${gmobile_args[@]}" \
         "${phoc_args[@]}" \
+        "${plasma_mobile_args[@]}" \
         "${sensor_args[@]}" \
         --modemmanager-version "$MODEM_VERSION" \
         --libmm-glib-version "$LIMM_GLIB_VERSION" \
@@ -1728,7 +1979,8 @@ verify_installed() {
     note "kernel/device/firmware/iio-sensor-proxy/libssc pinned to exact versions in /etc/apk/world: OK"
     note "installed iio-sensor-proxy $(package_version iio-sensor-proxy) (async SSC claim path) and libssc $(package_version libssc): OK"
     if [[ "$NURA_UI" = plasma ]]; then
-        note "installed Plasma UI, Camera, Discover+apk, system libcamera 0.8, PulseAudio, PowerDevil: OK"
+        note "installed plasma-mobile $(package_version plasma-mobile) (quick-settings fix), Plasma UI, Camera, Discover+apk, PowerDevil 6.8.3-r0: OK"
+        note "installed system libcamera 0.8 and the PulseAudio backend: OK"
     else
         note "installed Phosh UI, Snapshot, GNOME Software+apk, gmobile panel, phoc thumbnail guard, system libcamera 0.8, PulseAudio: OK"
     fi
@@ -1913,6 +2165,8 @@ initramfs=$initramfs
 initramfs_sha256=$(sha256 "$initramfs")
 installed_hook=$hook
 installed_hook_sha256=$(sha256 "$hook")
+$( [[ -z "$PMAPORTS_REF" ]] || printf 'pmaports_source=%s\npmaports_ref=%s\npmaports_sha=%s\n' \
+    "$PMAPORTS_SRC" "$PMAPORTS_REF" "$PMAPORTS_SHA" )
 final_boot_image=NOT-BUILT
 final_manifest=NOT-WRITTEN
 EOF
@@ -1957,8 +2211,11 @@ if [[ "$LOCAL_USERDATA" = 1 ]]; then
 fi
 
 note "preparing isolated pmaports links, config, lock and PowerDevil policies"
+pmaports_source_args=()
+[[ -z "$PMAPORTS_REF" ]] ||
+    pmaports_source_args=(--source-pmaports-url "$PMAPORTS_URL" --source-pmaports-ref "$PMAPORTS_REF")
 python3 "$ROOT/scripts/check_local_candidate.py" prepare \
-    --source-pmaports "$SRC_STATE/pmaports" \
+    --source-pmaports "$PMAPORTS_SRC" \
     --candidate-pmaports "$STATE/pmaports" \
     --source-pmbootstrap "$SRC_STATE/pmbootstrap" \
     --candidate-pmbootstrap "$STATE/pmbootstrap" \
@@ -1966,7 +2223,8 @@ python3 "$ROOT/scripts/check_local_candidate.py" prepare \
     --candidate-config "$STATE/rootfs/pmbootstrap.cfg" \
     --work "$WORK" \
     --state "$STATE" \
-    --receipt "$STATE/rootfs/candidate-state.json" > "$TMP/prepare.json" ||
+    --receipt "$STATE/rootfs/candidate-state.json" \
+    "${pmaports_source_args[@]}" > "$TMP/prepare.json" ||
     die "could not prepare the isolated $UI_LABEL state"
 if [[ "$LOCAL_USERDATA" = 1 ]]; then
     install_local_hook_recipe

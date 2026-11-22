@@ -1,0 +1,150 @@
+# Nura guacamole: local plasma-mobile with the upstream quick-settings fix.
+# The repository build (6.8.3-r0) leaves the Plasma Mobile quick-settings
+# drawer empty: everything below the header is blank and plasmashell logs
+# "QuickSettings.qml:102: TypeError: Cannot read property '...' of undefined"
+# and "ActionDrawer.qml:101: ... 'Landscape' of undefined" in a loop.
+#
+# Cause and fix: with Qt 6.12.0 the drawer is briefly laid out with a negative
+# width, PaginateModel accepts the resulting negative page size and announces
+# bogus row removals and insertions, so the Repeater ends up with about 845
+# delegates (840 of them with an undefined modelData) that push the real tiles
+# out of view.  Upstream fixed it on master only, after 6.8.3, in plasma-mobile
+# commit 7d58ddd8043dbcd48ce1a1b3663e6756daf99ce2 (2026-10-30),
+# "quicksettings: Never use a negative page size".  It is not in Plasma/6.8 or
+# 6.8.3, and it clamps the page size and the row count at 0 in
+# components/mobileshell/qml/actiondrawer/private/QuickSettings.qml and
+# components/quicksettingsplugin/paginatemodel.cpp:
+# 0001-quicksettings-never-use-a-negative-page-size.patch = that commit,
+# unchanged (git format-patch).
+#
+# pkgrel 101 stays above the repository's 6.8.3-r0, so apk installs this build
+# and `apk upgrade` keeps it; the flow pins plasma-mobile=<version> for the
+# image and fails the build unless it is 6.8.3-r101.  Every Plasma image
+# builds this recipe (NURA_UI=plasma); Phosh never does.  Drop it, or just the
+# patch and the pkgrel bump, once the packaged plasma-mobile contains
+# 7d58ddd8043dbcd48ce1a1b3663e6756daf99ce2.
+# Upstream recipe:
+# https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/plasma-mobile/APKBUILD
+# (aports 61fc474e, the commit that built 6.8.3-r0; unchanged here
+# except pkgrel and the patch above).
+# The group tag is just to easily find this APKBUILD by some scripts for automation
+# group=kde-plasma
+maintainer="team/kde <bribbers@disroot.org>"
+pkgname=plasma-mobile
+pkgver=6.8.3
+pkgrel=101
+pkgdesc="Modules providing phone functionality for Plasma"
+# armhf blocked by qt6-qtdeclarative
+arch="all !armhf"
+url="https://www.plasma-mobile.org/"
+license="GPL-2.0-or-later AND LGPL-2.1-or-later"
+depends="
+	bluez-qt
+	breeze-icons
+	dbus-x11
+	feedbackd
+	kpipewire
+	kquickcharts
+	plasma-activities
+	plasma-keyboard
+	plasma-nano
+	plasma-nm
+	plasma-pa
+	plasma-settings
+	plasma-workspace
+	qqc2-breeze-style
+	"
+makedepends="
+	extra-cmake-modules
+	kauth-dev
+	kbookmarks-dev
+	kcodecs-dev
+	kcompletion-dev
+	kconfig-dev
+	kconfigwidgets-dev
+	kcoreaddons-dev
+	kdbusaddons-dev
+	kdeclarative-dev
+	ki18n-dev
+	kio-dev
+	kirigami-addons-dev
+	kitemviews-dev
+	kjobwidgets-dev
+	knotifications-dev
+	kpackage-dev
+	kpeople-dev
+	kservice-dev
+	kwayland-dev
+	kwidgetsaddons-dev
+	kwin-dev
+	kwindowsystem-dev
+	kxmlgui-dev
+	libphonenumber-dev
+	libplasma-dev
+	modemmanager-qt-dev
+	networkmanager-qt-dev
+	plasma-activities-dev
+	plasma-workspace-dev
+	qcoro-dev
+	qt6-qtdeclarative-dev
+	samurai
+	solid-dev
+	"
+subpackages="
+	$pkgname-dbg
+	$pkgname-lang
+	$pkgname-systemd
+	$pkgname-waydroid
+	"
+provides="plasma-phone-components=$pkgver-r$pkgrel" # For backwards compatibility
+replaces="plasma-phone-components" # For backwards compatibility
+
+
+case "$pkgver" in
+	*.*.9*) _rel=unstable;;
+	*) _rel=stable;;
+esac
+_repo_url="https://invent.kde.org/plasma/plasma-mobile.git"
+source="https://download.kde.org/$_rel/plasma/$pkgver/plasma-mobile-$pkgver.tar.xz
+	99-flashlight.rules
+	0001-quicksettings-never-use-a-negative-page-size.patch
+	"
+
+build() {
+	cmake -B build -G Ninja \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DCMAKE_INSTALL_LIBDIR=lib \
+		-DINSTALL_SYSTEMD_SERVICE=ON
+	cmake --build build
+}
+
+check() {
+	ctest --test-dir build
+}
+
+package() {
+	DESTDIR="$pkgdir" cmake --install build
+
+	install -Dm644 "$srcdir"/99-flashlight.rules -t "$pkgdir"/usr/lib/udev/rules.d/
+}
+
+waydroid() {
+	pkgdesc="$pkgdesc - Waydroid integration"
+	install_if="$pkgname=$pkgver-r$pkgrel waydroid"
+
+	amove usr/lib/libexec/kf6/kauth/waydroidhelper
+	amove usr/lib/qt6/plugins/plasma/kcms/systemsettings/kcm_waydroidintegration.so
+	amove usr/lib/qt6/qml/org/kde/plasma/private/mobileshell/waydroidintegrationplugin
+	amove usr/share/applications/kcm_waydroidintegration.desktop
+	amove usr/share/dbus-1/system-services/*waydroidhelper.service
+	amove usr/share/dbus-1/system.d/*waydroidhelper.conf
+	amove usr/share/plasma/quicksettings/*waydroid
+	amove usr/share/polkit-1/actions/*waydroidhelper.policy
+}
+
+sha512sums="
+ae1c389294e2ba3393ba3b001fa88a959f3babfd0cbb06df735d35ab039255d73d6a7499d66a7bd98647b848385e4e545a25bc1b1420ecfd564c28c21067704c  plasma-mobile-6.8.3.tar.xz
+4badc25cbb7dc84d6af54cff5f3c09dcc37da86b7e930bdcab6d75f8dd90ef0dd9c8a3837ab696b1f4de9cad82d5e64ddd44904640a92e910a8f45524542be95  99-flashlight.rules
+bb04cf40f5cd623e311f2191949e82c118fafde2271198afafc0b4105280ba7ca35ad1699d2d8e266dc3e99ee21878b53b35bf30fd8912515e5b1d98c74d62a7  0001-quicksettings-never-use-a-negative-page-size.patch
+"

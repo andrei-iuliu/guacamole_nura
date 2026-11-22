@@ -613,7 +613,15 @@ class TestPhocRecipe(unittest.TestCase):
 
     def test_flow_builds_and_pins_phoc_for_phosh_only(self):
         prepare = PREPARE.read_text()
-        self.assertIn('[[ "$NURA_UI" != phosh ]] || ui_builds+=(gmobile phoc)', prepare)
+        # Phosh builds gmobile/phoc; the Plasma branch only carries the local
+        # plasma-mobile recipe.
+        branches = prepare.split('local -a ui_builds=("$UI_PKG")', 1)[1]
+        phosh_branch, plasma_branch = branches.split("\n    else\n", 1)
+        plasma_branch = plasma_branch.split("\n    fi\n", 1)[0]
+        self.assertIn("ui_builds+=(gmobile phoc)", phosh_branch)
+        self.assertIn('ui_builds=(plasma-mobile "$UI_PKG")', plasma_branch)
+        self.assertNotIn("gmobile", plasma_branch)
+        self.assertNotIn("phoc", plasma_branch)
         self.assertIn('[[ "$phoc_version" = 0.58.0-r100 ]]', prepare)
         self.assertIn('"phoc (null-texture guard): $phoc_version"', prepare)
         self.assertIn('phoc_args=(--phoc-version "$(package_version phoc)")', prepare)
@@ -631,9 +639,9 @@ class TestPhocRecipe(unittest.TestCase):
         self.assertIn("verify_phoc_guard(rootfs)", checker)
         self.assertIn("verify.add_argument(\"--phoc-version\")", checker)
         # prepare_state shadows Alpine's community/phoc for the Phosh UI only.
-        prepare_state = checker.split("def prepare_state(", 1)[1]
-        phosh_links = prepare_state.split('if UI == "phosh":', 1)[1].split(
-            "for relative, target in optional_links", 1)[0]
+        links_function = checker.split("def local_recipe_links(", 1)[1].split(
+            "return links", 1)[0]
+        phosh_links = links_function.split('if UI == "phosh":', 1)[1]
         self.assertIn('links["main/phoc"] = "device/testing/phoc"', phosh_links)
 
 
