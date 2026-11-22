@@ -423,6 +423,15 @@ The setter requires systemd and root, saves a dedicated service drop-in and
 restarts `guacamole-chgctrl.service`. Changes survive reboot of that rootfs.
 Inspect configured values with `systemctl show guacamole-chgctrl.service -p Environment`.
 
+The window stops charging by suspending the charger input
+(`pm8150b-charger/status` = 0), so at the stop percentage the phone runs
+from the battery until it reaches the resume percentage. This was verified on
+the phone on 2026-11-22. The daemon rewrites `status` every 5 s, so when you
+test the suspend by hand, stop `guacamole-chgctrl.service` first, or it
+resumes the input within 5 s. That rewrite caused the earlier "suspend
+doesn't hold" result. A kernel `charge_behaviour` (inhibit-charge) property
+was considered and dropped: the window does not need it.
+
 Fresh builds include the CLI but default to full charging; previously chosen
 limits are not copied automatically when replacing the rootfs. The current
 hardware mechanism suspends charger input, so the phone runs from battery

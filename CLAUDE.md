@@ -124,9 +124,14 @@ userdata".
   charger.
 - **Charging policy** lives in `guacamole-chgctrl` (device package, systemd).
   It sets `pm8150b-charger/input_current_limit` from the PD contract or BC1.2
-  type and suspends the input via `status` (`0` suspends, `1` resumes). Stop
-  the daemon before experimenting by hand, and never leave the input
-  suspended. `/run/guacamole/charger` shows the source type. The board never
+  type and suspends the input via `status` (`0` suspends, `1` resumes). It
+  rewrites `status` every 5 s (`POLL_S`), so a hand-written `status=0` is
+  undone within 5 s while it runs: stop the daemon before experimenting by
+  hand, and never leave the input suspended. The charge window
+  (`guacamole-chgctrl limit`) works through this input suspend (verified on
+  the phone, 2026-11-22). A kernel `charge_behaviour`/inhibit-charge patch for
+  `qcom_smbx` was written and dropped as unnecessary; don't redo it.
+  `/run/guacamole/charger` shows the source type. The board never
   passes a 9 V PD supply to the PMIC, so the connector sinks 5 V/3 A only.
   Don't re-add 9 V/12 V PDOs without new evidence.
 - **Fuel gauge.** `ti,bq27411` on `i2c@a80000`. Never add `monitored-battery`
