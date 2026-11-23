@@ -1,0 +1,86 @@
+From: Nura rc4r series <rc4r@nura.invalid>
+Subject: [PATCH] drm/panel: samsung-oneplus-dsc: prefer the 60 Hz mode
+
+The panel offers a 90 Hz and a 60 Hz mode with the same pixel clock;
+the refresh rate is selected by the WRITE_CONTROL_DISPLAY byte sent in
+prepare (0x30 for 90 Hz, 0x20 for 60 Hz).  90 Hz was the preferred mode,
+so the fbdev console and the compositor's first modeset ran at 90 Hz.
+On the OnePlus 7 Pro that first 90 Hz modeset showed garbled colours
+until the user switched the desktop to 60 Hz.
+
+It also costs a full modeset at every shutdown: when the compositor
+exits, the fbdev client restores its own (preferred, 90 Hz) mode, which
+takes the DSI host and PHY down, reprograms the PLL and re-initialises
+the panel while the system is going down.  Some of those modesets ended
+in a silent warm reset by the secure firmware; the last kernel message
+was:
+
+  panel-samsung-oneplus-dsc ae94000.dsi.0: initializing panel at 90 Hz (control-display 0x30)
+
+Make 60 Hz the preferred (and first) mode, so the console and the
+compositor start in the same mode.  90 Hz stays available.
+
+Pick the control-display byte from the refresh rate of the mode being
+set instead of an exact timing match, and fall back to the preferred
+60 Hz byte (with a one-time warning) when prepare runs without a CRTC
+state, rather than to 90 Hz.
+---
+
+diff --git a/drivers/gpu/drm/panel/panel-samsung-oneplus-dsc.c b/drivers/gpu/drm/panel/panel-samsung-oneplus-dsc.c
+--- a/drivers/gpu/drm/panel/panel-samsung-oneplus-dsc.c
++++ b/drivers/gpu/drm/panel/panel-samsung-oneplus-dsc.c
+@@ -233,32 +233,43 @@
+ 	struct drm_connector *connector = ctx->connector;
+ 	struct drm_crtc_state *crtc_state;
+ 
+-	/* The validated preferred mode is the safe fallback during early prepare. */
+-	if (!connector || !connector->state || !connector->state->crtc)
+-		return 0x30;
+-
+-	crtc_state = connector->state->crtc->state;
+-	if (drm_mode_match(&crtc_state->mode,
+-			   &samsung_oneplus_dsc_60hz_mode,
+-			   DRM_MODE_MATCH_TIMINGS | DRM_MODE_MATCH_CLOCK))
++	/*
++	 * Without a CRTC state the mode being set is unknown; use the
++	 * preferred 60 Hz mode, which is also what fbdev and the compositor
++	 * start with.
++	 */
++	if (!connector || !connector->state || !connector->state->crtc ||
++	    !connector->state->crtc->state) {
++		dev_warn_once(&ctx->dsi->dev,
++			      "no CRTC state at prepare, using 60 Hz panel command\n");
+ 		return 0x20;
++	}
+ 
++	crtc_state = connector->state->crtc->state;
+ 	if (!drm_mode_match(&crtc_state->mode,
++			    &samsung_oneplus_dsc_60hz_mode,
++			    DRM_MODE_MATCH_TIMINGS | DRM_MODE_MATCH_CLOCK) &&
++	    !drm_mode_match(&crtc_state->mode,
+ 			    &samsung_oneplus_dsc_90hz_mode,
+ 			    DRM_MODE_MATCH_TIMINGS | DRM_MODE_MATCH_CLOCK))
+ 		dev_warn(&ctx->dsi->dev,
+-			 "unknown mode " DRM_MODE_FMT ", using 90 Hz panel command\n",
++			 "unknown mode " DRM_MODE_FMT ", choosing the panel command by refresh rate\n",
+ 			 DRM_MODE_ARG(&crtc_state->mode));
+ 
+-	return 0x30;
++	return drm_mode_vrefresh(&crtc_state->mode) <= 60 ? 0x20 : 0x30;
+ }
+ 
+ static int samsung_oneplus_dsc_get_modes(struct drm_panel *panel,
+ 					 struct drm_connector *connector)
+ {
++	/*
++	 * 60 Hz is preferred: the console and the compositor's first modeset
++	 * then match, and fbdev restoring its mode when the compositor exits
++	 * is no longer a full 60 -> 90 Hz modeset. 90 Hz stays selectable.
++	 */
+ 	static const struct drm_display_mode * const modes[] = {
+-		&samsung_oneplus_dsc_90hz_mode,
+ 		&samsung_oneplus_dsc_60hz_mode,
++		&samsung_oneplus_dsc_90hz_mode,
+ 	};
+ 	struct samsung_oneplus_dsc *ctx = to_samsung_oneplus_dsc(panel);
+ 	struct drm_display_mode *mode;

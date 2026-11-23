@@ -88,6 +88,7 @@ NEW_PATCHES = [
     "0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch",
     "0077-media-qcom-camss-csid-recover-from-a-reset-timeout.patch",
     "0078-wifi-ath10k-offload-gtk-rekey-during-wow.patch",
+    "0079-drm-panel-samsung-oneplus-dsc-prefer-60hz.patch",
 ]
 
 

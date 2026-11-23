@@ -50,6 +50,11 @@
 #   0078 ath10k: offload the GTK rekey to the firmware during WoW, so a
 #        suspended phone answers the AP's group key renewal instead of
 #        being dropped and woken. Module code only.
+# rc4r (pkgrel 20) adds:
+#   0079 samsung-oneplus-dsc: prefer the 60 Hz mode and pick the panel's
+#        control-display byte by refresh rate, so the console and the
+#        compositor start at 60 Hz and shutdown no longer does a full
+#        60 -> 90 Hz modeset. Built-in code: needs a new boot image.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -57,7 +62,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=7.0.0
-pkgrel=19
+pkgrel=20
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -160,6 +165,7 @@ source="
 	0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
 	0077-media-qcom-camss-csid-recover-from-a-reset-timeout.patch
 	0078-wifi-ath10k-offload-gtk-rekey-during-wow.patch
+	0079-drm-panel-samsung-oneplus-dsc-prefer-60hz.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -280,4 +286,5 @@ dde0783b8c0f8cc776ec8abe0327cff9c71787b126cbf7ac7666aba8d4c3a909bf0d7e1fa6b0ab29
 4efc6956ffc6d85078a23a0661fc5ed0f52214c6d2831e74b22a5485b519b9cd0e1e1f05bd622be1ce167c5042db4b01b5b1fb461d4af66d9353bb3387dda002  0076-media-i2c-lc898217xc-balance-runtime-pm-and-free-controls-last.patch
 6fbb50ae89955e72507a818a9a86ea42df91c0b5a09778d7a39d933d2cd94f7093e0c2365ac60755d9f135dcde163d230f81b071b346b0425a4b01954bfd4089  0077-media-qcom-camss-csid-recover-from-a-reset-timeout.patch
 c9634e15c9a3577aadffbf698cf3771c52b7b65fb3d20121a0098a25ee12c5fc052687feb8d9ffbcaf67d819edd5da148490d6bec508b037f7e4fe4c715fe98f  0078-wifi-ath10k-offload-gtk-rekey-during-wow.patch
+519fcf9b17f2aba17cca291517a5fe81805747cad3a99c76d0aa13d38e63b362b0f2159745ca218109238d119e649e8597f053b054d941d13cc86a2c4df1f600  0079-drm-panel-samsung-oneplus-dsc-prefer-60hz.patch
 "
