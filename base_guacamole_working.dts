@@ -3987,6 +3987,8 @@
 				camera@10 {
 					compatible = "samsung,s5k3m5";
 					reg = <0x10>;
+					orientation = <0x01>;
+					rotation = <0x5a>;
 					clocks = <0x56c 0x53>;
 					assigned-clocks = <0x56c 0x53>;
 					assigned-clock-rates = <0x16e3600>;
