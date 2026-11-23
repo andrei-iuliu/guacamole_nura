@@ -1811,8 +1811,8 @@ run_install() {
     # versions must be the reviewed ones; the world pins below keep apk from
     # replacing them with the Alpine community builds.
     iio_sensor_proxy_version="$(package_version iio-sensor-proxy)"
-    [[ "$iio_sensor_proxy_version" = 3.9-r100 ]] ||
-        die "refusing iio-sensor-proxy version $iio_sensor_proxy_version (expected the local 3.9-r100 with the async SSC claim path)"
+    [[ "$iio_sensor_proxy_version" = 3.9-r101 ]] ||
+        die "refusing iio-sensor-proxy version $iio_sensor_proxy_version (expected the local 3.9-r101 with the async SSC claim path)"
     libssc_version="$(package_version libssc)"
     [[ "$libssc_version" = 0.4.4-r100 ]] ||
         die "refusing libssc version $libssc_version (expected the local 0.4.4-r100 with the blocking sync wait)"

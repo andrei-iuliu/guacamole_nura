@@ -1,0 +1,64 @@
+From: Nura rc4 <local>
+Subject: [PATCH] main: start sensors that were claimed during startup
+
+iio-sensor-proxy owns its bus name before it opens the sensors.  The SSC
+drivers' open (ssc_sensor_*_new_sync()) iterates the default main context
+while it waits on the DSP, so a Claim*() that arrives right after the name
+appears is handled from inside name_acquired_handler().  KWin claims the
+accelerometer as soon as the name shows up, so this happens on every start
+under Plasma.
+
+That claim either finds no driver yet, or a driver without an open device,
+and returns without starting the sensor.  The client stays registered, so
+every later Claim*() sees an already-claimed sensor and returns at once
+too.  Nothing ever calls set_polling(TRUE): no "Enabling sensor", no
+readings, AccelerometerOrientation stays "undefined" and auto-rotation does
+nothing.
+
+Treat a driver whose device is not open yet as absent in the claim
+handler (it used to call driver_set_polling(NULL) and push to a not yet
+allocated invocation array), and at the end of the startup start every
+sensor that already has clients, the way the hotplug path in
+sensor_changes() does.
+
+---
+diff --git a/src/iio-sensor-proxy.c b/src/iio-sensor-proxy.c
+--- a/src/iio-sensor-proxy.c
++++ b/src/iio-sensor-proxy.c
+@@ -522,7 +522,13 @@
+ 							   NULL);
+ 		g_hash_table_insert (ht, g_strdup (sender), GUINT_TO_POINTER (watch_id));
+ 
+-		if (driver_type_exists (data, driver_type)) {
++		/* The driver can exist before its device is open: drivers whose
++		 * open waits on the main loop (SSC) let this method call run
++		 * from inside the startup in name_acquired_handler().  Treat
++		 * such a sensor as not there yet; the startup starts it for the
++		 * clients registered here once it is open. */
++		if (driver_type_exists (data, driver_type) &&
++		    DEVICE_FOR_TYPE(driver_type) != NULL) {
+ 			SensorDevice *sensor_device = DEVICE_FOR_TYPE(driver_type);
+ 
+ 			/* No other clients for this sensor? Start it */
+@@ -784,6 +790,21 @@
+ 	if (!any_sensors_left (data))
+ 		goto bail;
+ 
++	/* Clients that claimed a sensor while the sensors were being opened
++	 * (KWin claims the accelerometer as soon as the bus name appears) are
++	 * registered but nothing started the sensor for them.  Start it now,
++	 * like the hotplug path does for a sensor that is already claimed. */
++	for (i = 0; i < NUM_SENSOR_TYPES; i++) {
++		if (!driver_type_exists (data, i) ||
++		    g_hash_table_size (data->clients[i]) == 0)
++			continue;
++
++		g_debug ("Starting %s, claimed while the sensors were being opened",
++			 driver_type_to_str (i));
++		data->sensor_startup_dbus_event_delayed[i] = TRUE;
++		driver_set_polling (DEVICE_FOR_TYPE(i), TRUE);
++	}
++
+ 	send_dbus_event (data, PROP_ALL);
+ 	send_dbus_event (data, PROP_ALL_COMPASS);
+ 	return;

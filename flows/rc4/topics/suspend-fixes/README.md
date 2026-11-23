@@ -63,6 +63,16 @@ with no manual step. Then:
   `fastboot reboot` booted normally. The same symptom was seen once on rc4l.
   It happens before the rootfs is mounted, so the package change is not the
   suspect, but warm reboots need watching.
+* **ath10k key timeouts after resume (2026-11-22).** Right after a resume
+  the driver logged `ath10k_snoc: failed to install key ... -110`, then
+  `failed to remove key ... -110`. This is the first time either was seen,
+  and it happened on a kernel that should carry 0045. Wi-Fi recovered by
+  itself within seconds; nothing stayed broken. 0045 doesn't cover installs:
+  they still wait for HTT SEC_IND. The removal timeout fits the 0045 latch:
+  the install's WMI timeout latches the sequence, so the following removal
+  falls back to the old HTT-only 3 s wait (§5, ath10k desync). The running
+  kernel and package version weren't recorded; confirm them and look for a
+  WMI `install key complete` line on the next occurrence.
 
 Still open: the camera after resume and the intermittent warm-reboot hang. Automatic suspend stays off.
 

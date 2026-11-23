@@ -53,3 +53,18 @@ iio-sensor-proxy (gitlab.freedesktop.org/hadess/iio-sensor-proxy)
 
 Conclusion: no released version of either package fixes this; both recipes
 in ../recipe/ are local (pkgrel 100) proposals.
+
+Re-check 2026-11-22 (iio-sensor-proxy, for patch 0002)
+---------------------------------------------------------------------------
+* `master` still reports version 3.9.  `name_acquired_handler()` is unchanged:
+  it owns the bus name first, opens the sensors in a loop, and never starts a
+  sensor that a client claimed while that loop ran.  The claim handler still
+  checks only `driver_type_exists()` (the driver), not the open device.
+* The hotplug path (`sensor_changes()`, "add") already does the right thing
+  for an already-claimed sensor (`sensor_startup_dbus_event_delayed = TRUE`
+  plus `driver_set_polling(TRUE)`); 0002 does the same at the end of startup.
+* No upstream issue for this was found.  It is a candidate to report or send
+  as an MR: it affects any driver whose open iterates the main loop (SSC),
+  with any client that claims as soon as the name appears (KWin does).
+* Before dropping 0002, re-check this section against the new upstream
+  version; the README's "Dropping the local patches" has the checklist.

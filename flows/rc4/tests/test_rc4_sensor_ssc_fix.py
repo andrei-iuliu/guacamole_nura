@@ -46,6 +46,7 @@ DEVICE = RC4 / "device/testing"
 IIO = DEVICE / "iio-sensor-proxy"
 LIBSSC = DEVICE / "libssc"
 IIO_PATCH = IIO / "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch"
+IIO_STARTUP_PATCH = IIO / "0002-main-start-sensors-claimed-during-startup.patch"
 LIBSSC_PATCH = LIBSSC / "0001-libssc-common-block-in-the-sync-wait.patch"
 VERIFY = TOPIC / "checks/verify.sh"
 EVIDENCE = TOPIC / "evidence"
@@ -169,13 +170,14 @@ class RecipeTest(unittest.TestCase):
 
     def test_patches_are_listed_as_sources(self):
         self.assertIn(IIO_PATCH.name, source_names(IIO / "APKBUILD"))
+        self.assertIn(IIO_STARTUP_PATCH.name, source_names(IIO / "APKBUILD"))
         self.assertIn(LIBSSC_PATCH.name, source_names(LIBSSC / "APKBUILD"))
 
     def test_recipe_versions_are_local_bumps(self):
         iio = (IIO / "APKBUILD").read_text()
         ssc = (LIBSSC / "APKBUILD").read_text()
         self.assertRegex(iio, r"(?m)^pkgver=3\.9$")
-        self.assertRegex(iio, r"(?m)^pkgrel=100$")
+        self.assertRegex(iio, r"(?m)^pkgrel=101$")
         self.assertIn("-Dssc-support=enabled", iio)
         self.assertRegex(ssc, r"(?m)^pkgver=0\.4\.4$")
         self.assertRegex(ssc, r"(?m)^pkgrel=100$")
@@ -231,6 +233,33 @@ class IioSensorProxyPatchTest(unittest.TestCase):
                 self.assertIn("%s (source)" % macro, added)
 
 
+class IioSensorProxyStartupClaimPatchTest(unittest.TestCase):
+    """0002: a Claim*() handled from inside the startup (the SSC open waits
+    on the main loop) registered the client without starting the sensor, so
+    KWin's immediate accelerometer claim left auto-rotation without data."""
+
+    def setUp(self):
+        self.lines = patch_lines(IIO_STARTUP_PATCH)
+        self.added = "\n".join(t for s, t in self.lines.get("src/iio-sensor-proxy.c", [])
+                               if s == "+")
+
+    def test_touches_only_the_main_file(self):
+        self.assertEqual(list(self.lines), ["src/iio-sensor-proxy.c"])
+
+    def test_claim_needs_an_open_device(self):
+        self.assertIn("DEVICE_FOR_TYPE(driver_type) != NULL", self.added)
+
+    def test_startup_starts_already_claimed_sensors(self):
+        self.assertIn("g_hash_table_size (data->clients[i]) == 0", self.added)
+        self.assertIn("data->sensor_startup_dbus_event_delayed[i] = TRUE;", self.added)
+        self.assertIn("driver_set_polling (DEVICE_FOR_TYPE(i), TRUE);", self.added)
+
+    def test_applies_after_0001_in_source_order(self):
+        sources = source_names(IIO / "APKBUILD")
+        self.assertLess(sources.index(IIO_PATCH.name),
+                        sources.index(IIO_STARTUP_PATCH.name))
+
+
 class LibsscPatchTest(unittest.TestCase):
     def setUp(self):
         self.lines = patch_lines(LIBSSC_PATCH)
@@ -276,7 +305,7 @@ class WiringTest(unittest.TestCase):
         self.assertLess(links.index('"main/libssc"'),
                         links.index('"main/iio-sensor-proxy"'))
         clc = load_checker()
-        self.assertEqual(clc.IIO_SENSOR_PROXY_VERSION, "3.9-r100")
+        self.assertEqual(clc.IIO_SENSOR_PROXY_VERSION, "3.9-r101")
         self.assertEqual(clc.LIBSSC_VERSION, "0.4.4-r100")
         self.assertIn("iio-sensor-proxy", clc.WORLD_PINNED)
         self.assertIn("libssc", clc.WORLD_PINNED)
@@ -332,7 +361,7 @@ class WiringTest(unittest.TestCase):
         self.assertIn("iio-sensor-proxy", loop)
         self.assertLess(loop.index("libssc"), loop.index("iio-sensor-proxy"),
                         "libssc is the daemon's makedepend and must build first")
-        self.assertIn('"$iio_sensor_proxy_version" = 3.9-r100', prepare)
+        self.assertIn('"$iio_sensor_proxy_version" = 3.9-r101', prepare)
         self.assertIn('"$libssc_version" = 0.4.4-r100', prepare)
         adds = shell_function(prepare, "install_add_string")
         shared = adds.split('case "$NURA_UI" in', 1)[0]

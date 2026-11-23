@@ -176,3 +176,23 @@ ones.
 * the patched daemon on the phone (the coordinator reproduces there),
 * a shipped helper script: this topic ships no runtime script (the watchdog
   mitigation was dropped from scope).
+
+## 2026-11-22: iio-sensor-proxy 0002 (3.9-r101)
+
+* Both patches apply to the 3.9 tarball in source order with `patch -p1 -F0`.
+  The result is byte-identical to the tree the patch was made from.
+* Patched `src/iio-sensor-proxy.c` passes `cc -fsyntax-only -Wall`. It was
+  compiled against the host's gio/gudev/polkit headers and the libssc 0.4.4
+  headers, with stub `config.h` and resource headers.  The only warning
+  (`unused variable 'i'` in `bus_acquired_handler`) is also in the
+  unpatched file.
+* `python3 -m unittest discover -s flows/rc4/tests`: 212 tests OK, 6 skipped
+  (208 before; the new `IioSensorProxyStartupClaimPatchTest` adds four).
+* Evidence of the bug on the phone (r100, Plasma): `ssccli --sensor
+  accelerometer` reads X≈9.3 m/s², but the daemon's journal with
+  `G_MESSAGES_DEBUG=all` has two `ClaimAccelerometer` calls before
+  "Found SSC accelerometer" and no "Enabling sensor" at all.
+* Build and on-phone test of r101 (Plasma, 13:28:52 UTC restart):
+  "Starting accelerometer, claimed while the sensors were being opened" and
+  "Enabling sensor ... 'continuous'" follow the two startup claims; readings
+  flow.  The built APK contains the new string (`strings | grep -c` = 1).

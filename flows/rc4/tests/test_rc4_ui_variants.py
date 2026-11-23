@@ -220,7 +220,7 @@ class TestWorldPins(unittest.TestCase):
     VERSIONS = {"linux-postmarketos-qcom-sm8150": "7.0.0_p1-r0",
                 "device-oneplus-guacamole": "4-r16",
                 "firmware-oneplus-guacamole": "1-r7",
-                "iio-sensor-proxy": "3.9-r100",
+                "iio-sensor-proxy": "3.9-r101",
                 "libssc": "0.4.4-r100"}
 
     def test_exact_pins_pass(self):
@@ -237,7 +237,7 @@ class TestWorldPins(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             world = ["linux-postmarketos-qcom-sm8150=7.0.0_p1-r0", "device-oneplus-guacamole",
                      "firmware-oneplus-guacamole=1-r7",
-                     "iio-sensor-proxy=3.9-r100", "libssc=0.4.4-r100"]
+                     "iio-sensor-proxy=3.9-r101", "libssc=0.4.4-r100"]
             root = rootfs_with(tmp, world, self.VERSIONS)
             with self.assertRaises(SystemExit):
                 clc.verify_world_pins(root, clc.installed_packages(root), {})

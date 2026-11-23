@@ -43,6 +43,7 @@ tar -xzf "$dir/iio-sensor-proxy-3.9.tar.gz" -C "$dir"
 
 echo "== iio-sensor-proxy: apply with -F0 (zero fuzz)"
 (cd "$src" && patch -p1 -F0 < "$dir/0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch")
+(cd "$src" && patch -p1 -F0 < "$dir/0002-main-start-sensors-claimed-during-startup.patch")
 
 # --- libssc ---------------------------------------------------------------
 recipe="$here/../../device/testing/libssc"
