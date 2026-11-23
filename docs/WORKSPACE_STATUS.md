@@ -1,6 +1,22 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4q kernel on the Plasma rootfs, rc4p image on `boot_b` (2026-11-23)
+## Current: rc4r on `boot_b`, kernel pkgrel 20 and device 4-r22 on the Plasma rootfs (2026-11-23)
+
+`boot_b` holds the rc4r Plasma image (kernel build ID `c1f7fd5f…`, 0001-0079),
+flashed after a RAM boot failed (RAM boots on this ABL often end black with no
+USB, even for good images). The rootfs has
+`linux-postmarketos-qcom-sm8150-7.0.0_p20261123095143-r0` (rc4r, pkgrel 20) and
+`device-oneplus-guacamole-4-r22`. `Module.symvers` and BTF are unchanged since
+rc4p. New since rc4q: patch 0079 (panel prefers 60 Hz; boot logs
+`initializing panel at 60 Hz (control-display 0x20)`), the qcom_wdt watchdog
+armed by systemd, and the reboot-hang workaround (no fbdev restore when KWin
+exits, panel turned off before KWin stops). See
+[the reboot hang topic](../flows/rc4/topics/reboot-hang/README.md). Also merged:
+`wip/sensor-startup-claim` (iio-sensor-proxy 3.9-r101, already on the phone).
+Rollback image (rc4p kernel): `.work/rollback/boot-rc4p-local-userdata-20261121.img`.
+Health check after boot: no failed units, Wi-Fi up, iio-sensor-proxy active.
+
+### Before that: rc4q kernel package on the rc4p image (2026-11-23)
 
 The rc4q kernel package `linux-postmarketos-qcom-sm8150-7.0.0_p20261123081257-r0`
 is installed with `apk add`, and the phone runs it. It adds kernel patch

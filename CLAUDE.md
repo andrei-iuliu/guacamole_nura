@@ -34,7 +34,7 @@ Every step goes through `./nura` (Bash; works from fish). It loads
 Where things live:
 
 - `flows/rc4/`: kernel recipe (`device/testing/linux-postmarketos-qcom-sm8150`,
-  patches `0001`–`0078`), the rc4 device package, `scripts/rc4.sh`
+  patches `0001`–`0079`), the rc4 device package, `scripts/rc4.sh`
   (check/contract/kernel/shutdown) and `tests/`. Topic write-ups are in `topics/`.
 - `flows/rc4/local-storage/`: the user-run rootfs and boot-image flow
   (`scripts/local_storage_build.sh`, `install_userdata.py`). Its

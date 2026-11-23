@@ -1,5 +1,9 @@
 # rc4 integration
 
+**rc4r (2026-11-23):** patch 0079 (panel prefers 60 Hz, pkgrel 20) is on
+`boot_b`; device 4-r22 adds the qcom_wdt watchdog and the reboot-hang
+workaround. See `topics/reboot-hang/README.md`.
+
 **rc4q (2026-11-23):** patch 0078 (Wi-Fi GTK-rekey offload during WoWLAN
 suspend, pkgrel 19) is installed on the phone's Plasma rootfs; `boot_b` was not
 reflashed. See `topics/wifi-wowlan/README.md`.
@@ -113,6 +117,7 @@ shapes: outside the state, dangling, or pointing at another tree).
 | 0058 | `arm64-dts-guacamole-displayport-audio-link` | displayport dts 0002 |
 | 0059 | `slimbus-qcom-ngd-wait-5s-for-qmi` | **rc4b**, omarchy slim-ngd-pd-up-race (QMI-wait half); mic test, not a proven fix |
 | 0078 | `wifi-ath10k-offload-gtk-rekey-during-wow` | **rc4q**, Wi-Fi GTK rekey offload during WoWLAN suspend; installed 2026-11-23 (`topics/wifi-wowlan`) |
+| 0079 | `drm-panel-samsung-oneplus-dsc-prefer-60hz` | **rc4r**, 60 Hz preferred, control-display byte by refresh rate; on `boot_b` 2026-11-23 (`topics/reboot-hang`) |
 
 * **rc4b removed `0036-dsi-phy-pm`** (from the rc3 series): it causes a hard
   hang on screen unblank (`dsi0_phy_pll_out_dsiclk: Zero divisor`). See
