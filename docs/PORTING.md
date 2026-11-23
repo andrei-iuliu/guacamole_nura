@@ -150,7 +150,7 @@ None of it is large; most of it is glue around generic daemons.
 | `guacamole-mpss.initd` | OpenRC | starts the modem remoteproc after `rmtfs` (systemd boots it automatically through the in-kernel pd-mapper and `rmtfs.service`) | OpenRC only |
 | `sxmo_deviceprofile-oneplus-guacamole.sh` | Sxmo | button profile | pmOS/Sxmo only |
 | `deviceinfo` | pmOS | boot image parameters | pmOS only (translate to the distro's boot tooling) |
-| `device/testing/libcamera` | libcamera package | pmaports libcamera 0.8.0 plus hotdog's sensor data patches (S5K3M5, IMX586, IMX481: gain model, black level, control delays) and `ipa/simple` tuning files | the three patches and four YAML files apply to any libcamera 0.8 build; PipeWire's libcamera plugin must be built against the same libcamera |
+| `device/testing/libcamera` | libcamera package | pmaports libcamera 0.8.0 plus hotdog's sensor data patches (S5K3M5, IMX586, IMX481: gain model, black level, control delays), the contrast autofocus port (`0006`) and `ipa/softisp` tuning files | the four patches and four YAML files apply to any libcamera 0.8 build; PipeWire's libcamera plugin must be built against the same libcamera |
 
 ### Configuration done by hand on the test phone (not packaged)
 
