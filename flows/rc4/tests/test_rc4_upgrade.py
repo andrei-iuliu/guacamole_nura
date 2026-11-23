@@ -305,7 +305,7 @@ class UpgradeTest(unittest.TestCase):
 class PackagingTest(unittest.TestCase):
     def test_device_package_installs_nura_upgrade(self):
         text = APKBUILD.read_text()
-        self.assertRegex(text, r"(?m)^pkgrel=21$")
+        self.assertRegex(text, r"(?m)^pkgrel=22$")
         self.assertIn("nura-upgrade", text)
         self.assertIn('"$pkgdir/usr/bin/nura-upgrade"', text)
         self.assertTrue(os.access(UPGRADE, os.X_OK))

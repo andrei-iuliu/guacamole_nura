@@ -297,8 +297,8 @@ def main():
     # rc3-era one (pkgrel 14), and the rc4 kernel recipe (pkgrel 5).
     farm = pathlib.Path(args.local_flow) / "device/testing"
     dev_apk = read(farm / "device-oneplus-guacamole/APKBUILD")
-    check(re.search(r"^pkgrel=21$", dev_apk, re.M) is not None,
-          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4o pkgrel 21")
+    check(re.search(r"^pkgrel=22$", dev_apk, re.M) is not None,
+          "flow: RECIPE_ROOT resolves device-oneplus-guacamole to the rc4q pkgrel 22")
     check("guacamole-boot-slot.timer" in dev_apk and
           "plasma-mobile-device-presets" in dev_apk,
           "flow: device package ships the A/B slot marker and the Plasma corner preset")

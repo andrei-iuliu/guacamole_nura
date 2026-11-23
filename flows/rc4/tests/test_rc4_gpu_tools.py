@@ -315,7 +315,7 @@ class GpuSoakTest(FakeRootMixin, unittest.TestCase):
 class PackagingTest(unittest.TestCase):
     def test_device_package_installs_the_tools(self):
         text = APKBUILD.read_text()
-        self.assertRegex(text, r"(?m)^pkgrel=21$")
+        self.assertRegex(text, r"(?m)^pkgrel=22$")
         for name in (str(MODE), str(SOAK), str(PROFILE), str(LOGCONF)):
             self.assertTrue(os.access(name, os.R_OK), name)
         self.assertTrue(os.access(MODE, os.X_OK), "nura-gpu-mode is not executable")

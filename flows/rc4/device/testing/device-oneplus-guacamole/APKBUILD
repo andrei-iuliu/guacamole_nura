@@ -22,13 +22,16 @@
 # pkgrel 21 (rc4o) enables guacamole-mss-release.service through its own
 # 82-guacamole-mss-release.preset, so the modem-rail vote is released at
 # every boot; 80-guacamole.preset stays identical to rc3's.
+# pkgrel 22 arms the qcom_wdt hardware watchdog from systemd (20 s at
+# runtime, 30 s for reboots; see 91-nura-watchdog.conf), so a kernel
+# freeze at shutdown reboots the phone instead of leaving a black screen.
 # Reference: <https://postmarketos.org/devicepkg>
 # Co-Maintainer: Uclydde <julianbraha@gmail.com>
 maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=21
+pkgrel=22
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -111,6 +114,7 @@ source="
 	nura-upgrade
 	nura-gpu.sh
 	90-nura-loglevel.conf
+	91-nura-watchdog.conf
 	$_sensors.tar.gz
 "
 
@@ -306,6 +310,10 @@ package() {
 		"$pkgdir/etc/systemd/system.conf.d/90-nura-loglevel.conf"
 	install -Dm644 "$srcdir/90-nura-loglevel.conf" \
 		"$pkgdir/etc/systemd/user.conf.d/90-nura-loglevel.conf"
+
+	# Hardware watchdog for PID 1 (system manager only).
+	install -Dm644 "$srcdir/91-nura-watchdog.conf" \
+		"$pkgdir/etc/systemd/system.conf.d/91-nura-watchdog.conf"
 }
 
 openrc() {
@@ -376,5 +384,6 @@ bf640f09fafc9204c29136fbb2132a145c5b1a5e4ca8ad8622ac26da3d1a277a83498e98652e0805
 31d5069605dd6ba93c1ba8e6434ec8a54513b4a5fe5de2bf8bd32a3f6f9a85458238e70dc1fcde34e4d18ea2abde0a9a9f1d55699283027f122283f2c4e1a69b  nura-upgrade
 4011ae19f607550996a3a1dd7dfb148696a4bb11fbf6ddc4f877e224478f15d8e841baa1dd9735b300a8d7c20b36cefe0f3546798ea2e38080f6dca9f2626485  nura-gpu.sh
 5e2a237d8d3b957e5689b279d8ab434655a74a6b18fac30f8d7038aad75b79d25af51a9de20c453c2ff5c918b07dbec972f9e4f1aba854b3459d2bdc28b6cac4  90-nura-loglevel.conf
+5dfd47fe7956e07c82da30357d79677ae55a6581d900f261a828e83f3db0fce69ba625e467a3c748b15baa6c94cd5ae942ce2ab6dce2048ef27af92ad6da816a  91-nura-watchdog.conf
 9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "
