@@ -35,6 +35,7 @@ patches, two were already in rc3 and two are new:
   it permanently falls back to the old wait until the firmware restarts, so a
   late acknowledgement can never satisfy a later operation and Wi-Fi keeps
   working.
+* **0078** (rc4q, Wi-Fi, not part of the suspend-fixes hand-off): ath10k offloads the GTK rekey to the firmware during WoWLAN suspend, so the AP's hourly group rekey no longer wakes the phone; see `flows/rc4/topics/wifi-wowlan/README.md`.
 
 Diagnostics: the kernel config now has `CONFIG_PM_DEBUG=y` /
 `CONFIG_PM_SLEEP_DEBUG=y`, so `/sys/power/pm_test` exists for
@@ -68,8 +69,9 @@ Diagnostics: the kernel config now has `CONFIG_PM_DEBUG=y` /
   3 s `-110` on removals; there is no permanent `-EIO` failure mode.  A
   firmware restart (`rmmod ath10k_snoc; modprobe ath10k_snoc`, or a reboot)
   restores the fast path.
-* WoWLAN is armed by default in the rc3 device package and has never been
-  tested.  Disable it (`iw phy0 wowlan disable`) before any suspend trial.
+* WoWLAN is armed by default in the device package.  The disconnect wake works on
+  hardware, and with 0078 the AP's group rekey no longer triggers it; the
+  magic-packet wake and a full night with Wi-Fi on are not yet verified.  Disable it (`iw phy0 wowlan disable`) before any suspend trial.
 
 ### Rollback
 

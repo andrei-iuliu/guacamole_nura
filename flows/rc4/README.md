@@ -1,5 +1,9 @@
 # rc4 integration
 
+**rc4q (2026-11-23):** patch 0078 (Wi-Fi GTK-rekey offload during WoWLAN
+suspend, pkgrel 19) is installed on the phone's Plasma rootfs; `boot_b` was not
+reflashed. See `topics/wifi-wowlan/README.md`.
+
 **rc4l source fix (2026-11-15):** patch 0074 now pulls the NFC IRQ line (GPIO47)
 down instead of up. That pull-up caused the rc4k UFS clock-scaling failure. The
 rc4l kernel (pkgrel 15) and boot images are built and host-verified in
@@ -108,6 +112,7 @@ shapes: outside the state, dangling, or pointing at another tree).
 | 0057 | `arm64-dts-guacamole-displayport-video` | displayport dts 0001 (DP video works on hardware; docks blocked by USB-PD, see `docs/NURA_RC4.md` §0) |
 | 0058 | `arm64-dts-guacamole-displayport-audio-link` | displayport dts 0002 |
 | 0059 | `slimbus-qcom-ngd-wait-5s-for-qmi` | **rc4b**, omarchy slim-ngd-pd-up-race (QMI-wait half); mic test, not a proven fix |
+| 0078 | `wifi-ath10k-offload-gtk-rekey-during-wow` | **rc4q**, Wi-Fi GTK rekey offload during WoWLAN suspend; installed 2026-11-23 (`topics/wifi-wowlan`) |
 
 * **rc4b removed `0036-dsi-phy-pm`** (from the rc3 series): it causes a hard
   hang on screen unblank (`dsi0_phy_pll_out_dsiclk: Zero divisor`). See

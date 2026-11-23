@@ -66,6 +66,15 @@ with no manual step. Then:
 
 Still open: the camera after resume and the intermittent warm-reboot hang. Automatic suspend stays off.
 
+## 0a. Wi-Fi GTK-rekey wake (2026-11-23, not this topic's patches)
+
+Random wakes from suspend with WoWLAN armed came from the AP's hourly group-key
+rekey going unanswered. Kernel patch `0078` offloads the rekey to the WCN3990
+firmware during suspend. It is verified by one suspend (07:15 to 08:03,
+2026-11-23) across a rekey with the patched modules; a full night with Wi-Fi
+on is still open. See
+[the Wi-Fi WoWLAN topic](../wifi-wowlan/README.md).
+
 ## 1. Baseline actually used
 
 | Item | Path | State |
@@ -124,7 +133,7 @@ Commands were run from the repository root; `K` is
 | 21 | `kernel/APKBUILD.diff` applies | It targets 6.17 (`pkgver=6.17.0`, `pkgrel 25→26`, patches 0025–0028); the rc4 recipe is 7.0.0 `pkgrel=4` with 41 patches | **Contradicted** (stale); replaced by `fragments/apkbuild-source.fragment` |
 | 22 | `device/device-package.diff` applies | It targets `pkgrel 11→12`, enables the unit in the preset and patches `guacamole-mpss.initd`; the package is `pkgrel=14` and starts the modem with `guacamole-mpss-start` (systemd-first) | **Contradicted** (stale); replaced by `fragments/device/` |
 | 23 | A userspace release service is required | The supplied unit works, but `guacamole-mpss.service` is not enabled by preset; a standalone unit would wait 120 s and fail on every boot where the modem is not started | **Verified with caveat**; the unit is the only integration and stays disabled in the preset (opt-in) |
-| 24 | WoWLAN is an untested suspend path | The device package ships `90-ath10k-wowlan.rules`, `90-wifi-wowlan.conf`, `10-wifi-wowlan` and installs them unconditionally | **Verified present**; never tested here |
+| 24 | WoWLAN is an untested suspend path | The device package ships `90-ath10k-wowlan.rules`, `90-wifi-wowlan.conf`, `10-wifi-wowlan` and installs them unconditionally | **Verified present**; wake verified on hardware, see `0a` and `../wifi-wowlan/README.md` |
 | 25 | The reported lock crash is a suspend bug | The candidate rootfs disables automatic suspend (logind `HandleSuspendKey=ignore`, PowerDevil `AutoSuspendAction=0`); a lock is not a suspend.  Only 0044 could plausibly matter at screen-off (modem RF idle) and even that is a hypothesis | **Contradicted as an assumption**; needs logs |
 | 26 | `remoteproc state=running` proves the proxy MSS domains were handed over | `qcom_pas_start()` waits only for `qcom_q6v5_wait_for_start()` (`qcom_q6v5_pas.c:339`), completed by the **ready** interrupt (`qcom_q6v5.c:136-143`); `rproc->state = RPROC_RUNNING` follows `.start()` (`remoteproc_core.c:1311`).  The proxy PDs are dropped later by `qcom_pas_handover()` from the separate **handover** interrupt (`qcom_q6v5.c:163-180`, `qcom_q6v5_pas.c:386-396`) | **Refuted**: running proves firmware boot, not handover |
 | 27 | A level-0 write cannot be overridden by the in-tree holder | `qcom_pas_pds_enable()` votes the proxy at `INT_MAX` (`qcom_q6v5_pas.c:154-178`); `rpmhpd_set_performance_state()` maps that to the last corner and keeps voting it while the domain is enabled.  `qcom_pas_handover()` → `qcom_pas_pds_disable()` sets pstate 0, but `rpmhpd_aggregate_corner()` still clamps to 9 while unsynced (`rpmhpd.c:882`); `rpmhpd_sync_state()` re-votes `max(pd->corner, enable_corner)` = 9 with **no genpd notification** (`rpmhpd.c:1096-1120`) | **Confirmed hazard**: a 0 written before handover can be re-voted to 9 by the handover, and a later `sync_state` can do it again with nothing to re-assert 0 |

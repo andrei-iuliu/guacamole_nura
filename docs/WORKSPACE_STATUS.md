@@ -1,6 +1,18 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4o packages on the rc4l rootfs, rc4n image on `boot_b` (2026-11-19)
+## Current: rc4q kernel on the Plasma rootfs, rc4p image on `boot_b` (2026-11-23)
+
+The rc4q kernel package `linux-postmarketos-qcom-sm8150-7.0.0_p20261123081257-r0`
+is installed with `apk add`, and the phone runs it. It adds kernel patch
+[0078](../flows/rc4/device/testing/linux-postmarketos-qcom-sm8150/0078-wifi-ath10k-offload-gtk-rekey-during-wow.patch),
+which offloads the GTK rekey to the firmware during WoWLAN suspend, so the AP's
+hourly group rekey no longer wakes the phone. `boot_b` was not reflashed: it
+holds the rc4p Plasma image (the running kernel's build ID `813222fc…` is the
+rc4p `vmlinux`), and `Module.symvers` and BTF match rc4p, so it stays. A full night
+with Wi-Fi on is still to be checked. See
+[the Wi-Fi WoWLAN topic](../flows/rc4/topics/wifi-wowlan/README.md).
+
+## Previous: rc4o packages on the rc4l rootfs, rc4n image on `boot_b` (2026-11-19)
 
 The rc4o kernel package (fixed 0044) and `device-oneplus-guacamole-4-r21`
 are installed. The modem-rail vote is released at every boot, and manual

@@ -87,7 +87,7 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 | **Suspend** | :construction: Manual | s2idle + PM8150 RTC / power key | Manual suspend works, waking on the RTC or the Power button; the modem-rail vote (kernel patch `0044`) is released at every boot. Automatic suspend is off. See `flows/rc4/topics/suspend-fixes/README.md` |
 | **Volume Keys** | :white_check_mark: Working | `gpio-keys` (PM8150 GPIO 6/7) | Volume up/down report `KEY_VOLUMEUP`/`KEY_VOLUMEDOWN` |
 | **GPU Acceleration** | :white_check_mark: Working | Adreno 640 / Mesa Freedreno & Turnip | GMU v2.0.261 + ZAP shader loaded; native OpenGL ES 3.2 and Vulkan 1.3 |
-| **Wi-Fi** | :white_check_mark: Working | `ath10k_snoc` (WCN3990) | 2.4 and 5 GHz, DHCP and internet; OxygenOS 12-era WLAN firmware + kernel patch `0009`. Factory MAC as the interface address; NetworkManager uses a stable per-network MAC when connected. WoWLAN pending |
+| **Wi-Fi** | :white_check_mark: Working | `ath10k_snoc` (WCN3990) | 2.4 and 5 GHz, DHCP and internet; OxygenOS 12-era WLAN firmware + kernel patch `0009`. Factory MAC as the interface address; NetworkManager uses a stable per-network MAC when connected. WoWLAN is armed (magic packet + disconnect; the disconnect wake is verified, magic packet untested); the GTK rekey is offloaded to the firmware during suspend (kernel patch `0078`), so the AP's group rekey no longer wakes the phone |
 | **Bluetooth** | :white_check_mark: Working | `hci_qca` (WCN3990) on UART13 | Scanning and HID devices; stable address from the factory Wi-Fi MAC; audio profiles untested |
 | **Modem / MPSS** | :construction: Detected | Hexagon remoteproc / PAS + IPA v4.1 (`rmnet_ipa0`) | ModemManager detects the modem (QMI over QRTR, IPA data path, kernel patches `0013`–`0016`); SIM, registration, data and calls untested, no SIM fitted yet; see "Wi-Fi, Bluetooth & Modem Bringup" in `docs/PLAN.md` |
 | **Audio** | :white_check_mark: Speakers & Mic | QDSP6 ADSP + 2x NXP TFA9874 (QUAT MI2S) + WCD9340 (SLIMbus) | Stereo speakers and internal mic working via UCM2; earpiece/call audio and speaker protection pending |
@@ -201,7 +201,7 @@ guacamole_nura/
   - Secondary microphones, speaker protection and default volume limits.
   - Settle on one sound server (PulseAudio vs PipeWire).
 - [ ] **Wi-Fi, Bluetooth & Modem Bringup** (see "Wi-Fi, Bluetooth & Modem Bringup" in `docs/PLAN.md`):
-  - Test WoWLAN.
+  - Confirm WoWLAN over a full night with Wi-Fi on (the GTK-rekey wake is fixed by kernel patch `0078`).
   - With a SIM: validate registration, SMS, mobile data and calls via ModemManager (the modem is detected and the IPA data path is up).
 - [ ] **Firmware decompilation** (long term): reverse-engineer the proprietary blobs listed under "Proprietary Firmware (Decompilation Targets)" towards open-source replacements, starting with the WCN3990 Wi-Fi and Bluetooth firmware.
 - [ ] **Sensors**: gyro, magnetometer and compass streams verified on rc4j; validate axes/heading, proximity for calls and light response. IMU temperature remains unverified. See [live sensor evidence](docs/SENSOR_READINESS_20261114.md).
