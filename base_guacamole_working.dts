@@ -2257,6 +2257,150 @@
 				input-enable;
 			};
 
+			cci0-default-state {
+				pins = "gpio17", "gpio18";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-up;
+				phandle = <0x558>;
+			};
+
+			cci0-sleep-state {
+				pins = "gpio17", "gpio18";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-down;
+				phandle = <0x559>;
+			};
+
+			cci1-default-state {
+				pins = "gpio19", "gpio20";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-up;
+				phandle = <0x55a>;
+			};
+
+			cci1-sleep-state {
+				pins = "gpio19", "gpio20";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-down;
+				phandle = <0x55b>;
+			};
+
+			cci2-default-state {
+				pins = "gpio31", "gpio32";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-up;
+				phandle = <0x55c>;
+			};
+
+			cci2-sleep-state {
+				pins = "gpio31", "gpio32";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-down;
+				phandle = <0x55d>;
+			};
+
+			cci3-default-state {
+				pins = "gpio33", "gpio34";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-up;
+				phandle = <0x55e>;
+			};
+
+			cci3-sleep-state {
+				pins = "gpio33", "gpio34";
+				function = "cci_i2c";
+				drive-strength = <0x02>;
+				bias-pull-down;
+				phandle = <0x55f>;
+			};
+
+			cam-mclk0-default-state {
+				pins = "gpio13";
+				function = "cam_mclk";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x560>;
+			};
+
+			cam-mclk1-default-state {
+				pins = "gpio14";
+				function = "cam_mclk";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x561>;
+			};
+
+			cam-mclk2-default-state {
+				pins = "gpio15";
+				function = "cam_mclk";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x562>;
+			};
+
+			cam-mclk3-default-state {
+				pins = "gpio16";
+				function = "cam_mclk";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x563>;
+			};
+
+			cam0-vana-default-state {
+				pins = "gpio11";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x564>;
+			};
+
+			cam0-custom1-default-state {
+				pins = "gpio29";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x565>;
+			};
+
+			cam0-reset-default-state {
+				pins = "gpio30";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x566>;
+			};
+
+			cam0-vaf-default-state {
+				pins = "gpio25";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x567>;
+			};
+
+			cam1-vaf-default-state {
+				pins = "gpio35";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x568>;
+			};
+
+			cam1-vana-default-state {
+				pins = "gpio148";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				phandle = <0x569>;
+			};
+
 			qup-i2c0-default-state {
 				pins = "gpio0", "gpio1";
 				function = "qup0";
@@ -3803,11 +3947,285 @@
 			reg = <0x00 0xac00000 0x00 0x1000>;
 			#interconnect-cells = <0x02>;
 			qcom,bcm-voters = <0x5f>;
+			phandle = <0x56b>;
+		};
+
+		cci@ac4a000 {
+			compatible = "qcom,sm8150-cci", "qcom,sdm845-cci";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			reg = <0x00 0xac4a000 0x00 0x1000>;
+			interrupts = <0x00 0x1cc 0x01>;
+			power-domains = <0x56c 0x00>;
+			clocks = <0x56c 0x10 0x56c 0x17 0x56c 0x5b 0x56c 0x18 0x56c 0x13 0x56c 0x14>;
+			clock-names = "camnoc_axi", "soc_ahb", "slow_ahb_src", "cpas_ahb", "cci", "cci_src";
+			assigned-clocks = <0x56c 0x10 0x56c 0x13>;
+			assigned-clock-rates = <0x4c4b400 0x23c3460>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <0x558 0x55a>;
+			pinctrl-1 = <0x559 0x55b>;
+			phandle = <0x540>;
+
+			i2c-bus@0 {
+				reg = <0x0>;
+				clock-frequency = <0xf4240>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x541>;
+
+				lens@74 {
+					compatible = "onnn,lc898217xc";
+					reg = <0x74>;
+					vdd-supply = <0x554>;
+					vio-supply = <0x4f>;
+					onnn,max-focus-position = <0x190>;
+					onnn,default-focus-position = <0x32>;
+					phandle = <0x556>;
+				};
+
+				/* Telephoto, slot 1: identified on hotdog by its 0x30d5 chip id. */
+				camera@10 {
+					compatible = "samsung,s5k3m5";
+					reg = <0x10>;
+					clocks = <0x56c 0x53>;
+					assigned-clocks = <0x56c 0x53>;
+					assigned-clock-rates = <0x16e3600>;
+					afvdd-supply = <0xe2>;
+					vdda-supply = <0x555>;
+					vddd-supply = <0x550>;
+					vddio-supply = <0x4f>;
+					reset-gpios = <0x4e 0x1c 0x01>;
+					lens-focus = <0x556>;
+					pinctrl-names = "default";
+					pinctrl-0 = <0x560>;
+
+					port {
+						endpoint {
+							bus-type = <0x04>;
+							data-lanes = <0x0 0x1 0x2 0x3>;
+							link-frequencies = <0x00 0x23e96ba0>;
+							remote-endpoint = <0x547>;
+							phandle = <0x54b>;
+						};
+					};
+				};
+			};
+
+			i2c-bus@1 {
+				reg = <0x1>;
+				clock-frequency = <0x61a80>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x542>;
+
+				lens@72 {
+					compatible = "onnn,lc898217xc";
+					reg = <0x72>;
+					vdd-supply = <0x553>;
+					vio-supply = <0x4f>;
+					onnn,max-focus-position = <0x190>;
+					onnn,default-focus-position = <0x190>;
+					phandle = <0x557>;
+				};
+
+				/* Main 48 MP rear camera, slot 0: Sony IMX586. */
+				camera@1a {
+					compatible = "sony,imx586";
+					reg = <0x1a>;
+					orientation = <0x01>;
+					rotation = <0x5a>;
+					clocks = <0x56c 0x55>;
+					assigned-clocks = <0x56c 0x55>;
+					assigned-clock-rates = <0x124f800>;
+					vio-supply = <0x4f>;
+					vana-supply = <0xe2>;
+					vdig-supply = <0x54f>;
+					reset-gpios = <0x4e 0x1e 0x01>;
+					vana-enable-gpios = <0x4e 0x0b 0x00>;
+					custom1-gpios = <0x4e 0x1d 0x00>;
+					custom2-gpios = <0xd9 0x01 0x00>;
+					lens-focus = <0x557>;
+					pinctrl-names = "default";
+					pinctrl-0 = <0x561 0x564 0x565 0x56a 0x566>;
+
+					port {
+						endpoint {
+							bus-type = <0x01>;
+							data-lanes = <0x0 0x1 0x2>;
+							link-frequencies = <0x00 0x29a0acb9>;
+							remote-endpoint = <0x548>;
+							phandle = <0x54c>;
+						};
+					};
+				};
+			};
+		};
+
+		cci@ac4b000 {
+			compatible = "qcom,sm8150-cci", "qcom,sdm845-cci";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			reg = <0x00 0xac4b000 0x00 0x1000>;
+			interrupts = <0x00 0x10f 0x01>;
+			power-domains = <0x56c 0x00>;
+			clocks = <0x56c 0x10 0x56c 0x17 0x56c 0x5b 0x56c 0x18 0x56c 0x15 0x56c 0x16>;
+			clock-names = "camnoc_axi", "soc_ahb", "slow_ahb_src", "cpas_ahb", "cci", "cci_src";
+			assigned-clocks = <0x56c 0x10 0x56c 0x15>;
+			assigned-clock-rates = <0x4c4b400 0x23c3460>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <0x55c 0x55e>;
+			pinctrl-1 = <0x55d 0x55f>;
+			phandle = <0x543>;
+
+			i2c-bus@0 {
+				reg = <0x0>;
+				clock-frequency = <0xf4240>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x544>;
+
+				/*
+				 * Pop-up front camera, slot 2: Sony IMX471. The sensor on this unit
+				 * does not answer on CCI (probe fails with -EIO), and camss only
+				 * exposes its graph once every described sensor has bound, so the
+				 * node stays disabled. The port@2 endpoint on camss is kept for it.
+				 */
+				camera@10 {
+					compatible = "sony,imx471";
+					reg = <0x10>;
+					status = "disabled";
+					orientation = <0x00>;
+					rotation = <0x5a>;
+					clocks = <0x56c 0x57>;
+					assigned-clocks = <0x56c 0x57>;
+					assigned-clock-rates = <0x124f800>;
+					vio-supply = <0x4f>;
+					vana-supply = <0xe2>;
+					vdig-supply = <0x551>;
+					reset-gpios = <0x4e 0x0c 0x01>;
+					vana-enable-gpios = <0xd9 0x0c 0x00>;
+					pinctrl-names = "default";
+					pinctrl-0 = <0x562>;
+
+					port {
+						endpoint {
+							bus-type = <0x04>;
+							data-lanes = <0x0 0x1 0x2 0x3>;
+							link-frequencies = <0x00 0x1f4edea4>;
+							remote-endpoint = <0x549>;
+							phandle = <0x54d>;
+						};
+					};
+				};
+			};
+
+			i2c-bus@1 {
+				reg = <0x1>;
+				clock-frequency = <0xf4240>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x545>;
+
+				/* Ultra-wide rear camera, slot 3: Sony IMX481. */
+				camera@1a {
+					compatible = "sony,imx481";
+					reg = <0x1a>;
+					orientation = <0x01>;
+					rotation = <0x5a>;
+					clocks = <0x56c 0x59>;
+					assigned-clocks = <0x56c 0x59>;
+					assigned-clock-rates = <0x124f800>;
+					vio-supply = <0x4f>;
+					vana-supply = <0xe2>;
+					vdig-supply = <0x552>;
+					reset-gpios = <0x4e 0x17 0x01>;
+					vana-enable-gpios = <0xd9 0x02 0x00>;
+					pinctrl-names = "default";
+					pinctrl-0 = <0x563>;
+
+					port {
+						endpoint {
+							bus-type = <0x04>;
+							data-lanes = <0x0 0x1 0x2 0x3>;
+							link-frequencies = <0x00 0x26fc6478>;
+							remote-endpoint = <0x54a>;
+							phandle = <0x54e>;
+						};
+					};
+				};
+			};
+		};
+
+		camss@acb3000 {
+			compatible = "qcom,sm8150-camss";
+			reg = <0x00 0xacb3000 0x00 0x1000 0x00 0xacba000 0x00 0x1000 0x00 0xac65000 0x00 0x1000 0x00 0xac66000 0x00 0x1000 0x00 0xac67000 0x00 0x1000 0x00 0xac68000 0x00 0x1000 0x00 0xacaf000 0x00 0x4000 0x00 0xacb6000 0x00 0x4000>;
+			reg-names = "csid0", "csid1", "csiphy0", "csiphy1", "csiphy2", "csiphy3", "vfe0", "vfe1";
+			interrupts = <0x00 0x1d0 0x01 0x00 0x1d2 0x01 0x00 0x1dd 0x01 0x00 0x1de 0x01 0x00 0x1df 0x01 0x00 0x1c0 0x01 0x00 0x1d1 0x01 0x00 0x1d3 0x01>;
+			interrupt-names = "csid0", "csid1", "csiphy0", "csiphy1", "csiphy2", "csiphy3", "vfe0", "vfe1";
+			power-domains = <0x56c 0x02 0x56c 0x03 0x56c 0x00>;
+			power-domain-names = "ife0", "ife1", "top";
+			/* IFE domains vote MMCX nominal while a pipeline is up (CSID at 600 MHz); top stays at low SVS. */
+			required-opps = <0xc4 0xc4 0xb3>;
+			clocks = <0x56c 0x10 0x56c 0x18 0x56c 0x19 0x56c 0x32 0x56c 0x33 0x56c 0x39 0x56c 0x3a 0x56c 0x22 0x56c 0x1a 0x56c 0x1b 0x56c 0x23 0x56c 0x1c 0x56c 0x1d 0x56c 0x24 0x56c 0x1e 0x56c 0x1f 0x56c 0x25 0x56c 0x20 0x56c 0x21 0x2c 0x08 0x2c 0x09 0x56c 0x5b 0x56c 0x17 0x56c 0x2f 0x56c 0x2e 0x56c 0x31 0x56c 0x30 0x56c 0x36 0x56c 0x35 0x56c 0x38 0x56c 0x37>;
+			clock-names = "camnoc_axi", "cpas_ahb", "cphy_rx_src", "csi0", "csi0_src", "csi1", "csi1_src", "csiphy0", "csiphy0_timer", "csiphy0_timer_src", "csiphy1", "csiphy1_timer", "csiphy1_timer_src", "csiphy2", "csiphy2_timer", "csiphy2_timer_src", "csiphy3", "csiphy3_timer", "csiphy3_timer_src", "gcc_camera_ahb", "gcc_camera_axi", "slow_ahb_src", "soc_ahb", "vfe0", "vfe0_axi", "vfe0_cphy_rx", "vfe0_src", "vfe1", "vfe1_axi", "vfe1_cphy_rx", "vfe1_src";
+			interconnects = <0x5 0x00 0x00 0xb7 0x08 0x00 0xbd 0x01 0x00 0x6 0x01 0x00 0xbd 0x03 0x00 0x6 0x01 0x00 0x56b 0x00 0x00 0x56b 0x03 0x00>;
+			interconnect-names = "cam_ahb", "cam_hf_0_mnoc", "cam_sf_0_mnoc", "cam_hf_0_camnoc";
+			iommus = <0x2b 0x840 0x620 0x2b 0x860 0x620 0x2b 0xa40 0x620 0x2b 0xa60 0x620 0x2b 0xc40 0x620 0x2b 0xc60 0x620 0x2b 0xe40 0x620 0x2b 0xe60 0x620>;
+			phandle = <0x546>;
+
+			ports {
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+
+				port@0 {
+					reg = <0x0>;
+
+					endpoint {
+						data-lanes = <0x0 0x1 0x2 0x3>;
+						remote-endpoint = <0x54b>;
+						phandle = <0x547>;
+					};
+				};
+
+				port@1 {
+					reg = <0x1>;
+
+					endpoint {
+						bus-type = <0x01>;
+						data-lanes = <0x0 0x1 0x2>;
+						remote-endpoint = <0x54c>;
+						phandle = <0x548>;
+					};
+				};
+
+				port@2 {
+					reg = <0x2>;
+
+					/* Disabled with the IMX471 node: camss waits for every live endpoint. */
+					endpoint {
+						status = "disabled";
+						data-lanes = <0x0 0x1 0x2 0x3>;
+						remote-endpoint = <0x54d>;
+						phandle = <0x549>;
+					};
+				};
+
+				port@3 {
+					reg = <0x3>;
+
+					endpoint {
+						data-lanes = <0x0 0x1 0x2 0x3>;
+						remote-endpoint = <0x54e>;
+						phandle = <0x54a>;
+					};
+				};
+			};
 		};
 
 		clock-controller@ad00000 {
 			compatible = "qcom,sm8150-camcc";
 			reg = <0x00 0xad00000 0x00 0x10000>;
+			phandle = <0x56c>;
 			clocks = <0x29 0x00 0x2c 0x08>;
 			power-domains = <0x6f 0x09>;
 			required-opps = <0xb3>;
@@ -4596,6 +5014,15 @@
 					interrupt-controller;
 					#interrupt-cells = <0x02>;
 					phandle = <0xd9>;
+
+					cam0-custom2-default-state {
+						pins = "gpio1";
+						function = "normal";
+						power-source = <0x00>;
+						output-low;
+						input-disable;
+						phandle = <0x56a>;
+					};
 				};
 			};
 
@@ -4608,7 +5035,27 @@
 				led-controller@d300 {
 					compatible = "qcom,pm8150l-flash-led", "qcom,spmi-flash-led";
 					reg = <0xd300>;
-					status = "disabled";
+					status = "okay";
+
+					led-0 {
+						function = "flash";
+						color = <0x00>;
+						led-sources = <0x1>;
+						led-max-microamp = <0x493e0>;
+						flash-max-microamp = <0xf4240>;
+						flash-max-timeout-us = <0x138800>;
+						function-enumerator = <0x0>;
+					};
+
+					led-1 {
+						function = "flash";
+						color = <0x00>;
+						led-sources = <0x2>;
+						led-max-microamp = <0x493e0>;
+						flash-max-microamp = <0xf4240>;
+						flash-max-timeout-us = <0x138800>;
+						function-enumerator = <0x1>;
+					};
 				};
 
 				pwm {
@@ -5294,10 +5741,35 @@
 				vdd-l2-supply = <0xe3>;
 				vdd-l5-l6-supply = <0xe2>;
 
+				ldo1 {
+					regulator-min-microvolt = <0x10d880>;
+					regulator-max-microvolt = <0x10d880>;
+					regulator-allow-set-load;
+					regulator-allowed-modes = <0x01 0x03>;
+					phandle = <0x54f>;
+				};
+
 				ldo2 {
 					regulator-min-microvolt = <0x124f80>;
 					regulator-max-microvolt = <0x124f80>;
 					regulator-initial-mode = <0x03>;
+					phandle = <0x550>;
+				};
+
+				ldo3 {
+					regulator-min-microvolt = <0x101d00>;
+					regulator-max-microvolt = <0x101d00>;
+					regulator-allow-set-load;
+					regulator-allowed-modes = <0x01 0x03>;
+					phandle = <0x551>;
+				};
+
+				ldo4 {
+					regulator-min-microvolt = <0x101d00>;
+					regulator-max-microvolt = <0x101d00>;
+					regulator-allow-set-load;
+					regulator-allowed-modes = <0x01 0x03>;
+					phandle = <0x552>;
 				};
 
 				ldo5 {
@@ -6403,6 +6875,45 @@
 				};
 			};
 		};
+	};
+
+	cam0-vaf-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam0_vaf";
+		regulator-min-microvolt = <0x325aa0>;
+		regulator-max-microvolt = <0x325aa0>;
+		gpio = <0x4e 0x19 0x00>;
+		enable-active-high;
+		vin-supply = <0xe2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <0x567>;
+		phandle = <0x553>;
+	};
+
+	cam1-vaf-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_vaf";
+		regulator-min-microvolt = <0x325aa0>;
+		regulator-max-microvolt = <0x325aa0>;
+		gpio = <0x4e 0x23 0x00>;
+		enable-active-high;
+		vin-supply = <0xe2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <0x568>;
+		phandle = <0x554>;
+	};
+
+	cam1-vana-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_vana";
+		regulator-min-microvolt = <0x325aa0>;
+		regulator-max-microvolt = <0x325aa0>;
+		gpio = <0x4e 0x94 0x00>;
+		enable-active-high;
+		vin-supply = <0xe2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <0x569>;
+		phandle = <0x555>;
 	};
 
 	vph-pwr-regulator {

@@ -22,6 +22,7 @@ the evidence behind each item.
 | Battery, charging | patches `0011`, `0012`, `0018`–`0024`; DT `battery` node (4.35 V, 3 A), charger node, sink PDO 5 V/3 A | `guacamole-chgctrl` (policy daemon), its unit, `/etc/conf.d/guacamole-chgctrl`, systemd preset | The daemon is plain Python 3 with no distro dependencies; it needs `/sys/class/power_supply` and systemd (or an init script, one is provided for OpenRC) |
 | Sensors (auto-rotate, light) | patch `0017`; DT SLPI enabled, FastRPC pool; `slpi.mdt`/`.bNN`, `slpir.jsn`, `slpius.jsn` | `hexagonrpcd` (patched), the served tree in `/usr/share/qcom`, `guacamole-sensors-registry` (imports the per-unit registry from `persist`), udev rules (start order, mount matrix), `iio-sensor-proxy` (patched, libssc build) | The heaviest port: see the sensors section |
 | Volume keys | DT `gpio-keys` on PM8150 GPIO 6/7 | none | — |
+| Cameras (rear) | patches `0025`–`0047`; DT CCI blocks, `camss` (+ `required-opps`), PM8009 LDO1/3/4, camera rails and pins, four slots, flash LEDs; no extra firmware | libcamera with the OnePlus sensor data and `ipa/simple` tuning files (`device/testing/libcamera`) | Any libcamera 0.7+ with the software ISP works for raw capture; the sensor data patches are small and distro-neutral. The front IMX471 node is disabled on this unit |
 
 ## Kernel space
 
@@ -51,6 +52,11 @@ The kernel is the `v6.17.0-sm8150` tag of
 | `0022` | qcom_smbx | follow the TCPM contract: Rp/standby/contract current, voltage window, 500 mA floor |
 | `0023` | qcom-pmic-typec | diagnostic: port status on VBUS interrupts (to be dropped) |
 | `0024` | qcom-pmic-typec | exit the sink state on CC only (fixes the PD voltage-step detach) |
+| `0025`–`0034` | media camss | SM8150 backend, CSIPHY generation, VFE IRQ status, DMA range, CAMNOC bandwidth/QoS and HF AXI bridge, C-PHY, unwind failed stream starts (from hotdog `0055`–`0089`, `0114`) |
+| `0035`–`0041` | media i2c | S5K3M5, IMX586, IMX481 and IMX471 sensor drivers with the OnePlus power sequences |
+| `0042`–`0045` | media i2c | AK73xx and LC898217XC lens actuators |
+| `0046` | media camss | park the VFE required-opp vote while a domain is off (MMCX not pinned at nominal when idle) |
+| `0047` | drm/msm | upstream fix for freeing imported dma-bufs (libcamera's EGL debayer corrupted the slab without it) |
 
 Every patch is against mainline drivers, not pmOS-specific code, so they apply
 to any 6.17-based tree. Several come from the OnePlus 7T Pro bringup
@@ -68,6 +74,7 @@ device relies on (a distro kernel config should include them):
 - `CONFIG_CHARGER_QCOM_SMB2=y` (the `qcom_smbx` driver), `CONFIG_BATTERY_BQ27XXX_I2C` with `CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM` **off**.
 - `CONFIG_QCOM_SCM=y` with the `qcom,dload-mode` DT property (clean reboots).
 - `CONFIG_PSTORE_RAM` for ramoops (debugging only).
+- Cameras: `CONFIG_SM_CAMCC_8150=m`, `CONFIG_VIDEO_QCOM_CAMSS=m`, `CONFIG_I2C_QCOM_CCI=m`, `CONFIG_VIDEO_IMX586/IMX481/IMX471=m`, `CONFIG_VIDEO_S5K3M5=m`, `CONFIG_VIDEO_LC898217XC=m`, `CONFIG_VIDEO_AK7375=m`, `CONFIG_LEDS_QCOM_FLASH=m`, `CONFIG_V4L2_FLASH_LED_CLASS=m`.
 
 ### Device tree
 
@@ -86,6 +93,7 @@ plus `scripts/patch_dtb.py`. Relative to the upstream
 - USB: `dr_mode = "otg"`, `usb-role-switch`, `usb-psy-name = "pm8150b-charger"`, PM8150B Type-C (`usb-c-connector`, sink PDO 5 V/3 A only) and VBUS regulator, QMP combo PHY orientation switch.
 - IPA: `ipa@1e40000`, SMP2P `ipa-ap-to-modem`/`ipa-modem-to-ap`, `system-noc` phandle.
 - SLPI remoteproc enabled with `firmware-name`, SDSP FastRPC `memory-region` and `qcom,vmids`.
+- Cameras: `cci@ac4a000`/`cci@ac4b000`, `camss@acb3000` with `required-opps` (IFE domains at nominal, so MMCX is raised while a pipeline runs), PM8009 `ldo1`/`ldo3`/`ldo4`, `cam0_vaf`/`cam1_vaf`/`cam1_vana` fixed regulators, CCI/MCLK/enable pin states, the four sensor nodes with lens actuators and CSIPHY endpoints (IMX471 and its `camss` endpoint disabled), PM8150L flash LEDs. `camcc` needs a phandle in the flattened tree.
 
 A port should carry these as a proper DTS on top of upstream; `PLAN.md` has
 the exact property values and the reasons for each.
@@ -142,6 +150,7 @@ None of it is large; most of it is glue around generic daemons.
 | `guacamole-mpss.initd` | OpenRC | starts the modem remoteproc after `rmtfs` (systemd boots it automatically through the in-kernel pd-mapper and `rmtfs.service`) | OpenRC only |
 | `sxmo_deviceprofile-oneplus-guacamole.sh` | Sxmo | button profile | pmOS/Sxmo only |
 | `deviceinfo` | pmOS | boot image parameters | pmOS only (translate to the distro's boot tooling) |
+| `device/testing/libcamera` | libcamera package | pmaports libcamera plus hotdog's sensor data patches (S5K3M5, IMX586, IMX481, IMX471: gain model, black level, control delays) and `ipa/simple` tuning files | the four patches and four YAML files apply to any libcamera 0.7+/0.8 build |
 
 ### Configuration done by hand on the test phone (not packaged)
 
@@ -187,4 +196,4 @@ Rough size: a day for patches and config, two to three days for the device tree 
 
 ## Not done anywhere yet
 
-Earpiece and call audio, cellular with a SIM, the gyroscope/compass in user space, proximity for calls, cameras, Warp Charge (needs the OnePlus fast-charge MCU protocol), DisplayPort alternate mode, the FSA4480 audio switch, and the fingerprint sensor (TrustZone-bound). See `PLAN.md`.
+Earpiece and call audio, cellular with a SIM, the gyroscope/compass in user space, proximity for calls, the pop-up front camera and camera autofocus/exposure tuning, Warp Charge (needs the OnePlus fast-charge MCU protocol), DisplayPort alternate mode, the FSA4480 audio switch, and the fingerprint sensor (TrustZone-bound). See `PLAN.md`.

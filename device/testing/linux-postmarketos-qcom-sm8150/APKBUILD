@@ -3,7 +3,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=6.17.0
-pkgrel=25
+pkgrel=28
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -56,6 +56,29 @@ source="
 	0022-power-supply-qcom-smbx-follow-the-type-c-source-current-limit.patch
 	0023-usb-typec-qcom-pmic-typec-log-port-status-on-vbus-irq.patch
 	0024-usb-typec-qcom-pmic-typec-exit-the-sink-state-on-cc-only.patch
+	0025-media-camss-add-sm8150-support.patch
+	0026-media-camss-give-sm8150-its-own-csiphy-generation.patch
+	0027-media-camss-report-vfe-interrupt-status.patch
+	0028-media-camss-keep-sm8150-dma-in-range.patch
+	0029-media-camss-vote-camera-noc-bandwidth-on-sm8150.patch
+	0030-media-camss-program-the-sm8150-camnoc-qos.patch
+	0031-media-camss-vote-the-internal-sm8150-camnoc-path.patch
+	0032-media-camss-enable-the-sm8150-hf-axi-bridge.patch
+	0033-media-qcom-camss-add-SM8150-C-PHY-support.patch
+	0034-media-qcom-camss-unwind-failed-stream-starts.patch
+	0035-media-i2c-add-the-samsung-s5k3m5-sensor-driver.patch
+	0036-media-s5k3m5-report-camera-geometry-and-orientation.patch
+	0037-media-i2c-add-Sony-IMX586-main-camera.patch
+	0038-media-i2c-complete-IMX586-userspace-metadata.patch
+	0039-media-add-OnePlus-hotdog-IMX481-ultra-wide-camera.patch
+	0040-media-imx481-keep-default-exposure-in-range.patch
+	0041-media-add-OnePlus-hotdog-IMX471-front-camera.patch
+	0042-media-i2c-add-the-hotdog-telephoto-autofocus.patch
+	0043-media-i2c-add-LC898217XC-lens-actuator-support.patch
+	0044-media-lc898217xc-use-the-documented-ready-transactio.patch
+	0045-media-i2c-initialize-AK7374-from-firmware-sequence.patch
+	0046-media-qcom-camss-hold-the-vfe-required-opp-only-while-the-domain-is-on.patch
+	0047-drm-msm-fix-gem-free-for-imported-dma-bufs.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -105,7 +128,7 @@ package() {
 
 sha512sums="
 274270bb0391bca972b1dffae778ff6fc372457b658e9252104d9894c9f24739e25df7021378cf0ac9c650cc417d0cdcdf1baa88bfdcd494920ee183298e1f34  linux-v6.17.0-sm8150.tar.gz
-87fa9da474cf764e2befffd136b23db198df8e12369d1f4373f16a22c88b714db72497c1240d62d2598d7128bdfe72310c50ec20b38266ff18b4783ddd4e2f7e  config-postmarketos-qcom-sm8150.aarch64
+9f75e168ef17c5388b16b82b26626444d750d579f255b115d0b73ed8d983866260a2521972de8272eadfb0eabbefa8ab239bfe78d9c1499b42e3a2a3552621de  config-postmarketos-qcom-sm8150.aarch64
 15422195814314d8f9ce905408d1256bec753ca1b58babc59391c4cb8b4fbbc9034c622129d52964ccceb39e6f4326f0eae5ca9271496e1a0432416ecd09cc1d  0001-lid-switch-fix.patch
 316decafef4528b3d8fa9ce1f2c1588048ae0a99adf088d61372d84ff95ae7bf58e5cc0d03d73201f1735f3d523468d98113ac575714930229434a46385a5c3d  0002-enable-ufs.patch
 61653196d559a725e372597f7a2d8da4f308bc14c610fce6ecc982fab25757dd37a684480b32c1b05547144c1ec14000f6ddf542c605894edb68e7484d40fbf1  0003-fix-llvm-build.patch
@@ -130,4 +153,27 @@ d7be0ca8533c3ae01a68ab6b5face782c4aa22f71244e4b802069fce7a0f73a8ec22322ed9ff0bb1
 1bdc1dd5e1e6ed7101dfb538c05686e51d83f398dd2a4fc26631c2525a930a910c4715538f33ae7eef46283da212456546a20f8365d75464ba81f5d78d06802a  0022-power-supply-qcom-smbx-follow-the-type-c-source-current-limit.patch
 da931db441637e9c8d8c1790ee67df0a18680de9ed5d9d519fdd7213ef6d191707e23dbfe88e28e712a6be43a4e5d2b4641f15726111751bb3619fb5eb934e69  0023-usb-typec-qcom-pmic-typec-log-port-status-on-vbus-irq.patch
 a98becf1c7bc9314c5dca98e0b1920068c448ae635d0951d90d721784eb2f500cf0b9368beb8c8827550114d7116906996c0fdd8948a4920d48eadbfe1a21180  0024-usb-typec-qcom-pmic-typec-exit-the-sink-state-on-cc-only.patch
+4887a85e1649c889930c1385657cfd6d52f49f97819a0dff633e49052903a2c8ded680391cc89d8cf240f5c5d00bff15e17799b447d7e2e1fe6bf212b4116c41  0025-media-camss-add-sm8150-support.patch
+8256d9e5d033d02ef21bef09242daa34e385640beceff85ed0b5080c9860d1759f5bbfc75062524dbcb664c6d781b4f8e5f76fdfce76e47b10c77800d0f3aae1  0026-media-camss-give-sm8150-its-own-csiphy-generation.patch
+5bb8cc88a71ba3affea3910d779cadc2e25a40f0fbe196cf11c8fcbac975b6f1f8518164e168bb7b6359973e274f9023a0c5e30c5060d2677453a95234bd4743  0027-media-camss-report-vfe-interrupt-status.patch
+f432a92f28e1ff748a26a0a467a0d460c79b6439bc2afc72dea18b0f0edde3b35291c6ae2879fae322967007862d0b368f8192c6ccf60be230635963d96cdce6  0028-media-camss-keep-sm8150-dma-in-range.patch
+a50b57bb744fcb60d731efccfb7d588c89c8ee51bfcf5c4e43cd84dad400453d9ff2a4f233e6b29aea90a20750379a9351f05a97fb3171db33e1ed9c1ef53d47  0029-media-camss-vote-camera-noc-bandwidth-on-sm8150.patch
+bb3c76cb69464b438fe99d433db6f9a9334fd44a34bd5c2271a6d29e69e6c89d7cafc2a5da525938ba3ca1d6d8ec52eb8cf127c9e889c5afafeb7d1f9ff40c4c  0030-media-camss-program-the-sm8150-camnoc-qos.patch
+e4314e961f496e87198952e0c95e6b83957a9414379ce69019d90e0334dbf1a6a813e99425f48a9971e469bbffbcbc663ab272a967a42abf5f0017c56d08286b  0031-media-camss-vote-the-internal-sm8150-camnoc-path.patch
+a20d00fb6934135922176b1a370f85ba2148bc0d3f428cb9d379d848f68ad4df63056e91acf2e3589913fb4fd40dc300841d8b9fc0b956b5382d719140187de2  0032-media-camss-enable-the-sm8150-hf-axi-bridge.patch
+d9260460b232e4afbef593ef8573bd96dbf3489cb5083fb6870dcd306baea3d1ee1e72c86611de77adc31a3d2856bc2ebeb057b93795bb5cd71620869f8ef0a3  0033-media-qcom-camss-add-SM8150-C-PHY-support.patch
+cdcc79fde2e21a2324d28b9371e22c7baa1c819cad0221d68f0212716be85776abc4256e52b7c3413ad1b83c2b589480315187b6601c6107b17f0ffa3e89a5d7  0034-media-qcom-camss-unwind-failed-stream-starts.patch
+f00f259692ef9b8cf16bac44e02dbe41ab1d71f821b33e1685fde0629124f2908d5a15e2394c933a1e9e01443c182b7a9a790aa27a2b9a628dd79175ee03f326  0035-media-i2c-add-the-samsung-s5k3m5-sensor-driver.patch
+4d574e68475dad340e8c8067e71547dbf88eed3ccf8bb087e86712496c40805b01386623c62888841a8ee0dc5c0134103a46464f750d1ebde0f60fa1050104d3  0036-media-s5k3m5-report-camera-geometry-and-orientation.patch
+d7e49c188492a4b9da386d9c0923c1276f67aaf548f2c0a3a570640ccda95e486946d3aa3382961904f7655606fe4f67f28de9f78213ed585615235d17dc0b30  0037-media-i2c-add-Sony-IMX586-main-camera.patch
+3410770f41696beef524946d42c8d63d176a0c9a7f7fdc7f3f5d0aed77bd6eb751be6b739b5c53bb202bd1dd46bcfb070bbb2351e1050265eaf90c492852e038  0038-media-i2c-complete-IMX586-userspace-metadata.patch
+c18e4d4212e1a49748204458140848391dc1928725fa1395fb7bd8c476784750558e9e43320ff10d5b2e4608f03ea8a7a4c0b88c59fa53dcade5c790ec532454  0039-media-add-OnePlus-hotdog-IMX481-ultra-wide-camera.patch
+40eae3f61a0d96d20cea36809ec439541e55c13d5150ebe9c72ee659e34cff4805d3f8f173587a4ee76879bed343b267d4e8acbc2ccb3347e8604c3c98c6aaa4  0040-media-imx481-keep-default-exposure-in-range.patch
+4b7b64ad566753a3086622ab0bd9658748a0cdbee895fe21efcdba409df883f5548a724d399c6eea1031a0a20550588f7d7043396affd6ef211daef09110aed9  0041-media-add-OnePlus-hotdog-IMX471-front-camera.patch
+65bb3ea6d5003ba5813bb8cfb2c763f8d67beb8e6417d76c107a7c5b64b3b9d5c07d0bba943adb23a9512f36461a170134b087a6affcc0101f1751862406fce0  0042-media-i2c-add-the-hotdog-telephoto-autofocus.patch
+04172eca1f1b1354551c4157b411b61027e2075e894f2a4a6e2c33845d5e0ef2f045a0e6bf0ffc6dcd586639d63bef0f462934d985b659f74d349b30ddb89a62  0043-media-i2c-add-LC898217XC-lens-actuator-support.patch
+e8609e0b7eb193aa565095913327deee451fc916a076ae8535d8396281e7499b0248c69298dfc58c733f8d56d541eb1342e469c116e3f5e0482d36f299655ad4  0044-media-lc898217xc-use-the-documented-ready-transactio.patch
+a599c216a8897d678a2c65550d0ce4e02ed4ec71554514cf55ad36a323f76d2813d9a47df58340c2a3e8d68ddd550dc7d24dfad62caaa16c4094a36e1d9d04e4  0045-media-i2c-initialize-AK7374-from-firmware-sequence.patch
+db8de90822c339cf1df7a08b3c44b610132b9bed57b96c102418114ca3663c00ebd549e8cba5cef34a6e79a37e454d8f5d5d8813d65b161b80c29408976d9047  0046-media-qcom-camss-hold-the-vfe-required-opp-only-while-the-domain-is-on.patch
+9c40f0733e21b341c7718bfc5251a5cd48c4dd99a34e2dcb18a690484f87236aa6330a0a60a09c0d1e6ef41f8c528a151454e3bdcc824209e39009ceb77a2007  0047-drm-msm-fix-gem-free-for-imported-dma-bufs.patch
 "

@@ -1,0 +1,67 @@
+From b0cafaabe3adbc8d902d01222158ce219305954f Mon Sep 17 00:00:00 2001
+From: Robin Snyders <robin@snyders.xyz>
+Date: Sun, 9 Aug 2026 11:18:36 +0200
+Subject: [PATCH] media: i2c: add the hotdog telephoto autofocus
+
+The HD1913 camera description connects the slot-1 actuator to GPIO35 and the PM8150L BOB rail. Qualcomm camera data identifies the Ofilm S5K3M5 actuator as an AK7374 at 7-bit address 0x0c, with a 10-bit position shifted by six bits and standby value 0x20. Extend the existing AK73xx VCM driver and bind it to the telephoto sensor.
+---
+ .../media/i2c/asahi-kasei,ak7375.yaml         |  7 ++--
+ drivers/media/i2c/Kconfig                     |  9 +++---
+ drivers/media/i2c/ak7375.c                    | 15 +++++++++
+ 4 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
+index 0da2a860ce79..2ea8f236e0d0 100644
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -827,12 +827,11 @@ config VIDEO_AD5820
+ 	  It is used for example in Nokia N900 (RX-51).
+ 
+ config VIDEO_AK7375
+-	tristate "AK7375 lens voice coil support"
++	tristate "AK73xx lens voice coil support"
+ 	help
+-	  This is a driver for the AK7375 camera lens voice coil.
+-	  AK7375 is a 12 bit DAC with 120mA output current sink
+-	  capability. This is designed for linear control of
+-	  voice coil motors, controlled via I2C serial interface.
++	  This is a driver for the AK7345, AK7374 and AK7375 camera lens
++	  voice coils. These devices are designed for linear control of
++	  voice coil motors over an I2C serial interface.
+ 
+ config VIDEO_DW9714
+ 	tristate "DW9714 lens voice coil support"
+--- a/drivers/media/i2c/ak7375.c
++++ b/drivers/media/i2c/ak7375.c
+@@ -51,6 +51,20 @@ static const struct ak73xx_chipdef ak7345_cdef = {
+ 	.power_delay_us	= 20000,
+ };
+ 
++static const struct ak73xx_chipdef ak7374_cdef = {
++	.reg_position	= 0x0,
++	.reg_cont	= 0x2,
++	.shift_pos	= 6,	/* 10 bits position values, need to << 6 */
++	.mode_active	= 0x0,
++	.mode_standby	= 0x20,
++	.has_standby	= true,
++	.focus_pos_max	= 1023,
++	.focus_steps	= 1,
++	.ctrl_steps	= 16,
++	.ctrl_delay_us	= 1000,
++	.power_delay_us	= 10000,
++};
++
+ static const struct ak73xx_chipdef ak7375_cdef = {
+ 	.reg_position	= 0x0,
+ 	.reg_cont	= 0x2,
+@@ -330,6 +344,7 @@ static int __maybe_unused ak7375_vcm_resume(struct device *dev)
+ 
+ static const struct of_device_id ak7375_of_table[] = {
+ 	{ .compatible = "asahi-kasei,ak7345", .data = &ak7345_cdef, },
++	{ .compatible = "asahi-kasei,ak7374", .data = &ak7374_cdef, },
+ 	{ .compatible = "asahi-kasei,ak7375", .data = &ak7375_cdef, },
+ 	{ /* sentinel */ }
+ };
+-- 
+2.54.0
+
