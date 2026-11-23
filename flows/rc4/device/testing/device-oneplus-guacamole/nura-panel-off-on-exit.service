@@ -1,0 +1,20 @@
+[Unit]
+Description=Turn the panel off before KWin exits (reboot hang workaround)
+# Some reboots hang in the kernel's final shutdown (garbled panel, no
+# bootloader screen, no USB) when the panel is still lit; with the panel
+# turned off first (and drm_kms_helper.fbdev_emulation=N, so the fbdev
+# console does not turn it back on when KWin exits) 4 of 4 reboots were
+# clean on 2026-11-23. Stopping this unit runs before KWin stops, because
+# units stop in reverse order of After=.
+After=plasma-kwin_wayland.service
+PartOf=plasma-workspace.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=-/usr/bin/kscreen-doctor --dpms off
+TimeoutStopSec=5
+
+[Install]
+WantedBy=plasma-workspace.target

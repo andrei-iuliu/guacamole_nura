@@ -25,6 +25,11 @@
 # pkgrel 22 arms the qcom_wdt hardware watchdog from systemd (20 s at
 # runtime, 30 s for reboots; see 91-nura-watchdog.conf), so a kernel
 # freeze at shutdown reboots the phone instead of leaving a black screen.
+# It also works around reboot hangs that need a lit panel during the
+# kernel's final shutdown: 91-nura-fbdev-restore.conf stops the fbdev
+# console from re-initialising the panel when KWin exits, and the
+# nura-panel-off-on-exit user unit turns the panel off before KWin stops
+# (Plasma only).
 # Reference: <https://postmarketos.org/devicepkg>
 # Co-Maintainer: Uclydde <julianbraha@gmail.com>
 maintainer="Casey Connolly <kcxt@postmarketos.org>"
@@ -115,6 +120,8 @@ source="
 	nura-gpu.sh
 	90-nura-loglevel.conf
 	91-nura-watchdog.conf
+	91-nura-fbdev-restore.conf
+	nura-panel-off-on-exit.service
 	$_sensors.tar.gz
 "
 
@@ -314,6 +321,16 @@ package() {
 	# Hardware watchdog for PID 1 (system manager only).
 	install -Dm644 "$srcdir/91-nura-watchdog.conf" \
 		"$pkgdir/etc/systemd/system.conf.d/91-nura-watchdog.conf"
+
+	# Reboot hang workaround: no fbdev restore when KWin exits, and the
+	# panel turned off before KWin stops (enabled for every user).
+	install -Dm644 "$srcdir/91-nura-fbdev-restore.conf" \
+		"$pkgdir/usr/lib/tmpfiles.d/91-nura-fbdev-restore.conf"
+	install -Dm644 "$srcdir/nura-panel-off-on-exit.service" \
+		"$pkgdir/usr/lib/systemd/user/nura-panel-off-on-exit.service"
+	install -d "$pkgdir/usr/lib/systemd/user/plasma-workspace.target.wants"
+	ln -s ../nura-panel-off-on-exit.service \
+		"$pkgdir/usr/lib/systemd/user/plasma-workspace.target.wants/nura-panel-off-on-exit.service"
 }
 
 openrc() {
@@ -385,5 +402,7 @@ bf640f09fafc9204c29136fbb2132a145c5b1a5e4ca8ad8622ac26da3d1a277a83498e98652e0805
 4011ae19f607550996a3a1dd7dfb148696a4bb11fbf6ddc4f877e224478f15d8e841baa1dd9735b300a8d7c20b36cefe0f3546798ea2e38080f6dca9f2626485  nura-gpu.sh
 5e2a237d8d3b957e5689b279d8ab434655a74a6b18fac30f8d7038aad75b79d25af51a9de20c453c2ff5c918b07dbec972f9e4f1aba854b3459d2bdc28b6cac4  90-nura-loglevel.conf
 5dfd47fe7956e07c82da30357d79677ae55a6581d900f261a828e83f3db0fce69ba625e467a3c748b15baa6c94cd5ae942ce2ab6dce2048ef27af92ad6da816a  91-nura-watchdog.conf
+6480c75f9c221256e3ec32049db4a078cb41f32077d587e836c090431ba63efe97bccc9ef072db7bc482a2bb347fbb67ea351cb9921e82a4e23294fab1aa39d8  91-nura-fbdev-restore.conf
+2bd75d7e4dfdbeae4dc13ef900bfbff31c8c7e97bca457015cbc7dc662579a20b8ceb1a691c4fe9ca6f46473cb3f4a31b24480e2bd16c2c5c59ec565d8db2ced  nura-panel-off-on-exit.service
 9b1c4fde9e47335631c7ab90eaf47f1425b3130126f80eadd523abb5cb42db273c179928db877299be1760a8b6ca5fdc723b1f4a330bed0d22e67ba209213ebd  guacamole-sensors-20261102.tar.gz
 "
