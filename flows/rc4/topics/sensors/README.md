@@ -9,6 +9,12 @@ not yet tested on a phone** (no build runs here).  The device package is
 untouched - no pkgrel bump; the always-on watchdog mitigation from the first
 draft was dropped after review, see "Why not a watchdog".
 
+Update 2026-11-22: r100 was installed and works under Phosh, but under Plasma
+auto-rotation got no data at all.  That is a second, separate upstream bug
+(sensors claimed during the daemon's startup were never started), fixed by
+`0002` in **3.9-r101**; see the r101 section below.  "Dropping the local
+patches" lists what upstream has to ship before each patch can go.
+
 Reporter's symptom (phone, Phosh, 2026-11-14, device package 4-r19,
 iio-sensor-proxy 3.9-r2, libssc 0.4.4-r0, hexagonrpcd 0.4.0-r3):
 
@@ -327,6 +333,102 @@ $ bash flows/rc4/scripts/rc4.sh check
 63 checks, 5 failed          # the 5 pre-existing kernel-recipe/label failures; both new checks PASS
 ```
 
+## 3.9-r101: sensors claimed during startup never started (2026-11-22)
+
+Symptom (Plasma, r100 on the phone): no auto-rotation.  `ssccli --sensor
+accelerometer` reads fine, but the daemon's `AccelerometerOrientation` stays
+`undefined`, `LightLevel` stays 0, `Claim*()` returns at once and no
+`PropertiesChanged` is emitted.  With `G_MESSAGES_DEBUG=all` the journal has
+no "Enabling sensor" line at all.
+
+Cause (upstream 3.9, not 0001): the daemon owns its bus name before
+`name_acquired_handler()` opens the sensors, and `ssc_sensor_*_new_sync()`
+iterates the default main context while it waits on the DSP.  KWin claims the
+accelerometer the moment the name appears, so that `ClaimAccelerometer` runs
+from inside the startup, finds no driver (or a driver without an open
+device), registers the client and returns.  Nothing starts the sensor later,
+and every later claimer sees a client count above 1 with no pending startup
+and returns at once.  The hotplug path (`sensor_changes()`) already handles
+this case; the startup did not.
+
+Fix: `0002-main-start-sensors-claimed-during-startup.patch` makes the claim
+handler treat a driver without an open device as absent, and starts every
+sensor that already has clients at the end of the startup (with
+`sensor_startup_dbus_event_delayed` set, like hotplug).
+
+Verified on the phone (Plasma, 2026-11-22).  r101 was built in
+`.work/local-userdata-nura` and installed with `apk add` of the three APK files
+over SSH; userdata was kept and the boot image was not touched.  After
+`systemctl restart iio-sensor-proxy`, KWin's two claims again landed during
+startup (+0.21 s, +0.23 s).  Then, at +0.35 s:
+
+```
+Starting accelerometer, claimed while the sensors were being opened
+Enabling sensor (2286538866409242278 11115320498015681092) in 'continuous' mode
+```
+
+Accel readings flowed and `monitor-sensor --accel` reported tilt
+straight away, with no console switch.  APK sha256: main `a01ea513...ee25c`,
+`-systemd` `a3e5f8c6...bc0d`, `-udev` `c1718df5...646fe`.
+
+Workaround on r100: anything that makes every client release and claim again
+after startup starts the sensor.  Examples are a VT switch
+(`op7-tweaks power-tap-console`), toggling auto-rotate, or restarting KWin.
+The next daemon restart or reboot loses it again.
+
+Hand install note: `apk add <file>.apk` replaces the `/etc/apk/world` entry
+with a checksum pin (`iio-sensor-proxy><Q1...`).  Set it back to
+`iio-sensor-proxy=3.9-r101` (and the same for `-systemd` and `-udev`) so the world
+matches what the image check expects.
+
+Reproduce: under Plasma, `sudo systemctl restart iio-sensor-proxy`, then
+`monitor-sensor --accel` shows `orientation: undefined` forever.  With
+`G_MESSAGES_DEBUG=all` two `ClaimAccelerometer` calls land at +0.22 s and
++0.26 s, inside the ~0.29 s it takes to open the four SSC sensors, and no
+"Enabling sensor" follows.  Phosh claims later (after its own proxy setup,
+and only with the screen on and rotation unlocked), which is why it did not
+show there; any client that claims inside that window hits it.
+
+## Dropping the local patches
+
+Upstream state was re-checked on 2026-11-22 (`evidence/upstream.md`).
+Neither package has a release that fixes any of the three problems.  When
+Alpine/pmaports ships a newer version, check each patch on its own:
+
+| Local patch | Drop it when upstream... | How to check |
+|---|---|---|
+| iio-sensor-proxy `0001` (async SSC open/close) | stops calling `ssc_sensor_*_open_sync()`/`_close_sync()` from `set_polling()` in `src/drv-ssc-*.c` | `grep -n '_open_sync\|_close_sync' src/drv-ssc-*.c` only hits `discover()` |
+| iio-sensor-proxy `0002` (claims during startup) | starts already-claimed sensors at the end of `name_acquired_handler()`, or opens the sensors before owning the bus name | read `name_acquired_handler()`; test: restart the daemon under Plasma, `monitor-sensor --accel` must show an orientation |
+| libssc `0001` (blocking sync wait) | `ssc_common_wait_sync_context()` no longer calls `g_main_context_iteration (..., FALSE)` | `grep -n g_main_context_iteration src/libssc-common.c` |
+
+When all three are gone: delete the two recipes from
+`flows/rc4/device/testing/`, and remove the version pins (`3.9-r101`,
+`0.4.4-r100`) from `check_local_candidate.py`, `rootfs_prepare_local.sh` and
+the tests in `flows/rc4/tests/`.  When only some are gone, rebase the
+remaining patch onto the new tarball and keep `pkgrel` at or above 100, so the
+local build still sorts above the repository's version.
+
+### Future considerations (check on every sensor-stack update)
+
+* **Upstream iio-sensor-proxy > 3.9 or a new Alpine pkgrel.** Re-run the
+  `name_acquired_handler()` check above before rebasing.  If upstream moved
+  `g_bus_own_name()` after the sensor opens, or starts claimed sensors itself,
+  drop 0002.  If upstream fixes it differently, prefer their fix and delete ours.
+* **libssc > 0.4.4.** A libssc whose `*_new_sync()` no longer iterates the
+  default main context closes the startup window, so the bug may disappear
+  without any iio-sensor-proxy change.  0002 is harmless then, and becomes
+  droppable once nothing else re-enters.
+* **Regression test after any change** to iio-sensor-proxy, libssc,
+  hexagonrpcd or the desktop: on Plasma, run
+  `sudo systemctl restart iio-sensor-proxy`, wait 15 s, then
+  `monitor-sensor --accel` with the phone held upright.  The orientation must
+  not be `undefined`.  On Phosh, also open Mobile Settings -> Sensors, the
+  0001 trigger, and watch `top` for a spinning daemon.
+* **Upstreaming.** No upstream issue exists yet (2026-11-22).  0002 is small
+  and device-independent, so it is a good MR candidate for
+  gitlab.freedesktop.org/hadess/iio-sensor-proxy.  An accepted MR shortens
+  how long this local recipe has to live.
+
 ## How it is wired
 
 The two recipes live in `flows/rc4/device/testing/` and are wired exactly like
@@ -392,8 +494,9 @@ checks/RESULTS.md                                the commands and outputs above,
 The recipes themselves are wired into the image and live outside this topic:
 
 ```
-flows/rc4/device/testing/iio-sensor-proxy/APKBUILD   3.9-r100 (the fix)
-flows/rc4/device/testing/iio-sensor-proxy/0001-*.patch
+flows/rc4/device/testing/iio-sensor-proxy/APKBUILD   3.9-r101 (both fixes)
+flows/rc4/device/testing/iio-sensor-proxy/0001-*.patch   async SSC open/close (r100)
+flows/rc4/device/testing/iio-sensor-proxy/0002-*.patch   start sensors claimed during startup (r101)
 flows/rc4/device/testing/libssc/APKBUILD             0.4.4-r100 (the CPU bound)
 flows/rc4/device/testing/libssc/0001-*.patch
 ```
