@@ -314,9 +314,10 @@ def main():
           "0001-libssc-common-block-in-the-sync-wait.patch" in libssc_apk,
           "flow: link farm carries the patched libssc (blocking sync wait)")
     iio_apk = read(farm / "iio-sensor-proxy/APKBUILD")
-    check(re.search(r"^pkgrel=100$", iio_apk, re.M) is not None and
-          "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch" in iio_apk,
-          "flow: link farm carries the patched iio-sensor-proxy (async SSC claims)")
+    check(re.search(r"^pkgrel=101$", iio_apk, re.M) is not None and
+          "0001-drv-ssc-enable-and-disable-sensors-asynchronously.patch" in iio_apk and
+          "0002-main-start-sensors-claimed-during-startup.patch" in iio_apk,
+          "flow: link farm carries the patched iio-sensor-proxy (async SSC claims, startup claims)")
     plasma_mobile_apk = read(farm / "plasma-mobile/APKBUILD")
     check(re.search(r"^pkgrel=101$", plasma_mobile_apk, re.M) is not None and
           "0001-quicksettings-never-use-a-negative-page-size.patch" in plasma_mobile_apk,

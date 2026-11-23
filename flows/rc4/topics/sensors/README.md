@@ -1,7 +1,7 @@
 # rc4 topic: iio-sensor-proxy spins one CPU core after Mobile Settings -> Sensors
 
 Status: **root cause identified; the fix is wired into both images** as two
-local recipes in `flows/rc4/device/testing/` (iio-sensor-proxy 3.9-r100,
+local recipes in `flows/rc4/device/testing/` (iio-sensor-proxy 3.9-r101,
 libssc 0.4.4-r100) with the same plumbing the patched `phoc` has: recipe
 links in the flow, version pins in the install list and `/etc/apk/world`,
 a build-order rule and an installed-rootfs marker check.  **Not built and
@@ -434,8 +434,8 @@ local build still sorts above the repository's version.
 The two recipes live in `flows/rc4/device/testing/` and are wired exactly like
 the patched `phoc` (Phosh-only) and `gmobile`:
 
-1. **Recipes:** `flows/rc4/device/testing/iio-sensor-proxy/` (3.9-r100, the
-   claim fix) and `flows/rc4/device/testing/libssc/` (0.4.4-r100, the blocking
+1. **Recipes:** `flows/rc4/device/testing/iio-sensor-proxy/` (3.9-r101: the
+   claim fix plus the startup-claim fix) and `flows/rc4/device/testing/libssc/` (0.4.4-r100, the blocking
    wait), each with its patch beside its APKBUILD.
 2. **Recipe farm:** `flows/rc4/local-storage/device/testing/iio-sensor-proxy`
    and `.../libssc` are symlinks to those recipes (the iio-sensor-proxy link
@@ -456,7 +456,7 @@ the patched `phoc` (Phosh-only) and `gmobile`:
    two main packages are added to `WORLD_PINNED` and verified in
    `/etc/apk/world` like the kernel/device/firmware.
 6. **Guards:** `run_install()` refuses any `iio-sensor-proxy` that is not
-   `3.9-r100` and any `libssc` that is not `0.4.4-r100`, the same way it
+   `3.9-r101` and any `libssc` that is not `0.4.4-r100`, the same way it
    refuses a `phoc` that is not `0.58.0-r100`.
 7. **Installed-rootfs proof:** `verify_sensor_drivers()` in
    `check_local_candidate.py` requires the daemon at
