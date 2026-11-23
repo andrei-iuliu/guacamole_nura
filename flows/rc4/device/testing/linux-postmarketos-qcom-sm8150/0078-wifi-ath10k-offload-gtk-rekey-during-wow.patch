@@ -22,27 +22,38 @@ the status event, but it never implemented mac80211's set_rekey_data,
 so the firmware never gets the KCK/KEK it needs to run the 2-way group
 key handshake itself.
 
-Add it, following ath11k:
+Add it, following ath11k and Qualcomm's Android driver for this chip
+(qcacld-3.0), which define the same command:
 
 - set_rekey_data keeps the KCK, KEK and replay counter per vif, and
-  disassociation wipes them, so a later network never gets stale keys.  The
-  firmware command has room for 16-byte keys only, so AKMs with longer
-  keys leave the offload off.
+  disassociation wipes them, so a later network never gets stale keys.
+  The firmware command has room for 16-byte keys only, so AKMs with
+  longer keys leave the offload off.
 - On WoW suspend, before WoW is enabled, every associated station vif
   with rekey data gets GTK_OFFLOAD with the enable opcode.  This is best
-  effort: if it fails the station is dropped at the next rekey, as
+  effort: where it fails the station is dropped at the next rekey, as
   before.
-- On resume, after the wakeup indication, the driver asks for the
-  offload status and then disables the offload.  The status event's
-  replay counter goes to the supplicant through
+- On resume, after the wakeup indication, each vif whose enable went
+  out (and only those, as qcacld does) gets a status request and then
+  the disable opcode; an error on one vif does not stop the others.
+  The status event's replay counter goes to the supplicant through
   ieee80211_gtk_rekey_notify() when the firmware renewed the key at
   least once, so the next rekey done by the host is not taken for a
-  replay.
+  replay.  If the wakeup indication fails the firmware is restarted, so
+  the offload is only forgotten.
+- With the offload active and the disconnect trigger requested, the vif
+  also arms WOW_GTK_ERR_EVENT, which qcacld always arms for stations: a
+  failed offloaded rekey would end in a deauth (and that wake) anyway,
+  and waking on the error gives the supplicant a chance to keep the
+  connection.
 - WIPHY_WOWLAN_SUPPORTS_GTK_REKEY is advertised when the firmware has
-  the service.
+  the service and the WMI flavour can send the command (TLV only); the
+  older 10.x interfaces are left alone.
 
-The command and event layouts and the TLV tags (91 and 59) match
-ath11k's; the GTK_OFL group is 0x19 in both drivers.
+The command and event layouts (vdev_id, flags, KEK[16], KCK[16],
+replay[8] little-endian), the opcodes and the TLV tags (91 and 59)
+match ath11k and qcacld-3.0's wmi_unified.h; the GTK_OFL group is 0x19
+in all of them.
 
 Compile tested: ath10k builds with W=1 and no warnings on the
 v7.0.0-sm8150 tree with 0001-0077 applied.
@@ -51,7 +62,7 @@ v7.0.0-sm8150 tree with 0001-0077 applied.
 diff --git a/drivers/net/wireless/ath/ath10k/core.h b/drivers/net/wireless/ath/ath10k/core.h
 --- a/drivers/net/wireless/ath/ath10k/core.h
 +++ b/drivers/net/wireless/ath/ath10k/core.h
-@@ -565,6 +565,14 @@
+@@ -565,6 +565,16 @@
  #define ATH10K_VDEV_SETUP_TIMEOUT_HZ	(5 * HZ)
  #define ATH10K_VDEV_DELETE_TIMEOUT_HZ	(5 * HZ)
  
@@ -61,12 +72,14 @@ diff --git a/drivers/net/wireless/ath/ath10k/core.h b/drivers/net/wireless/ath/a
 +	u8 kek[NL80211_KEK_LEN];
 +	u64 replay_ctr;
 +	bool enable_offload;
++	/* the firmware accepted the enable for the current WoW */
++	bool offloaded;
 +};
 +
  enum ath10k_beacon_state {
  	ATH10K_BEACON_SCHEDULED = 0,
  	ATH10K_BEACON_SENDING,
-@@ -596,6 +604,7 @@
+@@ -596,6 +606,7 @@
  	bool ps;
  	u32 aid;
  	u8 bssid[ETH_ALEN];
@@ -356,62 +369,89 @@ diff --git a/drivers/net/wireless/ath/ath10k/wmi-tlv.h b/drivers/net/wireless/at
 diff --git a/drivers/net/wireless/ath/ath10k/wow.c b/drivers/net/wireless/ath/ath10k/wow.c
 --- a/drivers/net/wireless/ath/ath10k/wow.c
 +++ b/drivers/net/wireless/ath/ath10k/wow.c
-@@ -448,6 +448,54 @@
+@@ -292,6 +292,14 @@
+ 			__set_bit(WOW_DISASSOC_RECVD_EVENT, &wow_mask);
+ 			__set_bit(WOW_BMISS_EVENT, &wow_mask);
+ 			__set_bit(WOW_CSA_IE_EVENT, &wow_mask);
++			/* A failed offloaded rekey would end in a deauth (and
++			 * that wake) anyway; waking on the error itself gives the
++			 * supplicant a chance to keep the connection.
++			 */
++			if (arvif->rekey_data.enable_offload &&
++			    test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map) &&
++			    ar->wmi.ops->gen_gtk_offload)
++				__set_bit(WOW_GTK_ERR_EVENT, &wow_mask);
+ 		}
+ 
+ 		if (wowlan->magic_pkt)
+@@ -448,6 +456,66 @@
  	return 0;
  }
  
 +/* Let the firmware answer the AP's group key handshake while the host
 + * sleeps; without it the AP drops the station at the next GTK rekey.
 + */
-+static int ath10k_wow_gtk_rekey_offload(struct ath10k *ar, bool enable)
++static void ath10k_wow_gtk_rekey_offload(struct ath10k *ar, bool enable)
 +{
 +	struct ath10k_vif *arvif;
 +	int ret, done = 0;
 +
 +	lockdep_assert_held(&ar->conf_mutex);
 +
-+	if (!test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map))
-+		return 0;
++	if (!test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map) ||
++	    !ar->wmi.ops->gen_gtk_offload)
++		return;
 +
 +	list_for_each_entry(arvif, &ar->arvifs, list) {
-+		if (arvif->vdev_type != WMI_VDEV_TYPE_STA ||
-+		    !arvif->is_up ||
-+		    !arvif->rekey_data.enable_offload)
-+			continue;
++		if (enable) {
++			if (arvif->vdev_type != WMI_VDEV_TYPE_STA ||
++			    !arvif->is_up ||
++			    !arvif->rekey_data.enable_offload)
++				continue;
 +
-+		if (!enable) {
-+			/* status first: it carries the renewed replay counter */
 +			ret = ath10k_wmi_gtk_offload(ar, arvif->vdev_id,
-+						     WMI_GTK_OFFLOAD_REQUEST_STATUS_OPCODE,
-+						     NULL);
-+			if (ret)
-+				ath10k_warn(ar, "failed to request gtk offload status vdev %i: %d\n",
++						     WMI_GTK_OFFLOAD_ENABLE_OPCODE,
++						     &arvif->rekey_data);
++			if (ret) {
++				ath10k_warn(ar, "failed to enable gtk rekey offload vdev %i: %d\n",
 +					    arvif->vdev_id, ret);
++				continue;
++			}
++			arvif->rekey_data.offloaded = true;
++			done++;
++			continue;
 +		}
++
++		/* Only where the enable went out, like qcacld does. */
++		if (!arvif->rekey_data.offloaded)
++			continue;
++		arvif->rekey_data.offloaded = false;
++
++		/* status first: it carries the renewed replay counter */
++		ret = ath10k_wmi_gtk_offload(ar, arvif->vdev_id,
++					     WMI_GTK_OFFLOAD_REQUEST_STATUS_OPCODE,
++					     NULL);
++		if (ret)
++			ath10k_warn(ar, "failed to request gtk offload status vdev %i: %d\n",
++				    arvif->vdev_id, ret);
 +
 +		ret = ath10k_wmi_gtk_offload(ar, arvif->vdev_id,
-+					     enable ? WMI_GTK_OFFLOAD_ENABLE_OPCODE :
-+						      WMI_GTK_OFFLOAD_DISABLE_OPCODE,
-+					     &arvif->rekey_data);
-+		if (ret) {
-+			ath10k_warn(ar, "failed to %s gtk rekey offload vdev %i: %d\n",
-+				    enable ? "enable" : "disable",
++					     WMI_GTK_OFFLOAD_DISABLE_OPCODE, NULL);
++		if (ret)
++			ath10k_warn(ar, "failed to disable gtk rekey offload vdev %i: %d\n",
 +				    arvif->vdev_id, ret);
-+			return ret;
-+		}
 +		done++;
 +	}
 +
 +	if (done)
 +		ath10k_dbg(ar, ATH10K_DBG_MAC, "wow gtk rekey offload %s on %d vdev(s)\n",
 +			   enable ? "enabled" : "disabled", done);
-+	return 0;
 +}
 +
  static int ath10k_wow_enable(struct ath10k *ar)
  {
  	int ret;
-@@ -523,6 +571,11 @@
+@@ -523,6 +591,11 @@
  		goto cleanup;
  	}
  
@@ -423,7 +463,7 @@ diff --git a/drivers/net/wireless/ath/ath10k/wow.c b/drivers/net/wireless/ath/at
  	ath10k_mac_wait_tx_complete(ar);
  
  	ret = ath10k_wow_enable(ar);
-@@ -543,6 +596,7 @@
+@@ -543,6 +616,7 @@
  	ath10k_wow_wakeup(ar);
  
  cleanup:
@@ -431,20 +471,30 @@ diff --git a/drivers/net/wireless/ath/ath10k/wow.c b/drivers/net/wireless/ath/at
  	ath10k_wow_cleanup(ar);
  
  exit:
-@@ -584,6 +638,8 @@
+@@ -582,8 +656,16 @@
+ 	}
+ 
  	ret = ath10k_wow_wakeup(ar);
- 	if (ret)
+-	if (ret)
++	if (ret) {
++		struct ath10k_vif *arvif;
++
  		ath10k_warn(ar, "failed to wakeup from wow: %d\n", ret);
-+	else
++		/* the firmware is restarted below; nothing left to disable */
++		list_for_each_entry(arvif, &ar->arvifs, list)
++			arvif->rekey_data.offloaded = false;
++	} else {
 +		ath10k_wow_gtk_rekey_offload(ar, false);
++	}
  
  	ret = ath10k_wow_nlo_cleanup(ar);
  	if (ret)
-@@ -628,6 +684,9 @@
+@@ -628,6 +710,10 @@
  		ar->wow.wowlan_support.max_pkt_offset -= WOW_MAX_REDUCE;
  	}
  
-+	if (test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map))
++	if (test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map) &&
++	    ar->wmi.ops->gen_gtk_offload)
 +		ar->wow.wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
 +
  	if (test_bit(WMI_SERVICE_NLO, ar->wmi.svc_map)) {
