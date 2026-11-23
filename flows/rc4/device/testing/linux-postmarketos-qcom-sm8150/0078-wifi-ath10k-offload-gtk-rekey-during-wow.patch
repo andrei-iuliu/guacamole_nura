@@ -1,0 +1,441 @@
+From: Nura rc4q series <rc4q@nura.invalid>
+Subject: [PATCH] wifi: ath10k: offload GTK rekey to the firmware during WoW
+
+A OnePlus 7 Pro (WCN3990, ath10k_snoc) suspended with WoWLAN armed
+(magic packet + disconnect) wakes up, and lights its screen, every time
+the access point renews the group key.  The AP sends EAPOL group key
+message 1, nobody answers it while the host sleeps, and the AP drops
+the station with reason 16 (GROUP_KEY_HANDSHAKE_TIMEOUT).  The
+disconnect trigger then wakes the host:
+
+  ath10k_snoc 18800000.wifi: ignoring unsolicited htc ep0 event
+  wlan0: deauthenticated from <bssid> (Reason: 16=GROUP_KEY_HANDSHAKE_TIMEOUT)
+  PM: suspend exit
+
+On the phone this happened exactly at the AP's rekey interval (17:38:15
+and 20:38:15) on 2026-11-22.  With Wi-Fi off, the same phone slept
+22:26-06:28 without a single wake.
+
+The firmware advertises WMI_SERVICE_GTK_OFFLOAD (as well as WOW and
+ARPNS_OFFLOAD), and ath10k already knows WMI_TLV_GTK_OFFLOAD_CMDID and
+the status event, but it never implemented mac80211's set_rekey_data,
+so the firmware never gets the KCK/KEK it needs to run the 2-way group
+key handshake itself.
+
+Add it, following ath11k:
+
+- set_rekey_data keeps the KCK, KEK and replay counter per vif.  The
+  firmware command has room for 16-byte keys only, so AKMs with longer
+  keys leave the offload off.
+- On WoW suspend, before WoW is enabled, every associated station vif
+  with rekey data gets GTK_OFFLOAD with the enable opcode.  This is best
+  effort: if it fails the station is dropped at the next rekey, as
+  before.
+- On resume, after the wakeup indication, the driver asks for the
+  offload status and then disables the offload.  The status event's
+  replay counter goes to the supplicant through
+  ieee80211_gtk_rekey_notify() when the firmware renewed the key at
+  least once, so the next rekey done by the host is not taken for a
+  replay.
+- WIPHY_WOWLAN_SUPPORTS_GTK_REKEY is advertised when the firmware has
+  the service.
+
+The command and event layouts and the TLV tags (91 and 59) match
+ath11k's; the GTK_OFL group is 0x19 in both drivers.
+
+Compile tested: ath10k builds with W=1 and no warnings on the
+v7.0.0-sm8150 tree with 0001-0077 applied.
+---
+
+diff --git a/drivers/net/wireless/ath/ath10k/core.h b/drivers/net/wireless/ath/ath10k/core.h
+--- a/drivers/net/wireless/ath/ath10k/core.h
++++ b/drivers/net/wireless/ath/ath10k/core.h
+@@ -565,6 +565,14 @@
+ #define ATH10K_VDEV_SETUP_TIMEOUT_HZ	(5 * HZ)
+ #define ATH10K_VDEV_DELETE_TIMEOUT_HZ	(5 * HZ)
+ 
++/* GTK rekey material handed to the firmware for WoW (set_rekey_data) */
++struct ath10k_rekey_data {
++	u8 kck[NL80211_KCK_LEN];
++	u8 kek[NL80211_KEK_LEN];
++	u64 replay_ctr;
++	bool enable_offload;
++};
++
+ enum ath10k_beacon_state {
+ 	ATH10K_BEACON_SCHEDULED = 0,
+ 	ATH10K_BEACON_SENDING,
+@@ -596,6 +604,7 @@
+ 	bool ps;
+ 	u32 aid;
+ 	u8 bssid[ETH_ALEN];
++	struct ath10k_rekey_data rekey_data;
+ 
+ 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
+ 	s8 def_wep_key_idx;
+diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
+--- a/drivers/net/wireless/ath/ath10k/mac.c
++++ b/drivers/net/wireless/ath/ath10k/mac.c
+@@ -16,6 +16,7 @@
+ #include <linux/of.h>
+ #include <linux/bitfield.h>
+ #include <linux/random.h>
++#include <linux/unaligned.h>
+ 
+ #include "hif.h"
+ #include "core.h"
+@@ -9510,6 +9511,40 @@
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_PM
++static void ath10k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
++					 struct ieee80211_vif *vif,
++					 struct cfg80211_gtk_rekey_data *data)
++{
++	struct ath10k *ar = hw->priv;
++	struct ath10k_vif *arvif = (void *)vif->drv_priv;
++	struct ath10k_rekey_data *rekey = &arvif->rekey_data;
++
++	mutex_lock(&ar->conf_mutex);
++
++	/* The firmware command carries 16-byte KCK/KEK only (WPA2-PSK, SAE). */
++	if (data->kck_len != NL80211_KCK_LEN ||
++	    data->kek_len != NL80211_KEK_LEN) {
++		ath10k_dbg(ar, ATH10K_DBG_MAC,
++			   "mac vdev %u gtk offload off: kck %u kek %u bytes\n",
++			   arvif->vdev_id, data->kck_len, data->kek_len);
++		rekey->enable_offload = false;
++		goto out;
++	}
++
++	memcpy(rekey->kck, data->kck, NL80211_KCK_LEN);
++	memcpy(rekey->kek, data->kek, NL80211_KEK_LEN);
++	/* the supplicant hands the replay counter over big-endian */
++	rekey->replay_ctr = get_unaligned_be64(data->replay_ctr);
++	rekey->enable_offload = true;
++
++	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %u gtk rekey data set\n",
++		   arvif->vdev_id);
++out:
++	mutex_unlock(&ar->conf_mutex);
++}
++#endif
++
+ static const struct ieee80211_ops ath10k_ops = {
+ 	.tx				= ath10k_mac_op_tx,
+ 	.wake_tx_queue			= ath10k_mac_op_wake_tx_queue,
+@@ -9563,6 +9598,7 @@
+ 	.suspend			= ath10k_wow_op_suspend,
+ 	.resume				= ath10k_wow_op_resume,
+ 	.set_wakeup			= ath10k_wow_op_set_wakeup,
++	.set_rekey_data			= ath10k_mac_op_set_rekey_data,
+ #endif
+ #ifdef CONFIG_MAC80211_DEBUGFS
+ 	.sta_add_debugfs		= ath10k_sta_add_debugfs,
+diff --git a/drivers/net/wireless/ath/ath10k/wmi.h b/drivers/net/wireless/ath/ath10k/wmi.h
+--- a/drivers/net/wireless/ath/ath10k/wmi.h
++++ b/drivers/net/wireless/ath/ath10k/wmi.h
+@@ -7539,4 +7539,9 @@
+ 					 u32 num_tx_chain);
+ void ath10k_wmi_event_tpc_final_table(struct ath10k *ar, struct sk_buff *skb);
+ 
++/* flags of WMI_GTK_OFFLOAD_CMDID */
++#define WMI_GTK_OFFLOAD_ENABLE_OPCODE		0x01000000
++#define WMI_GTK_OFFLOAD_DISABLE_OPCODE		0x02000000
++#define WMI_GTK_OFFLOAD_REQUEST_STATUS_OPCODE	0x04000000
++
+ #endif /* _WMI_H_ */
+diff --git a/drivers/net/wireless/ath/ath10k/wmi-ops.h b/drivers/net/wireless/ath/ath10k/wmi-ops.h
+--- a/drivers/net/wireless/ath/ath10k/wmi-ops.h
++++ b/drivers/net/wireless/ath/ath10k/wmi-ops.h
+@@ -179,6 +179,9 @@
+ 						    enum wmi_wow_wakeup_event event,
+ 						    u32 enable);
+ 	struct sk_buff *(*gen_wow_host_wakeup_ind)(struct ath10k *ar);
++	struct sk_buff *(*gen_gtk_offload)(struct ath10k *ar, u32 vdev_id,
++					   u32 opcode,
++					   const struct ath10k_rekey_data *rekey);
+ 	struct sk_buff *(*gen_wow_add_pattern)(struct ath10k *ar, u32 vdev_id,
+ 					       u32 pattern_id,
+ 					       const u8 *pattern,
+@@ -1423,6 +1426,22 @@
+ }
+ 
+ static inline int
++ath10k_wmi_gtk_offload(struct ath10k *ar, u32 vdev_id, u32 opcode,
++		       const struct ath10k_rekey_data *rekey)
++{
++	struct sk_buff *skb;
++
++	if (!ar->wmi.ops->gen_gtk_offload)
++		return -EOPNOTSUPP;
++
++	skb = ar->wmi.ops->gen_gtk_offload(ar, vdev_id, opcode, rekey);
++	if (IS_ERR(skb))
++		return PTR_ERR(skb);
++
++	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->gtk_offload_cmdid);
++}
++
++static inline int
+ ath10k_wmi_wow_add_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id,
+ 			   const u8 *pattern, const u8 *mask,
+ 			   int pattern_len, int pattern_offset)
+diff --git a/drivers/net/wireless/ath/ath10k/wmi-tlv.c b/drivers/net/wireless/ath/ath10k/wmi-tlv.c
+--- a/drivers/net/wireless/ath/ath10k/wmi-tlv.c
++++ b/drivers/net/wireless/ath/ath10k/wmi-tlv.c
+@@ -25,6 +25,8 @@
+ };
+ 
+ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
++	[WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_STATUS_EVENT]
++		= { .min_len = sizeof(struct wmi_tlv_gtk_offload_status_ev) },
+ 	[WMI_TLV_TAG_STRUCT_VDEV_INSTALL_KEY_COMPLETE_EVENT]
+ 		= { .min_len = sizeof(struct wmi_tlv_key_complete_ev) },
+ 	[WMI_TLV_TAG_ARRAY_BYTE]
+@@ -215,6 +217,55 @@
+ 	return 0;
+ }
+ 
++static void ath10k_wmi_tlv_event_gtk_offload_status(struct ath10k *ar,
++						    struct sk_buff *skb)
++{
++	const struct wmi_tlv_gtk_offload_status_ev *ev;
++	struct ath10k_vif *arvif;
++	__be64 replay_ctr_be;
++	u32 vdev_id, refresh_cnt;
++	u64 replay_ctr;
++	const void **tb;
++
++	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
++	if (IS_ERR(tb)) {
++		ath10k_warn(ar, "failed to parse gtk offload status tlv: %ld\n",
++			    PTR_ERR(tb));
++		return;
++	}
++
++	ev = tb[WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_STATUS_EVENT];
++	if (!ev) {
++		ath10k_warn(ar, "gtk offload status event without status\n");
++		goto out;
++	}
++
++	vdev_id = __le32_to_cpu(ev->vdev_id);
++	refresh_cnt = __le32_to_cpu(ev->refresh_cnt);
++	replay_ctr = __le64_to_cpu(ev->replay_ctr);
++
++	ath10k_dbg(ar, ATH10K_DBG_WMI,
++		   "wmi tlv gtk offload status vdev %u refresh_cnt %u replay_ctr %llu\n",
++		   vdev_id, refresh_cnt, replay_ctr);
++
++	/* Nothing was renewed while asleep: keep the supplicant's counter. */
++	if (!refresh_cnt)
++		goto out;
++
++	arvif = ath10k_get_arvif(ar, vdev_id);
++	if (!arvif)
++		goto out;
++
++	arvif->rekey_data.replay_ctr = replay_ctr;
++
++	/* the supplicant keeps the replay counter big-endian */
++	replay_ctr_be = cpu_to_be64(replay_ctr);
++	ieee80211_gtk_rekey_notify(arvif->vif, arvif->bssid,
++				   (void *)&replay_ctr_be, GFP_ATOMIC);
++out:
++	kfree(tb);
++}
++
+ static void ath10k_wmi_tlv_event_vdev_delete_resp(struct ath10k *ar,
+ 						  struct sk_buff *skb)
+ {
+@@ -775,7 +826,7 @@
+ 		ath10k_wmi_event_pdev_ftm_intg(ar, skb);
+ 		break;
+ 	case WMI_TLV_GTK_OFFLOAD_STATUS_EVENTID:
+-		ath10k_wmi_event_gtk_offload_status(ar, skb);
++		ath10k_wmi_tlv_event_gtk_offload_status(ar, skb);
+ 		break;
+ 	case WMI_TLV_GTK_REKEY_FAIL_EVENTID:
+ 		ath10k_wmi_event_gtk_rekey_fail(ar, skb);
+@@ -3768,6 +3819,42 @@
+ }
+ 
+ static struct sk_buff *
++ath10k_wmi_tlv_op_gen_gtk_offload(struct ath10k *ar, u32 vdev_id, u32 opcode,
++				  const struct ath10k_rekey_data *rekey)
++{
++	struct wmi_tlv_gtk_offload_cmd *cmd;
++	struct wmi_tlv *tlv;
++	struct sk_buff *skb;
++	__le64 replay_ctr;
++	size_t len;
++
++	len = sizeof(*tlv) + sizeof(*cmd);
++	skb = ath10k_wmi_alloc_skb(ar, len);
++	if (!skb)
++		return ERR_PTR(-ENOMEM);
++
++	tlv = (struct wmi_tlv *)skb->data;
++	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_CMD);
++	tlv->len = __cpu_to_le16(sizeof(*cmd));
++	cmd = (void *)tlv->value;
++
++	cmd->vdev_id = __cpu_to_le32(vdev_id);
++	cmd->flags = __cpu_to_le32(opcode);
++
++	if (opcode == WMI_GTK_OFFLOAD_ENABLE_OPCODE) {
++		memcpy(cmd->kek, rekey->kek, sizeof(cmd->kek));
++		memcpy(cmd->kck, rekey->kck, sizeof(cmd->kck));
++		/* the firmware takes the replay counter little-endian */
++		replay_ctr = cpu_to_le64(rekey->replay_ctr);
++		memcpy(cmd->replay_ctr, &replay_ctr, sizeof(cmd->replay_ctr));
++	}
++
++	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv gtk offload vdev %u opcode 0x%08x\n",
++		   vdev_id, opcode);
++	return skb;
++}
++
++static struct sk_buff *
+ ath10k_wmi_tlv_op_gen_wow_add_pattern(struct ath10k *ar, u32 vdev_id,
+ 				      u32 pattern_id, const u8 *pattern,
+ 				      const u8 *bitmask, int pattern_len,
+@@ -4636,6 +4723,7 @@
+ 	.gen_wow_enable = ath10k_wmi_tlv_op_gen_wow_enable,
+ 	.gen_wow_add_wakeup_event = ath10k_wmi_tlv_op_gen_wow_add_wakeup_event,
+ 	.gen_wow_host_wakeup_ind = ath10k_wmi_tlv_gen_wow_host_wakeup_ind,
++	.gen_gtk_offload = ath10k_wmi_tlv_op_gen_gtk_offload,
+ 	.gen_wow_add_pattern = ath10k_wmi_tlv_op_gen_wow_add_pattern,
+ 	.gen_wow_del_pattern = ath10k_wmi_tlv_op_gen_wow_del_pattern,
+ 	.gen_wow_config_pno = ath10k_wmi_tlv_op_gen_config_pno,
+diff --git a/drivers/net/wireless/ath/ath10k/wmi-tlv.h b/drivers/net/wireless/ath/ath10k/wmi-tlv.h
+--- a/drivers/net/wireless/ath/ath10k/wmi-tlv.h
++++ b/drivers/net/wireless/ath/ath10k/wmi-tlv.h
+@@ -2236,6 +2236,28 @@
+ 	__le32 flags;
+ } __packed;
+ 
++#define WMI_TLV_GTK_OFFLOAD_KEK_BYTES	16
++#define WMI_TLV_GTK_OFFLOAD_KCK_BYTES	16
++#define WMI_TLV_GTK_REPLAY_COUNTER_BYTES	8
++
++struct wmi_tlv_gtk_offload_cmd {
++	__le32 vdev_id;
++	__le32 flags;
++	u8 kek[WMI_TLV_GTK_OFFLOAD_KEK_BYTES];
++	u8 kck[WMI_TLV_GTK_OFFLOAD_KCK_BYTES];
++	u8 replay_ctr[WMI_TLV_GTK_REPLAY_COUNTER_BYTES];
++} __packed;
++
++/* Leading part of WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_STATUS_EVENT; the IGTK and
++ * GTK key material that follows is not used.
++ */
++struct wmi_tlv_gtk_offload_status_ev {
++	__le32 vdev_id;
++	__le32 flags;
++	__le32 refresh_cnt;
++	__le64 replay_ctr;
++} __packed;
++
+ struct wmi_tlv_wow_host_wakeup_ind {
+ 	__le32 reserved;
+ } __packed;
+diff --git a/drivers/net/wireless/ath/ath10k/wow.c b/drivers/net/wireless/ath/ath10k/wow.c
+--- a/drivers/net/wireless/ath/ath10k/wow.c
++++ b/drivers/net/wireless/ath/ath10k/wow.c
+@@ -448,6 +448,54 @@
+ 	return 0;
+ }
+ 
++/* Let the firmware answer the AP's group key handshake while the host
++ * sleeps; without it the AP drops the station at the next GTK rekey.
++ */
++static int ath10k_wow_gtk_rekey_offload(struct ath10k *ar, bool enable)
++{
++	struct ath10k_vif *arvif;
++	int ret, done = 0;
++
++	lockdep_assert_held(&ar->conf_mutex);
++
++	if (!test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map))
++		return 0;
++
++	list_for_each_entry(arvif, &ar->arvifs, list) {
++		if (arvif->vdev_type != WMI_VDEV_TYPE_STA ||
++		    !arvif->is_up ||
++		    !arvif->rekey_data.enable_offload)
++			continue;
++
++		if (!enable) {
++			/* status first: it carries the renewed replay counter */
++			ret = ath10k_wmi_gtk_offload(ar, arvif->vdev_id,
++						     WMI_GTK_OFFLOAD_REQUEST_STATUS_OPCODE,
++						     NULL);
++			if (ret)
++				ath10k_warn(ar, "failed to request gtk offload status vdev %i: %d\n",
++					    arvif->vdev_id, ret);
++		}
++
++		ret = ath10k_wmi_gtk_offload(ar, arvif->vdev_id,
++					     enable ? WMI_GTK_OFFLOAD_ENABLE_OPCODE :
++						      WMI_GTK_OFFLOAD_DISABLE_OPCODE,
++					     &arvif->rekey_data);
++		if (ret) {
++			ath10k_warn(ar, "failed to %s gtk rekey offload vdev %i: %d\n",
++				    enable ? "enable" : "disable",
++				    arvif->vdev_id, ret);
++			return ret;
++		}
++		done++;
++	}
++
++	if (done)
++		ath10k_dbg(ar, ATH10K_DBG_MAC, "wow gtk rekey offload %s on %d vdev(s)\n",
++			   enable ? "enabled" : "disabled", done);
++	return 0;
++}
++
+ static int ath10k_wow_enable(struct ath10k *ar)
+ {
+ 	int ret;
+@@ -523,6 +571,11 @@
+ 		goto cleanup;
+ 	}
+ 
++	/* Best effort: without it the station is merely dropped at the next
++	 * GTK rekey, as before.
++	 */
++	ath10k_wow_gtk_rekey_offload(ar, true);
++
+ 	ath10k_mac_wait_tx_complete(ar);
+ 
+ 	ret = ath10k_wow_enable(ar);
+@@ -543,6 +596,7 @@
+ 	ath10k_wow_wakeup(ar);
+ 
+ cleanup:
++	ath10k_wow_gtk_rekey_offload(ar, false);
+ 	ath10k_wow_cleanup(ar);
+ 
+ exit:
+@@ -584,6 +638,8 @@
+ 	ret = ath10k_wow_wakeup(ar);
+ 	if (ret)
+ 		ath10k_warn(ar, "failed to wakeup from wow: %d\n", ret);
++	else
++		ath10k_wow_gtk_rekey_offload(ar, false);
+ 
+ 	ret = ath10k_wow_nlo_cleanup(ar);
+ 	if (ret)
+@@ -628,6 +684,9 @@
+ 		ar->wow.wowlan_support.max_pkt_offset -= WOW_MAX_REDUCE;
+ 	}
+ 
++	if (test_bit(WMI_SERVICE_GTK_OFFLOAD, ar->wmi.svc_map))
++		ar->wow.wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
++
+ 	if (test_bit(WMI_SERVICE_NLO, ar->wmi.svc_map)) {
+ 		ar->wow.wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
+ 		ar->wow.wowlan_support.max_nd_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
