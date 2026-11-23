@@ -185,7 +185,7 @@ PHOC_UPSTREAM_SHA256 = "1645e7abf59ca98adf4a0a5652d4044dc7a2bb4f67014e74d918532b
 # are what /etc/apk/world pins.  libssc is listed first because the daemon's
 # makedepends include libssc-dev.
 LIBSSC_VERSION = "0.4.4-r100"
-IIO_SENSOR_PROXY_VERSION = "3.9-r100"
+IIO_SENSOR_PROXY_VERSION = "3.9-r101"
 # Packages apk installs next to the daemon from the same APKBUILD (the unit
 # and the FastRPC udev rule); they must come from the same r100 build, so
 # they are pinned in the install list as well.
@@ -193,7 +193,7 @@ IIO_SENSOR_PROXY_SUBPACKAGES = ("iio-sensor-proxy", "iio-sensor-proxy-systemd",
                                "iio-sensor-proxy-udev")
 # /usr/libexec/iio-sensor-proxy imports these from libssc when the SSC drivers
 # serve claims through the synchronous helper (Alpine 3.9-r2) and these when
-# they use the async claim path (the local 3.9-r100).  The dynamic symbol table
+# they use the async claim path (the local 3.9-r101).  The dynamic symbol table
 # is plain ASCII, so the installed binary itself is the marker.  Only
 # *_open_sync is a marker: the *_close_sync() pair is still used by the
 # drivers' discover() step, which the patch deliberately leaves synchronous.
@@ -1117,7 +1117,7 @@ def local_recipe_links() -> dict[str, str]:
         "device/testing/firmware-oneplus-guacamole": "device/testing/firmware-oneplus-guacamole",
         "device/testing/linux-postmarketos-qcom-sm8150": "device/testing/linux-postmarketos-qcom-sm8150",
         "main/hexagonrpcd": "device/testing/hexagonrpcd",
-        # Both UIs: the SSC claim fix (iio-sensor-proxy 3.9-r100) and its
+        # Both UIs: the SSC claim fix (iio-sensor-proxy 3.9-r101) and its
         # blocking-wait companion (libssc 0.4.4-r100).  The pinned pmaports
         # carries neither recipe and Alpine's community/ builds are shadowed
         # by these two main/ entries.  libssc goes first: the daemon's
@@ -1589,7 +1589,7 @@ def verify_phoc_guard(rootfs: Path) -> None:
 
 
 def verify_sensor_drivers(rootfs: Path) -> None:
-    """The installed daemon must be the local 3.9-r100 build.
+    """The installed daemon must be the local 3.9-r101 build.
 
     The package version checks prove which APKs were selected; this catches
     the other half, a rootfs that still carries the Alpine 3.9-r2 daemon,
