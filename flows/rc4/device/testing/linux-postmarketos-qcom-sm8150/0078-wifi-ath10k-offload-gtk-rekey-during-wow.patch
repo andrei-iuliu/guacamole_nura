@@ -24,7 +24,8 @@ key handshake itself.
 
 Add it, following ath11k:
 
-- set_rekey_data keeps the KCK, KEK and replay counter per vif.  The
+- set_rekey_data keeps the KCK, KEK and replay counter per vif, and
+  disassociation wipes them, so a later network never gets stale keys.  The
   firmware command has room for 16-byte keys only, so AKMs with longer
   keys leave the offload off.
 - On WoW suspend, before WoW is enabled, every associated station vif
@@ -84,7 +85,17 @@ diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/at
  
  #include "hif.h"
  #include "core.h"
-@@ -9510,6 +9511,40 @@
+@@ -3246,6 +3247,9 @@
+ 
+ 	arvif->def_wep_key_idx = -1;
+ 
++	/* The keys belong to this association; never offload them later. */
++	memzero_explicit(&arvif->rekey_data, sizeof(arvif->rekey_data));
++
+ 	ret = ath10k_mac_vif_recalc_txbf(ar, vif, vht_cap);
+ 	if (ret) {
+ 		ath10k_warn(ar, "failed to recalc txbf for vdev %i: %d\n",
+@@ -9510,6 +9514,40 @@
  	return ret;
  }
  
@@ -105,7 +116,7 @@ diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/at
 +		ath10k_dbg(ar, ATH10K_DBG_MAC,
 +			   "mac vdev %u gtk offload off: kck %u kek %u bytes\n",
 +			   arvif->vdev_id, data->kck_len, data->kek_len);
-+		rekey->enable_offload = false;
++		memzero_explicit(rekey, sizeof(*rekey));
 +		goto out;
 +	}
 +
@@ -125,7 +136,7 @@ diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/at
  static const struct ieee80211_ops ath10k_ops = {
  	.tx				= ath10k_mac_op_tx,
  	.wake_tx_queue			= ath10k_mac_op_wake_tx_queue,
-@@ -9563,6 +9598,7 @@
+@@ -9563,6 +9601,7 @@
  	.suspend			= ath10k_wow_op_suspend,
  	.resume				= ath10k_wow_op_resume,
  	.set_wakeup			= ath10k_wow_op_set_wakeup,
