@@ -4,7 +4,13 @@ set -e
 # Flashes or test-boots the generated boot.img to the connected OnePlus 7 Pro.
 # Usage:
 #   ./scripts/flash_boot.sh test    # Safe: fastboot boot (does not touch flash)
-#   ./scripts/flash_boot.sh flash   # Permanent: fastboot flash boot
+#   ./scripts/flash_boot.sh flash   # Permanent: fastboot flash boot_b (untethered boot)
+#
+# "flash" writes slot b on purpose: that is the active slot and the one whose
+# dtbo partition is zeroed, so ABL applies no stock DTBO overlay to the
+# mainline DTB. The stock boot image is in stock_boot_full.img (restore with
+# fastboot flash boot_b stock_boot_full.img). Prefer scripts/fastboot_boot.sh
+# for trying out a new image; flash once it works.
 
 ACTION="${1:-test}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -61,8 +67,8 @@ if [ "$ACTION" == "test" ]; then
     echo "Testing boot image via 'fastboot boot $BOOTIMG' (Non-destructive)..."
     fastboot boot "$BOOTIMG"
 elif [ "$ACTION" == "flash" ]; then
-    echo "Flashing boot partition via 'fastboot flash boot $BOOTIMG'..."
-    fastboot flash boot "$BOOTIMG"
+    echo "Flashing slot b via 'fastboot flash boot_b $BOOTIMG'..."
+    fastboot flash boot_b "$BOOTIMG"
 else
     echo "Invalid option: $ACTION. Use 'test' or 'flash'."
     exit 1

@@ -1,1 +1,2 @@
 enable guacamole-chgctrl.service
+enable guacamole-wlan-down.service

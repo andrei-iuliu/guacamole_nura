@@ -4,7 +4,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=11
+pkgrel=12
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -52,6 +52,7 @@ source="
 	90-guacamole-bdaddr.rules
 	guacamole-wlanmac
 	90-guacamole-wlanmac.rules
+	guacamole-wlan-down.service
 	90-guacamole-sensors.rules
 	61-guacamole-accel-mount-matrix.rules
 	guacamole-sensors-registry
@@ -105,6 +106,11 @@ package() {
 		"$pkgdir/usr/lib/systemd/system/guacamole-chgctrl.service"
 	install -Dm644 "$srcdir/80-guacamole.preset" \
 		"$pkgdir/usr/lib/systemd/system-preset/80-guacamole.preset"
+
+	# Bring wlan0 down before rmtfs stops the modem at shutdown, so the reset
+	# stays a warm one and "reboot bootloader"/"reboot recovery" keep working.
+	install -Dm644 "$srcdir/guacamole-wlan-down.service" \
+		"$pkgdir/usr/lib/systemd/system/guacamole-wlan-down.service"
 
 	# Sensors: the SLPI sensor DSP is served its configuration, registry and
 	# libraries by hexagonrpcd from /usr/share/qcom. The registry is per unit
@@ -168,7 +174,7 @@ f97ee1223a887911aeb144bf0ab0c4a102d6d6c9a2a5ba7d4571c7b040196fb6acec848a460cda26
 28d025ced2d1f9d80f10ab48e5a200ad853992c8ec82033ed475c29d9615dc43e848c4c6586184d7d13846a0e6dcdbdaf5d7c6b9de0a251d5cdcec8f15dae33f  guacamole-chgctrl.daemon
 67167a447037b041d05e12191ce3e881c6c5e76e5a5a71f5914daccf048aa732bac8b33f48f861ec6460545e36835af0e9e85e2545a2f37e16cae4c51aed17b7  guacamole-chgctrl.confd
 450c485ba61fbe40ba3117ea3843af781928c59ab7a1b6298966c98c059633521d4ed796ce5854d1225713fd042e1db6b3a7ec9200758005b632ec34e71950b3  guacamole-chgctrl.service
-3fa6abde06c56dc48d354adea626af2d3347abf778a9ec12456f5313d9d7ccd00ca5a86103793fde5866930cc74ae2d8e9ce3f49685ea4d27844348d1e895244  80-guacamole.preset
+8fc78d009a3bf324a0830fc6e5f18728e146ef175abad4194b72614a1d3b176fefa74827c0de97de8346906db6af37a7437f0d56a8ab63ed37389ce82006c70e  80-guacamole.preset
 c32b679c7d9cc8745ab6ca538473fa46dc96122e2b99823fe54aed06701fb921708c4e2f9d115d1d6c01588c100deeb9f410fd80439b8b6ad6724b8d33b6a53e  sxmo_deviceprofile-oneplus-guacamole.sh
 7fe009a4b2389ac56e1ff4380dd7ce90b21e0a435ebd72615e9683c6959c35024e7d2d39f62156359f74043b2c2e6f3a4a84a95a7195b6cc9943e718d342c9c3  90-wifi-wowlan.conf
 940aedbb0a39179ecde436980b27762a3690009c60f9878b4ab0f54d81e7e3e35098cabbf664effdf9aafe835ce65228ebcf97766eb45081d9cbc2cdcd320020  90-ath10k-wowlan.rules
@@ -180,6 +186,7 @@ b3dc15594284308d6d413d0b54d7d24246514e747eaf1b39999c417a5340b243ce4e7d3d250cc813
 2a1b701c9efb5281e2db68932a9d832421fdfa6272094f6aa184c2959cee3370b8725e4c07c671b555a2a4021740ceab7b62ebf119b702ef810c848664c9116f  90-guacamole-bdaddr.rules
 a6a258a95f57e3c68b7d48bb019d9bfb170b5ca7617ac320652906b2998aaf8b63021cbff8900e72b855de05cc47c5702fc61f7dbafeef2a331dae092c6599fe  guacamole-wlanmac
 be1a5cb1c37b8ddda6b8d5cce2dd3596be44fefed67c75493abd4ad15d5041601493a0d9f2823b67825d2940f11b36274f05ebf8ce0113bd42e972aac20ad187  90-guacamole-wlanmac.rules
+6804a2ffa2355c865347790627bbe22131a4d086a870539d89539b505616f7b0c4441b5a71be1af7ff6244fb83bfd4f95929951485cc80179a3549f239bd392e  guacamole-wlan-down.service
 722313af8488dd1e0e19ceed62e002ebb6c09315078d5b2b4730e6084c25c1165049b3a85efdb156a756d06b6387c9d31d5fda280b106bccb003bab54bba99f8  90-guacamole-sensors.rules
 d0a84b5aa02540f3187b92f5c96fac8f5af07b0c3532a32e63eb75614a76b7ad62b166bc2551c2fab68405446bff0a03b3e6f7c7ab1e2e99dafc070a628046ff  61-guacamole-accel-mount-matrix.rules
 1e2b796d12b35c224919a2a0c8bdf263b5f3fe7f63ce0e764b9602816171909764407ce3e5af2fac80d53eb30ca41587a8a3f261b7d4851d3b8931fc84809c7d  guacamole-sensors-registry

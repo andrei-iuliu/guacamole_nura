@@ -54,6 +54,11 @@ This repository contains the bringup workspace, kernel patches, device tree sour
 ### Bootloader DTBO Overlay
 Stock OnePlus ABL automatically reads `/dev/block/by-name/dtbo_[slot]` from internal UFS and dynamically splices vendor Android DTBO fragments into the in-memory device tree passed by fastboot. The mainline DTB layout differs from the downstream Android kernel's, so the overlay corrupts nodes and the boot hangs with no output. Zeroing the active slot's `dtbo` partition stops ABL from applying the overlay.
 
+### Untethered Boot
+The working `build/boot.img` is flashed to `boot_b`, the active slot, so the phone boots Linux from power-on without a PC (verified 2026-11-22: same kernel, modules, Wi-Fi, touch, audio, sensors and charger as a `fastboot boot` of the same image). The slot keeps its zeroed `dtbo_b`; slot a is left alone because it still carries the stock DTBO and switching slots would also switch the xbl/abl firmware. `vbmeta_b` is untouched: verification stays enabled, and the unlocked bootloader (orange state) accepts the unsigned AVB hash footer. New images are still tried with `scripts/fastboot_boot.sh` first and written with `scripts/flash_boot.sh flash` once they work.
+
+Getting back into fastboot from a flashed system needs a reboot reason, which a `fastboot boot`ed system never did (the ABL re-enters fastboot on its own after a `fastboot boot`). The DTS now carries the PM8150 PON `mode-bootloader = <2>` / `mode-recovery = <1>` properties and an IMEM `reboot-mode@65c` node (`0x77665500` / `0x77665502`, the values the OnePlus ABL reads), so `systemctl reboot --reboot-argument=bootloader` lands in fastboot. Two things had to go with it. systemd 262 silently ignores the positional `reboot bootloader` form, so the argument has to be `--reboot-argument=`. And the reason only survives a warm reset: `rmtfs -r` stops the modem remoteproc at shutdown, and with `wlan0` still up the WLAN firmware inside the modem keeps the MSA region assigned, the modem stop does not complete and the following reset is a hard reset that clears the reason (with Wi-Fi on, 4 of 5 attempts booted normally; with Wi-Fi off, 3 of 3 reached fastboot). `guacamole-wlan-down.service` (device package r12) is ordered after `rmtfs` and before NetworkManager, so at shutdown it takes `wlan0` down before `rmtfs` stops the modem; with it, 3 of 3 reboots with Wi-Fi connected reached fastboot. This is the same shutdown fault that used to end in crashdump mode before the download-mode cookie fix; the kernel side (ath10k holding the MSA region across a modem stop) is still open. The stock boot image is kept in `stock_boot_full.img` (gitignored) and restores with `fastboot flash boot_b stock_boot_full.img`.
+
 ### Native Samsung Command-Mode DSC Display Driver
 The OnePlus 7 Pro uses a high-density 1440x3120 90Hz Samsung AMOLED panel requiring **Command Mode (DCS)** and **Display Stream Compression (DSC v1.1)** with **2 slices per packet** (two 720-pixel slices transmitted together). Because Command Mode panels only update their internal Graphic RAM when the host DPU fires DCS write triggers, SimpleFB remains frozen. The `panel-samsung-oneplus-dsc` driver and a patch to the MSM DSI host timing calculations drive the panel at 90 Hz through the MSM DPU.
 
@@ -133,7 +138,7 @@ guacamole_nura/
 │   ├── envsetup.sh                 # Environment setup and aliases
 │   ├── extract_dtb.sh              # ADB tool to extract & decompile live DTB
 │   ├── build_kernel.sh             # Compiles kernel using envkernel.sh
-│   ├── flash_boot.sh               # Non-destructive fastboot testing helper
+│   ├── flash_boot.sh               # 'test' = fastboot boot, 'flash' = write boot_b for untethered boot
 │   └── ramoops.sh                  # Dumps pstore logs following kernel panic
 │
 └── docs/                           # Detailed technical documentation

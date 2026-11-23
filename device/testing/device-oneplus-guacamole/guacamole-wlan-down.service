@@ -1,0 +1,25 @@
+[Unit]
+Description=Power down the WLAN firmware before the modem is stopped
+# rmtfs runs with -r and stops the modem remoteproc when it exits at
+# shutdown. The WCN3990 firmware runs inside the modem, and while wlan0 is
+# up ath10k keeps the MSA region assigned to it, so that modem stop does
+# not complete cleanly and the reset that follows is a hard reset. A hard
+# reset clears the PMIC and IMEM reboot reason, so "reboot bootloader" or
+# "reboot recovery" with Wi-Fi on ends in a normal boot (and, before the
+# download-mode cookie fix, in Qualcomm crashdump mode).
+#
+# Ordered after rmtfs and before NetworkManager, this unit is stopped after
+# NetworkManager and before rmtfs. Taking wlan0 down there makes ath10k
+# disable WLAN in the firmware first, and the modem then stops cleanly.
+After=rmtfs.service
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+# No shell variables here: systemd expands $NAME and ${NAME} in Exec lines.
+ExecStop=-/bin/sh -c 'ip link set wlan0 down'
+
+[Install]
+WantedBy=multi-user.target

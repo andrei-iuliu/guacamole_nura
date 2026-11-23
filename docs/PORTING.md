@@ -18,7 +18,7 @@ the evidence behind each item.
 | Bluetooth | DT UART13 + `qcom,wcn3990-bt` node, `serial1` alias; `crbtfw21.tlv`, `crnv21.bin` | `guacamole-bdaddr` + udev rule + oneshot unit (public address from the factory MAC, via `btmgmt`) | Needs `btmgmt` (bluez). Without it the controller stays unconfigured and BlueZ ignores it |
 | Cellular (data path) | patches `0013`–`0016` (IPA v4.1); DT `ipa@1e40000`, SMP2P entries, `usb-psy-name`; `ipa_fws.mbn` | ModemManager (qcom-soc plugin), `msm-modem-uim-selection` | Untested with a SIM. Debian/UT ship ModemManager with the same plugin |
 | USB host/OTG | DT: PM8150B Type-C + VBUS regulator, `usb-c-connector`, role switch, QMP orientation switch | none | Works with any distro |
-| Reboot | DT `qcom,dload-mode` (TCSR) | none | Without it, a reboot with Wi-Fi on lands in Qualcomm crashdump mode |
+| Reboot | DT `qcom,dload-mode` (TCSR); PON `mode-bootloader`/`mode-recovery` and IMEM `reboot-mode@65c` (reboot reasons) | `guacamole-wlan-down.service` (wlan0 down before `rmtfs` stops the modem) | Without `dload-mode`, a reboot with Wi-Fi on lands in Qualcomm crashdump mode; without the wlan-down unit, `reboot bootloader` with Wi-Fi on boots normally. systemd needs `--reboot-argument=` |
 | Battery, charging | patches `0011`, `0012`, `0018`–`0024`; DT `battery` node (4.35 V, 3 A), charger node, sink PDO 5 V/3 A | `guacamole-chgctrl` (policy daemon), its unit, `/etc/conf.d/guacamole-chgctrl`, systemd preset | The daemon is plain Python 3 with no distro dependencies; it needs `/sys/class/power_supply` and systemd (or an init script, one is provided for OpenRC) |
 | Sensors (auto-rotate, light) | patch `0017`; DT SLPI enabled, FastRPC pool; `slpi.mdt`/`.bNN`, `slpir.jsn`, `slpius.jsn` | `hexagonrpcd` (patched), the served tree in `/usr/share/qcom`, `guacamole-sensors-registry` (imports the per-unit registry from `persist`), udev rules (start order, mount matrix), `iio-sensor-proxy` (patched, libssc build) | The heaviest port: see the sensors section |
 | Volume keys | DT `gpio-keys` on PM8150 GPIO 6/7 | none | — |
@@ -80,6 +80,7 @@ plus `scripts/patch_dtb.py`. Relative to the upstream
 - Audio: QUP0 wrapper and `i2c@890000` (TFA9874 at 0x34/0x35), QUAT MI2S pinctrl, `q6afedai` dai@22, sound card routing.
 - Fuel gauge `ti,bq27411` on `i2c@a80000` (no `monitored-battery`); `battery` node (4.35 V float, 3 A fast charge); `charger@1000` enabled.
 - Wi-Fi regulators and supplies; `qcom,dload-mode` on `scm` with a TCSR syscon.
+- Reboot reasons: `mode-bootloader = <2>`, `mode-recovery = <1>` on the PM8150 `pon@800`; `sram@146bf000` with `reboot-mode@65c` (IMEM cookies `0x77665500`/`0x77665502`).
 - Volume keys (`gpio-keys`, PM8150 GPIO 6/7).
 - Bluetooth: `serial1` alias, `serial@c8c000` with a `qcom,wcn3990-bt` child.
 - USB: `dr_mode = "otg"`, `usb-role-switch`, `usb-psy-name = "pm8150b-charger"`, PM8150B Type-C (`usb-c-connector`, sink PDO 5 V/3 A only) and VBUS regulator, QMP combo PHY orientation switch.
