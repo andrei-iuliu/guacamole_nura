@@ -60,6 +60,8 @@ The kernel is the `v6.17.0-sm8150` tag of
 | `0047` | drm/msm | upstream fix for freeing imported dma-bufs (libcamera's EGL debayer corrupted the slab without it) |
 | `0048` | watchdog | arms the APSS watchdog at probe so a dark boot hang warm-resets (debug aid) |
 | `0049` | usb/typec | re-notifies TCPM once a decaying VBUS reaches vSafe0V, so the port attaches as a source after a cable swap (needed because `0021` counts anything above vSafe0V as present) |
+| `0050` | drm/msm | upstream "Fix shrinker deadlock" (3392291fc509): trylock in the GEM shrinker; a GEM page fault entering direct reclaim dead-locked otherwise |
+| `0051` | drm/msm | upstream "Fix vm_bo use-after-free in with_vm_locks()" (81878aa1a2f5) |
 
 Every patch is against mainline drivers, not pmOS-specific code, so they apply
 to any 6.17-based tree. Several come from the OnePlus 7T Pro bringup
