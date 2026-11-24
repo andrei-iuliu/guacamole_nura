@@ -1,0 +1,18 @@
+#!/bin/sh
+# Re-send the DisplayPort hotplug once the display driver is loaded.
+#
+# The MSM display driver is a module and binds about 15 s into the boot. A
+# USB-C DisplayPort adapter attached earlier enters its alternate mode at
+# about 2 s, and the hotplug notification it sends then reaches no DRM
+# connector, so the external display stays "disconnected" until the mode is
+# entered again. Run from udev when the DRM card appears: leave and re-enter
+# every active DisplayPort alternate mode that reports HPD.
+for alt in /sys/class/typec/port*-partner/port*-partner.*; do
+	[ -d "$alt/displayport" ] || continue
+	[ "$(cat "$alt/active" 2>/dev/null)" = yes ] || continue
+	[ "$(cat "$alt/displayport/hpd" 2>/dev/null)" = 1 ] || continue
+	echo 0 > "$alt/active" 2>/dev/null
+	sleep 1
+	echo 1 > "$alt/active" 2>/dev/null
+done
+exit 0

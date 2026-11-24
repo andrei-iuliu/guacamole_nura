@@ -3,7 +3,7 @@ maintainer="Pan Ortiz <panjeoc@proton.me>"
 _flavor="postmarketos-qcom-sm8150"
 pkgname=linux-$_flavor
 pkgver=6.17.0
-pkgrel=31
+pkgrel=32
 pkgdesc="Mainline Kernel fork for SM8150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -80,6 +80,7 @@ source="
 	0046-media-qcom-camss-hold-the-vfe-required-opp-only-while-the-domain-is-on.patch
 	0047-drm-msm-fix-gem-free-for-imported-dma-bufs.patch
 	0048-watchdog-qcom-wdt-arm-at-probe.patch
+	0049-usb-typec-qcom-pmic-typec-renotify-vbus-once-it-settles.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -178,4 +179,5 @@ a599c216a8897d678a2c65550d0ce4e02ed4ec71554514cf55ad36a323f76d2813d9a47df58340c2
 db8de90822c339cf1df7a08b3c44b610132b9bed57b96c102418114ca3663c00ebd549e8cba5cef34a6e79a37e454d8f5d5d8813d65b161b80c29408976d9047  0046-media-qcom-camss-hold-the-vfe-required-opp-only-while-the-domain-is-on.patch
 9c40f0733e21b341c7718bfc5251a5cd48c4dd99a34e2dcb18a690484f87236aa6330a0a60a09c0d1e6ef41f8c528a151454e3bdcc824209e39009ceb77a2007  0047-drm-msm-fix-gem-free-for-imported-dma-bufs.patch
 478c7bfbaccc83b38c1e4ea84edf892984618c5760d60f06979119565052017fbe92592dc9b90876644ea952a3c7e96a1757bdf7727546f0f97d03dbf72b74b6  0048-watchdog-qcom-wdt-arm-at-probe.patch
+4a3ac0a8620b9b281bced77f478e06f7094b3c6ed59c82c871b33170802f4f2a20fb57ad62ab0bf72b77d3d4c5267307366f4d60c333f2f0375b2469be885aa1  0049-usb-typec-qcom-pmic-typec-renotify-vbus-once-it-settles.patch
 "

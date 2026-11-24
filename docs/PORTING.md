@@ -23,7 +23,7 @@ the evidence behind each item.
 | Sensors (auto-rotate, light) | patch `0017`; DT SLPI enabled, FastRPC pool; `slpi.mdt`/`.bNN`, `slpir.jsn`, `slpius.jsn` | `hexagonrpcd` (patched), the served tree in `/usr/share/qcom`, `guacamole-sensors-registry` (imports the per-unit registry from `persist`), udev rules (start order, mount matrix), `iio-sensor-proxy` (patched, libssc build) | The heaviest port: see the sensors section |
 | Volume keys | DT `gpio-keys` on PM8150 GPIO 6/7 | none | — |
 | Cameras (rear) | patches `0025`–`0047`; DT CCI blocks, `camss` (+ `required-opps`), PM8009 LDO1/3/4, camera rails and pins, four slots, flash LEDs; no extra firmware | libcamera with the OnePlus sensor data and `ipa/simple` tuning files (`device/testing/libcamera`) | Any libcamera 0.7+ with the software ISP works for raw capture; the sensor data patches are small and distro-neutral. The front IMX471 node is disabled on this unit |
-| DisplayPort (USB-C) | DT only: FSA4480 SBU switch, connector `displayport` altmode, `displayport-controller@ae90000` on two lanes with `power-domains` fixed to `SM8150_MMCX`; `CONFIG_DRM_MSM=m` to dodge an early-boot hang | none | The `SM8250_MMCX` typo in `sm8150.dtsi` is upstreamable; the modular display driver is a workaround, not a fix |
+| DisplayPort (USB-C) | DT: FSA4480 SBU switch, connector `displayport` altmode, `displayport-controller@ae90000` on two lanes with `power-domains` fixed to `SM8150_MMCX`; `CONFIG_DRM_MSM=m` to dodge an early-boot hang; patch `0049` for cable swaps; udev rule `90-guacamole-dp-hpd.rules` re-sends the hotplug after the modular driver binds | none | The `SM8250_MMCX` typo in `sm8150.dtsi` is upstreamable; the modular display driver is a workaround, not a fix |
 
 ## Kernel space
 
@@ -59,6 +59,7 @@ The kernel is the `v6.17.0-sm8150` tag of
 | `0046` | media camss | park the VFE required-opp vote while a domain is off (MMCX not pinned at nominal when idle) |
 | `0047` | drm/msm | upstream fix for freeing imported dma-bufs (libcamera's EGL debayer corrupted the slab without it) |
 | `0048` | watchdog | arms the APSS watchdog at probe so a dark boot hang warm-resets (debug aid) |
+| `0049` | usb/typec | re-notifies TCPM once a decaying VBUS reaches vSafe0V, so the port attaches as a source after a cable swap (needed because `0021` counts anything above vSafe0V as present) |
 
 Every patch is against mainline drivers, not pmOS-specific code, so they apply
 to any 6.17-based tree. Several come from the OnePlus 7T Pro bringup
