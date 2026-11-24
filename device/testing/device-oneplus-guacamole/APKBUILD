@@ -4,7 +4,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=13
+pkgrel=14
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -52,6 +52,7 @@ source="
 	90-guacamole-bdaddr.rules
 	guacamole-dp-hpd
 	90-guacamole-dp-hpd.rules
+	plasma-mobile-oneplus-guacamole.conf
 	guacamole-wlanmac
 	90-guacamole-wlanmac.rules
 	guacamole-wlan-down.service
@@ -100,6 +101,10 @@ package() {
 	install -Dm755 "$srcdir/guacamole-dp-hpd" "$pkgdir/usr/libexec/guacamole-dp-hpd"
 	install -Dm644 "$srcdir/90-guacamole-dp-hpd.rules" \
 		"$pkgdir/usr/lib/udev/rules.d/90-guacamole-dp-hpd.rules"
+
+	# Plasma Mobile: keep the status bar clear of the rounded corners.
+	install -Dm644 "$srcdir/plasma-mobile-oneplus-guacamole.conf" \
+		"$pkgdir/usr/share/plasma-mobile-device-presets/oneplus,guacamole.conf"
 
 	# Wi-Fi: factory MAC as the interface address (NetworkManager still
 	# applies its per-network stable MAC while connected).
@@ -194,6 +199,7 @@ b3dc15594284308d6d413d0b54d7d24246514e747eaf1b39999c417a5340b243ce4e7d3d250cc813
 2a1b701c9efb5281e2db68932a9d832421fdfa6272094f6aa184c2959cee3370b8725e4c07c671b555a2a4021740ceab7b62ebf119b702ef810c848664c9116f  90-guacamole-bdaddr.rules
 a55fd037aa027e49348cb675718d90e5364ff7bc4ae403bfb88e74d047fadbed7cdc7c5b61dcde2f7c61669a5ece058a5e1ff3c9fcfbe745329ad39e81112aeb  guacamole-dp-hpd
 847d3b9b2cca7f680b65eedcca81615d7d316200af9a4a83a1011c01f602693901bd627b25126c3988aa6a7f7389fc376be92013551bc85edc63a22c89479c32  90-guacamole-dp-hpd.rules
+713357b5aecc188a2f1eb21a4d8952b1bbe073f7f7410e89b87df6f85efbcba90b830883548d0106e86f26a7a23d58ecf4719ccfd029bf99e50a3d4f9062b8f7  plasma-mobile-oneplus-guacamole.conf
 a6a258a95f57e3c68b7d48bb019d9bfb170b5ca7617ac320652906b2998aaf8b63021cbff8900e72b855de05cc47c5702fc61f7dbafeef2a331dae092c6599fe  guacamole-wlanmac
 be1a5cb1c37b8ddda6b8d5cce2dd3596be44fefed67c75493abd4ad15d5041601493a0d9f2823b67825d2940f11b36274f05ebf8ce0113bd42e972aac20ad187  90-guacamole-wlanmac.rules
 6804a2ffa2355c865347790627bbe22131a4d086a870539d89539b505616f7b0c4441b5a71be1af7ff6244fb83bfd4f95929951485cc80179a3549f239bd392e  guacamole-wlan-down.service
