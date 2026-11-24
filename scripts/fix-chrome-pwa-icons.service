@@ -1,0 +1,6 @@
+[Unit]
+Description=Repair Chrome web-app shortcut icons
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/fix-chrome-pwa-icons
