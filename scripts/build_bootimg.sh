@@ -12,9 +12,13 @@ mkdir -p "${OUTPUT_DIR}"
 
 # 1. Prepare uncompressed kernel
 echo "[1/4] Decompressing kernel Image..."
-# KERNEL_DIR selects an extracted kernel package (default: build/kernel_r6).
-# Its modules must match the ones installed on the phone's rootfs.
-KERNEL_DIR="${KERNEL_DIR:-${WORKSPACE_DIR}/build/kernel_r6}"
+# KERNEL_DIR selects an extracted kernel package. The default is the newest
+# build/kernel_rN directory. Its modules must match the ones installed on the
+# phone's rootfs: an older kernel boots with the same version string but misses
+# patches (the r6 kernel predates the UFS HS-G3 cap and runs the link at G4).
+if [ -z "${KERNEL_DIR:-}" ]; then
+    KERNEL_DIR="$(ls -d "${WORKSPACE_DIR}"/build/kernel_r[0-9]* 2>/dev/null | sort -V | tail -1)"
+fi
 if [ -f "${KERNEL_DIR}/boot/vmlinuz" ]; then
     echo "Using kernel from ${KERNEL_DIR}"
     zcat "${KERNEL_DIR}/boot/vmlinuz" > /tmp/Image
@@ -33,8 +37,12 @@ python3 "${WORKSPACE_DIR}/scripts/patch_dtb.py"
 
 # 3. Locate initramfs
 echo "[3/4] Locating initramfs..."
+# The initramfs next to the selected kernel (copied from the phone's /boot after
+# installing that kernel package) is the default; its modules must match too.
 if [ -n "${INITRAMFS:-}" ]; then
     echo "Using initramfs override ${INITRAMFS}"
+elif [ -f "${KERNEL_DIR}/initramfs" ]; then
+    INITRAMFS="${KERNEL_DIR}/initramfs"
 elif [ -f "/tmp/device_initramfs_r4" ]; then
     INITRAMFS="/tmp/device_initramfs_r4"
 else

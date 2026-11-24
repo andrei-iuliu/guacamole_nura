@@ -1,0 +1,37 @@
+From: Emily Astranova <emily@astralabs.dev>
+Subject: [PATCH] watchdog: qcom-wdt: arm the watchdog at probe
+
+Start the APSS watchdog as soon as it probes and mark it running, so the
+watchdog core pings it until userspace opens the device. A boot that hangs
+hard with no console then ends in a watchdog bite and a warm reset instead
+of a dark phone, and the ramoops console record survives into the next boot.
+Debug aid for the SM8150 bringup; in normal operation the core keeps the
+watchdog fed, so the behaviour is unchanged.
+
+---
+--- a/drivers/watchdog/qcom-wdt.c
++++ b/drivers/watchdog/qcom-wdt.c
+@@ -285,15 +285,15 @@
+ 	watchdog_init_timeout(&wdt->wdd, 0, dev);
+ 
+ 	/*
+-	 * If WDT is already running, call WDT start which
+-	 * will stop the WDT, set timeouts as bootloader
+-	 * might use different ones and set running bit
+-	 * to inform the WDT subsystem to ping the WDT
++	 * Always start the WDT here (the bootloader may have left it running
++	 * with its own timeouts) and set the running bit so the WDT subsystem
++	 * pings it until userspace takes over. An early boot hang then ends in
++	 * a bite and a warm reset that keeps the ramoops console record.
+ 	 */
+-	if (qcom_wdt_is_running(&wdt->wdd)) {
+-		qcom_wdt_start(&wdt->wdd);
+-		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+-	}
++	if (!qcom_wdt_is_running(&wdt->wdd))
++		dev_info(dev, "arming watchdog at probe (%u s)\n", wdt->wdd.timeout);
++	qcom_wdt_start(&wdt->wdd);
++	set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+ 
+ 	ret = devm_watchdog_register_device(dev, &wdt->wdd);
+ 	if (ret)

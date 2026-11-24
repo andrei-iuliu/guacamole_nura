@@ -1180,6 +1180,24 @@
 					reg = <0x35>;
 					#sound-dai-cells = <0x00>;
 				};
+
+				/* FSA4480 Type-C analog audio / SBU switch: routes the DisplayPort AUX
+				 * pair (SBU1/2) by orientation and alt mode. hotdog patches 0037/0048/0049. */
+				typec-mux@42 {
+					compatible = "fcs,fsa4480";
+					reg = <0x42>;
+					pinctrl-names = "default";
+					pinctrl-0 = <0x56d>;
+					mode-switch;
+					orientation-switch;
+
+					port {
+						endpoint {
+							remote-endpoint = <0x56f>;
+							phandle = <0x56e>;
+						};
+					};
+				};
 			};
 
 			spi@890000 {
@@ -2248,6 +2266,16 @@
 			wakeup-parent = <0x7a>;
 			gpio-reserved-ranges = <0x00 0x04 0x7e 0x04>;
 			phandle = <0x4e>;
+
+			/* FSA4480 USB-C analog/SBU switch enable, active low (stock fsa_usbc_ana_en). */
+			fsa-usbc-ana-en-state {
+				pins = "gpio100";
+				function = "gpio";
+				drive-strength = <0x02>;
+				bias-disable;
+				output-low;
+				phandle = <0x56d>;
+			};
 
 			wcd_intr_default: wcd-intr-default-state {
 				pins = "gpio123";
@@ -4341,8 +4369,9 @@
 				phy-names = "dp";
 				#sound-dai-cells = <0x00>;
 				operating-points-v2 = <0xc5>;
-				power-domains = <0x6f 0x06>;
-				status = "disabled";
+				/* SM8150_MMCX; the upstream dtsi says SM8250_MMCX, which is MX_AO on SM8150. */
+				power-domains = <0x6f 0x09>;
+				status = "okay";
 
 				ports {
 					#address-cells = <0x01>;
@@ -4362,6 +4391,7 @@
 
 						endpoint {
 							remote-endpoint = <0xc7>;
+							data-lanes = <0x00 0x01>;
 							phandle = <0xb0>;
 						};
 					};
@@ -4792,6 +4822,13 @@
 						sink-pdos = <0x2601912c>;
 						op-sink-microwatt = <0xe4e1c0>;
 
+						altmodes {
+							displayport {
+								svid = /bits/ 16 <0xff01>;
+								vdo = <0x1c46>;
+							};
+						};
+
 						ports {
 							#address-cells = <0x01>;
 							#size-cells = <0x00>;
@@ -4811,6 +4848,15 @@
 								endpoint {
 									remote-endpoint = <0x532>;
 									phandle = <0x533>;
+								};
+							};
+
+							port@2 {
+								reg = <0x02>;
+
+								endpoint {
+									remote-endpoint = <0x56e>;
+									phandle = <0x56f>;
 								};
 							};
 						};
