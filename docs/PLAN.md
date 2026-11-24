@@ -125,6 +125,13 @@ flowchart TD
 
 ---
 
+### Plasma Mobile alongside Phosh
+- [x] **Plasma Mobile session** — 2026-11-23
+  - Installed as the bare `plasma-mobile` package next to Phosh, so greetd keeps its Phosh greeter and offers three sessions: Phosh, Plasma Mobile and "Plasma (Wayland)". The last one is the desktop shell entry that `plasma-workspace` ships; without `plasma-desktop` it dies and leaves kwin on a black screen (recover with `pkill -u user kwin_wayland` over SSH).
+  - The bare package misses what the postmarketOS `postmarketos-ui-plasma-mobile` metapackage would add. Installed by hand: `breeze` and `breeze-gtk` (dark mode had no colour schemes), `kscreen` (Display settings page), `bluedevil` (Bluetooth settings), `powerdevil` (power button, screen off, idle dimming) and the mobile apps `qmlkonsole`, `angelfish`, `koko`, `kclock`, `kalk`, `kweather`. Index (the Maui file manager) is not packaged in Alpine; Nautilus stays. The metapackage itself is avoided so two UI metapackages do not fight over the greeter configuration.
+  - Docked Mode in the quick settings is the convergence switch (movable, decorated windows, no forced on-screen keyboard); it keeps the mobile shell. The phone panel can be disabled while the monitor is attached from the Display page or with `kscreen-doctor output.DSI-1.disable`; kwin stores the layout per output set.
+  - Audio in Plasma Mobile and Phosh is PulseAudio (WirePlumber has hardware audio disabled through `51-pulseaudio.conf`); the PipeWire 24-bit volume problem from pull request 1 does not apply to this install.
+
 ### Audio Subsystem Bringup
 - [x] **ADSP Remoteproc Enablement**
   - Verified Hexagon ADSP PAS firmware (`adsp.mdt`, `adsp.b*`) loads.
