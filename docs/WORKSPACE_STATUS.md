@@ -17,6 +17,12 @@ Copy of the flashed image: `.work/rollback/boot-rc4r-local-userdata-nura-2026112
 (the rc4p rollback image was removed in the 2026-11-23 cleanup).
 Health check after boot: no failed units, Wi-Fi up, iio-sensor-proxy active.
 
+GPU (checked 2026-11-25): KWin composites with OpenGL ES 3.2 on freedreno
+(FD640, Mesa 26.3.1). Turnip (`mesa-vulkan-freedreno`) was added by hand with
+`apk add` and works (`vulkaninfo`: Turnip Adreno (TM) 640, Vulkan 1.3); device
+4-r23 depends on it, so new rootfs builds include it. No hardware video decode
+yet: the 7.0 tree has no SM8150 Venus support (see the venus topic once it lands).
+
 ### Before that: rc4q kernel package on the rc4p image (2026-11-23)
 
 The rc4q kernel package `linux-postmarketos-qcom-sm8150-7.0.0_p20261123081257-r0`
