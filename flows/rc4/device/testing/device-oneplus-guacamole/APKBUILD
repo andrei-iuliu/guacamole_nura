@@ -36,7 +36,7 @@ maintainer="Casey Connolly <kcxt@postmarketos.org>"
 pkgname=device-oneplus-guacamole
 pkgdesc="OnePlus 7 Pro"
 pkgver=4
-pkgrel=22
+pkgrel=23
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -44,6 +44,7 @@ options="!check !archcheck !strip !tracedeps"
 depends="
 	firmware-oneplus-guacamole
 	linux-postmarketos-qcom-sm8150
+	mesa-vulkan-freedreno
 	mkbootimg
 	python3
 	alsa-ucm-conf

@@ -224,16 +224,16 @@ class TestIsolation(unittest.TestCase):
                       '"device/testing/device-oneplus-guacamole"', checker)
         target = (FLOW / "device/testing/device-oneplus-guacamole").resolve()
         self.assertEqual(target, (RC4 / "device/testing/device-oneplus-guacamole").resolve())
-        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=22$")
+        self.assertRegex(read(target / "APKBUILD"), r"(?m)^pkgrel=23$")
         self.assertIn("guacamole-mss-release", read(target / "APKBUILD"))
 
     def test_recipe_root_selects_the_rc4_device_package(self):
-        # RECIPE_ROOT is the flow's link farm: it must resolve to pkgrel 21
+        # RECIPE_ROOT is the flow's link farm: it must resolve to the current pkgrel
         # (GPU toggle, soak helper and log-level drop-ins).
         # and never to the rc3-era flows/local-storage copy (pkgrel 14).
         farm = FLOW / "device/testing/device-oneplus-guacamole"
         self.assertTrue(farm.is_dir())
-        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=22$")
+        self.assertRegex(read(farm / "APKBUILD"), r"(?m)^pkgrel=23$")
         original = REPO / "flows/local-storage/device/testing/device-oneplus-guacamole/APKBUILD"
         if original.is_file():
             self.assertRegex(read(original), r"(?m)^pkgrel=14$")
