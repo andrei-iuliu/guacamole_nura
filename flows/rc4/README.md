@@ -1,5 +1,12 @@
 # rc4 integration
 
+**rc4t (optional, EXPERIMENTAL, not built yet):** the SM8150 Venus video
+codec as an opt-in kernel set, `optional/venus` (49 patches: the AOSPA
+raphael IRIS1 series backported from 7.2, plus guacamole enablement and the
+board's firmware). Not in the default build; enable with
+`./nura kernel --optional venus`. See `optional/README.md` and
+`topics/venus/README.md`.
+
 **rc4r (2026-11-23):** patch 0079 (panel prefers 60 Hz, pkgrel 20) is on
 `boot_b`; device 4-r22 adds the qcom_wdt watchdog and the reboot-hang
 workaround. See `topics/reboot-hang/README.md`.

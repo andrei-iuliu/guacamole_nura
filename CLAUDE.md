@@ -27,7 +27,7 @@ Every step goes through `./nura` (Bash; works from fish). It loads
 ```
 ./nura prereqs | fetch [--lineage-ota ZIP] [--check] | firmware OTA_ZIP | baseline
 ./nura signing-key [status|adopt WORK|seed WORK]
-./nura kernel | check | build [--fresh-baseline] | debug-image
+./nura kernel [--optional SET] | check | build [--fresh-baseline] | debug-image
 ./nura preflight | install [--dry-run] | shutdown | clean [--apply] [--rootfs] | env
 ```
 
@@ -36,6 +36,8 @@ Where things live:
 - `flows/rc4/`: kernel recipe (`device/testing/linux-postmarketos-qcom-sm8150`,
   patches `0001`–`0079`), the rc4 device package, `scripts/rc4.sh`
   (check/contract/kernel/shutdown) and `tests/`. Topic write-ups are in `topics/`.
+  `flows/rc4/optional/<set>/`: opt-in kernel sets, never in the default build
+  (`./nura kernel --optional venus`; `venus` = rc4t, experimental).
 - `flows/rc4/local-storage/`: the user-run rootfs and boot-image flow
   (`scripts/local_storage_build.sh`, `install_userdata.py`). Its
   `device/testing/` entries are symlinks into `flows/rc4/device/testing` and

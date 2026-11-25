@@ -169,6 +169,7 @@ pinned 1.7.2 binaries. The same OTA is the input for
 | `platform-tools/fastboot` | phone | Android SDK platform-tools; check `--version` and `devices` before phone commands |
 | `flows/local-storage/device/testing/firmware-oneplus-guacamole/firmware-oneplus-guacamole-24.0-20261011.tar.gz` | rootfs | Local firmware bundle pinned in that directory's APKBUILD; regeneration: `scripts/extract_lineage_firmware.py` |
 | `flows/rc4/device/testing/device-oneplus-guacamole/guacamole-sensors-20261102.tar.gz` | rootfs | Sensor files bundle pinned in that directory's APKBUILD; regeneration: `scripts/prepare_sensor_bundle.py` |
+| `flows/rc4/optional/venus/guacamole-venus.tar.gz` | optional kernel set | Only for `./nura kernel --optional venus` (experimental). Venus video firmware from the phone's NON-HLOS `modem_b`, pinned in that directory's `SHA512SUMS`; pack it with `scripts/prepare_venus_bundle.py` (see `flows/rc4/topics/venus/README.md`) |
 
 The kernel build needs host Clang/LLD 23.x and pahole. A newer Clang patch
 release only changes the `CONFIG_*_VERSION` strings in `.config`; compare
