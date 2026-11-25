@@ -1,0 +1,183 @@
+From: snowf14k3 <60956553+snowf14k3@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 23:51:20 +0800
+Subject: [PATCH] media: venus: complete IRIS1 decoder sequence contract
+
+Normalize packed luma/chroma bit depth, retain HFI4 DPB metadata, preserve source-change capture minima across firmware requirement queries, and apply the SM8150 downstream minimum-buffer floors for all supported decoder codecs.
+
+Nura-Category: media-driver
+Nura-Origin: AOSPA raphael linux, branch venus, commit 8cda0f02ae41 (backport from 7.2)
+Upstream-Status: Pending
+
+---
+ drivers/media/platform/qcom/venus/helpers.c   |  7 ++++-
+ drivers/media/platform/qcom/venus/hfi.h       |  3 +++
+ .../media/platform/qcom/venus/hfi_helper.h    |  4 +++
+ drivers/media/platform/qcom/venus/hfi_msgs.c  | 27 ++++++++++++++++---
+ drivers/media/platform/qcom/venus/vdec.c      | 21 ++++++++++++---
+ 5 files changed, 55 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/helpers.c b/drivers/media/platform/qcom/venus/helpers.c
+index 1c1fcd843..f233ce00c 100644
+--- a/drivers/media/platform/qcom/venus/helpers.c
++++ b/drivers/media/platform/qcom/venus/helpers.c
+@@ -1053,13 +1053,16 @@ int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
+ 	u32 ptype = HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS;
+ 	enum hfi_version ver = inst->core->res->hfi_version;
+ 	union hfi_get_property hprop;
++	u32 event_min = 0;
+ 	unsigned int i;
+ 	int ret;
+ 
+ 	memset(req, 0, sizeof(*req));
+ 
+-	if (type == HFI_BUFFER_OUTPUT || type == HFI_BUFFER_OUTPUT2)
++	if (type == HFI_BUFFER_OUTPUT || type == HFI_BUFFER_OUTPUT2) {
++		event_min = inst->fw_min_cnt;
+ 		hfi_bufreq_set_count_min(req, ver, inst->fw_min_cnt);
++	}
+ 
+ 	ret = platform_get_bufreq(inst, type, req);
+ 	if (!ret) {
+@@ -1079,6 +1082,8 @@ int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
+ 			continue;
+ 
+ 		memcpy(req, &hprop.bufreq[i], sizeof(*req));
++		if (event_min > hfi_bufreq_get_count_min(req, ver))
++			hfi_bufreq_set_count_min(req, ver, event_min);
+ 		ret = 0;
+ 		break;
+ 	}
+diff --git a/drivers/media/platform/qcom/venus/hfi.h b/drivers/media/platform/qcom/venus/hfi.h
+index 981d216dc..d47c728c6 100644
+--- a/drivers/media/platform/qcom/venus/hfi.h
++++ b/drivers/media/platform/qcom/venus/hfi.h
+@@ -71,6 +71,9 @@ struct hfi_event_data {
+ 	u32 colour_space;
+ 	u32 entropy_mode;
+ 	u32 buf_count;
++	u32 max_dpb_count;
++	u32 max_ref_count;
++	u32 max_dec_buffering;
+ 	struct {
+ 		u32 left, top;
+ 		u32 width, height;
+diff --git a/drivers/media/platform/qcom/venus/hfi_helper.h b/drivers/media/platform/qcom/venus/hfi_helper.h
+index 99f76706a..7738cbf98 100644
+--- a/drivers/media/platform/qcom/venus/hfi_helper.h
++++ b/drivers/media/platform/qcom/venus/hfi_helper.h
+@@ -931,6 +931,10 @@ struct hfi_h264_vui_timing_info {
+ 	u32 time_scale;
+ };
+ 
++#define HFI_BITDEPTH_8		0
++#define HFI_BITDEPTH_9		1
++#define HFI_BITDEPTH_10		2
++
+ #define VIDC_BITDEPTH_8		0x00000
+ #define VIDC_BITDEPTH_10	0x20002
+ 
+diff --git a/drivers/media/platform/qcom/venus/hfi_msgs.c b/drivers/media/platform/qcom/venus/hfi_msgs.c
+index ab0be0121..d8d0bcb93 100644
+--- a/drivers/media/platform/qcom/venus/hfi_msgs.c
++++ b/drivers/media/platform/qcom/venus/hfi_msgs.c
+@@ -19,6 +19,18 @@
+ #define VER_STR_SZ		128
+ #define SMEM_IMG_OFFSET_VENUS	(14 * 128)
+ 
++static u32 normalize_bit_depth(u32 packed)
++{
++	u32 luma = packed & 0xffff;
++	u32 chroma = packed >> 16;
++
++	if (luma == HFI_BITDEPTH_9 || luma == HFI_BITDEPTH_10 ||
++	    chroma == HFI_BITDEPTH_9 || chroma == HFI_BITDEPTH_10)
++		return VIDC_BITDEPTH_10;
++
++	return VIDC_BITDEPTH_8;
++}
++
+ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 			      struct hfi_msg_event_notify_pkt *pkt)
+ {
+@@ -33,6 +45,7 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 	struct hfi_buffer_requirements *bufreq;
+ 	struct hfi_extradata_input_crop *crop;
+ 	struct hfi_dpb_counts *dpb_count;
++	struct hfi_dpb_counts_4xx *dpb_count_4xx;
+ 	u32 ptype, rem_bytes;
+ 	u32 size_read = 0;
+ 	u8 *data_ptr;
+@@ -90,7 +103,7 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 				goto error;
+ 
+ 			pixel_depth = (struct hfi_bit_depth *)data_ptr;
+-			event.bit_depth = pixel_depth->bit_depth;
++			event.bit_depth = normalize_bit_depth(pixel_depth->bit_depth);
+ 			size_read = sizeof(struct hfi_bit_depth);
+ 			break;
+ 		case HFI_PROPERTY_PARAM_VDEC_PIC_STRUCT:
+@@ -121,7 +134,8 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 				goto error;
+ 
+ 			bufreq = (struct hfi_buffer_requirements *)data_ptr;
+-			event.buf_count = hfi_bufreq_get_count_min(bufreq, ver);
++			event.buf_count = max(event.buf_count,
++					      hfi_bufreq_get_count_min(bufreq, ver));
+ 			size_read = sizeof(struct hfi_buffer_requirements);
+ 			break;
+ 		case HFI_INDEX_EXTRADATA_INPUT_CROP:
+@@ -140,6 +154,10 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 			    rem_bytes < sizeof(struct hfi_dpb_counts_4xx))
+ 				goto error;
+ 
++			dpb_count_4xx = (struct hfi_dpb_counts_4xx *)data_ptr;
++			event.max_dpb_count = dpb_count_4xx->max_dpb_count;
++			event.max_ref_count = dpb_count_4xx->max_ref_count;
++			event.max_dec_buffering = dpb_count_4xx->max_dec_buffering;
+ 			size_read = sizeof(struct hfi_dpb_counts_4xx);
+ 			break;
+ 		case HFI_PROPERTY_PARAM_VDEC_DPB_COUNTS:
+@@ -147,7 +165,10 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
+ 				goto error;
+ 
+ 			dpb_count = (struct hfi_dpb_counts *)data_ptr;
+-			event.buf_count = dpb_count->fw_min_cnt;
++			event.max_dpb_count = dpb_count->max_dpb_count;
++			event.max_ref_count = dpb_count->max_ref_frames;
++			event.max_dec_buffering = dpb_count->max_dec_buffering;
++			event.buf_count = max(event.buf_count, dpb_count->fw_min_cnt);
+ 			size_read = sizeof(struct hfi_dpb_counts);
+ 			break;
+ 		default:
+diff --git a/drivers/media/platform/qcom/venus/vdec.c b/drivers/media/platform/qcom/venus/vdec.c
+index dba6b5ebe..d271a5e89 100644
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -1709,9 +1709,24 @@ static void vdec_event_change(struct venus_inst *inst,
+ 	}
+ 
+ 	inst->fw_min_cnt = ev_data->buf_count;
+-	/* overwriting this to 11 for vp9 due to fw bug */
+-	if (inst->hfi_codec == HFI_VIDEO_CODEC_VP9)
+-		inst->fw_min_cnt = 11;
++	if (IS_IRIS1(inst->core)) {
++		switch (inst->hfi_codec) {
++		case HFI_VIDEO_CODEC_MPEG2:
++		case HFI_VIDEO_CODEC_VP8:
++			inst->fw_min_cnt = max(inst->fw_min_cnt, 6U);
++			break;
++		case HFI_VIDEO_CODEC_VP9:
++			/* The IRIS1 firmware can under-report the VP9 minimum. */
++			inst->fw_min_cnt = max(inst->fw_min_cnt, 11U);
++			break;
++		case HFI_VIDEO_CODEC_H264:
++		case HFI_VIDEO_CODEC_HEVC:
++			inst->fw_min_cnt = max(inst->fw_min_cnt, 8U);
++			break;
++		default:
++			break;
++		}
++	}
+ 
+ 	inst->out_width = ev_data->width;
+ 	inst->out_height = ev_data->height;

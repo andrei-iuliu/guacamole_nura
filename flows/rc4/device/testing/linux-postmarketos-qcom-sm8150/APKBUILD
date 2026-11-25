@@ -55,6 +55,9 @@
 #        control-display byte by refresh rate, so the console and the
 #        compositor start at 60 Hz and shutdown no longer does a full
 #        60 -> 90 Hz modeset. Built-in code: needs a new boot image.
+# Optional sets (not part of the default build): flows/rc4/optional/<name>,
+#   enabled with `./nura kernel --optional <name>` (NURA_KERNEL_OPTIONAL).
+#   venus (rc4t, experimental): SM8150 Venus video codec, 49 patches + firmware.
 # The canonical rc3 recipe, its scripts and its artifacts are not modified.
 # Source prepared by flows/rc4; see flows/rc4/README.md and docs/NURA_RC4.md.
 # Co-Maintainer: Viola Guerrera <guerrera.nicola@gmail.com>
@@ -210,6 +213,18 @@ package() {
 
 	install -D "$builddir"/include/config/kernel.release \
 		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
+
+	# Optional kernel sets (flows/rc4/optional, e.g. the experimental venus
+	# set): the rootless builder stages a marker and any firmware here only
+	# when a set was requested.  A plain build has no nura-optional dir.
+	if [ -d "$builddir"/nura-optional ]; then
+		install -Dm644 "$builddir"/nura-optional/optional-sets \
+			"$pkgdir"/usr/share/kernel/$_flavor/optional-sets
+		if [ -d "$builddir"/nura-optional/firmware ]; then
+			mkdir -p "$pkgdir"/usr/lib/firmware
+			cp -R "$builddir"/nura-optional/firmware/. "$pkgdir"/usr/lib/firmware/
+		fi
+	fi
 }
 
 sha512sums="

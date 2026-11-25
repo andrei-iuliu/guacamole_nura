@@ -17,6 +17,7 @@ current (rc4 local-userdata) flow uses it. Superseded generations are in
 | `clean_work.sh` | List/remove stale `.work` dirs, the per-UI kernel copy and (with `--rootfs`) pmbootstrap work dirs; read-only without `--apply` (`./nura clean`) |
 | `extract_lineage_firmware.py` | Firmware bundle from a Lineage OTA (`./nura firmware`) |
 | `prepare_sensor_bundle.py` | Sensor bundle from the OTA's vendor/dsp images (`./nura firmware`) |
+| `prepare_venus_bundle.py` | Venus firmware bundle for the experimental `flows/rc4/optional/venus` set, from the phone's `modem_b` copy or an OTA modem image (`./nura firmware`) |
 
 ## Used by the rc4 flow (`flows/rc4/`)
 

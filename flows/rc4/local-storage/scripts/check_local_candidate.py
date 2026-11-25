@@ -2124,6 +2124,14 @@ def _kernel_staging_identity(build: Path, state: Path, recipe: str) -> tuple[dic
         "module_payload_sha256": payload["sha256"],
         "module_count": payload["count"],
     }
+    # Optional kernel sets (flows/rc4/optional), e.g. the experimental venus
+    # set: recorded only when the builder staged them, so a plain build's
+    # kernel-inputs.json keeps its exact previous bytes.
+    optional = kernel_dir / "usr/share/kernel/postmarketos-qcom-sm8150/optional-sets"
+    if optional.is_file() and not optional.is_symlink():
+        identity["optional_sets"] = [
+            dict(zip(("name", "status", "sha512sums_sha256"), line.split()))
+            for line in optional.read_text(encoding="utf-8").splitlines() if line.strip()]
     return identity, kernel_dir
 
 
@@ -2256,7 +2264,7 @@ def kernel_record(args: argparse.Namespace) -> dict:
         previous_identity = {key: previous.get(key) for key in (
             "release", "recipe", "recipe_apkbuild_sha256", "recipe_config_sha256",
             "image", "vmlinuz", "dtb", "cci_module", "module_payload_sha256",
-            "module_count")}
+            "module_count", "optional_sets")}
         current_identity = {key: identity.get(key) for key in previous_identity}
         if previous_identity != current_identity:
             _move_stale_kernel_delivery(build, "the staged kernel identity changed")

@@ -8,7 +8,9 @@
 #   ./nura firmware OTA_ZIP              extract the firmware and sensor bundles from a
 #                                        Lineage OTA and compare them with the pins
 #   ./nura signing-key [status|adopt WORK|seed WORK]
-#   ./nura kernel                        build the rc4 kernel (rootless)
+#   ./nura kernel [--optional NAME]      build the rc4 kernel (rootless); --optional
+#                                        adds a set from flows/rc4/optional (e.g. venus,
+#                                        EXPERIMENTAL), also via NURA_KERNEL_OPTIONAL
 #   ./nura check                         read-only recipe + rootfs preflight
 #   ./nura build [--pmaports-ref REF] [--fresh-baseline] [--authorized-key KEY]
 #                [--refresh-kernel]       build rootfs + boot image (pmbootstrap, sudo);
@@ -108,7 +110,7 @@ case "$cmd" in
 import sys
 sys.path.insert(0, sys.argv[1])
 from extract_lineage_firmware import extract_partition
-for name in ("vendor", "dsp"):
+for name in ("vendor", "dsp", "modem"):
     extract_partition(sys.argv[2], name, f"{sys.argv[3]}/{name}.img")
 PY
         mkdir -p "$tmp/sensors"
@@ -132,6 +134,23 @@ PY
         }
         compare "$(ls "$tmp"/fw/firmware-oneplus-guacamole-*.tar.gz)" "$fw_dir"
         compare "$tmp/sensors/guacamole-sensors.tar.gz" "$dev_dir"
+        # Experimental venus optional set (flows/rc4/optional/venus): never fatal.
+        # Its pin is the phone's own modem_b copy; an OTA may carry another build.
+        echo "== venus bundle (optional set, experimental)"
+        venus_dir="$REPO/flows/rc4/optional/venus"
+        if python3 "$REPO/scripts/prepare_venus_bundle.py" --modem-img "$tmp/modem.img" \
+                --output "$tmp/guacamole-venus.tar.gz" | tail -2; then
+            venus_sum="$(sha512sum "$tmp/guacamole-venus.tar.gz" | cut -d' ' -f1)"
+            if grep -q "^$venus_sum  guacamole-venus.tar.gz\$" "$venus_dir/SHA512SUMS"; then
+                install -m 644 "$tmp/guacamole-venus.tar.gz" "$venus_dir/guacamole-venus.tar.gz"
+                echo "  ok      guacamole-venus.tar.gz (matches the pin)"
+            else
+                echo "  note: this OTA's venus build differs from the pin; pack it from the" \
+                     "phone instead (flows/rc4/topics/venus)" >&2
+            fi
+        else
+            echo "  note: no venus bundle from this OTA; pack it from the phone (flows/rc4/topics/venus)" >&2
+        fi
         exit $status
         ;;
 

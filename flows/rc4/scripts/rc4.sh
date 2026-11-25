@@ -56,6 +56,7 @@ RC4_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 # Default: the checkout that contains flows/rc4.
 SOURCE_ROOT="${NURA_SOURCE_ROOT:-$(cd "$RC4_DIR/../.." && pwd -P)}"
 RECIPE="$RC4_DIR/device/testing/linux-postmarketos-qcom-sm8150"
+OPTIONAL_DIR="$RC4_DIR/optional"
 DEVICE_RECIPE="$RC4_DIR/device/testing/device-oneplus-guacamole"
 # RC4_KERNEL_ROOT exists for the rootless fake-builder fixture only: it moves
 # the whole kernel state/output pair (never a single path) so the test can run
@@ -148,6 +149,25 @@ verify_kernel_contract() {
 }
 
 build_kernel() {
+    # Optional sets (flows/rc4/optional/<name>): `--optional NAME` (repeatable)
+    # or NURA_KERNEL_OPTIONAL="name ...".  None by default.
+    local optional="${NURA_KERNEL_OPTIONAL:-}" set_name status
+    local -a rest=()
+    while (( $# )); do
+        case "$1" in
+            --optional) [[ -n "${2:-}" ]] || die "--optional needs a set name"
+                        optional="${optional:+$optional }$2"; shift 2 ;;
+            --optional=*) optional="${optional:+$optional }${1#--optional=}"; shift ;;
+            *) rest+=("$1"); shift ;;
+        esac
+    done
+    set -- "${rest[@]}"
+    for set_name in $optional; do
+        [[ -f "$OPTIONAL_DIR/$set_name/set.conf" ]] ||
+            die "unknown optional set '$set_name' (see $OPTIONAL_DIR)"
+        status="$(sed -n 's/^status=//p' "$OPTIONAL_DIR/$set_name/set.conf" | head -n1)"
+        echo "!! optional kernel set '$set_name' is ${status:-unclassified}: $(sed -n 's/^description=//p' "$OPTIONAL_DIR/$set_name/set.conf" | head -n1)"
+    done
     [[ -e "$BUILDER" ]] || die "missing kernel builder: $BUILDER"
     [[ -f "$RECIPE/APKBUILD" ]] || die "missing rc4 recipe: $RECIPE/APKBUILD"
     mkdir -p "$KERNEL_STATE" "$KERNEL_BUILD" "$KERNEL_STAGE" "$(dirname "$KERNEL_IMAGE")"
@@ -159,9 +179,12 @@ build_kernel() {
     note "image:   $KERNEL_IMAGE  (NURA_KERNEL_IMAGE)"
     note "release: $RELEASE"
     note "root:    $KERNEL_ROOT"
+    note "optional: ${optional:-none}"
     note "tarball: $KERNEL_STATE/linux-v7.0.0-sm8150.tar.gz (staged from the"
     note "         read-only .work/rear-camera copy unless NURA_SOURCE_TARBALL is set)"
     NURA_RECIPE_DIR="$RECIPE" \
+    NURA_KERNEL_OPTIONAL="$optional" \
+    NURA_KERNEL_OPTIONAL_DIR="$OPTIONAL_DIR" \
     NURA_KERNEL_RELEASE="$RELEASE" \
     NURA_KERNEL_STATE="$KERNEL_STATE" \
     NURA_KERNEL_OUTPUT="$KERNEL_BUILD" \

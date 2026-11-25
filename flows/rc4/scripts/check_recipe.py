@@ -148,6 +148,56 @@ def parse_apkbuild_sources(text):
     return entries, sums
 
 
+def check_optional_sets(root, recipe):
+    """Optional kernel sets (flows/rc4/optional/<name>): never part of the
+    default recipe; each set's SHA512SUMS must pin exactly its patches."""
+    if not root.is_dir():
+        return
+    for set_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        name = set_dir.name
+        conf = {}
+        conf_path = set_dir / "set.conf"
+        if conf_path.is_file():
+            for line in read(conf_path).splitlines():
+                if "=" in line and not line.lstrip().startswith("#"):
+                    key, value = line.split("=", 1)
+                    conf[key.strip()] = value.strip()
+        check(conf.get("name") == name and conf.get("status") in ("experimental", "stable"),
+              "optional %s: set.conf names the set and its status" % name,
+              conf.get("status", "missing"))
+        sums = {}
+        sums_path = set_dir / "SHA512SUMS"
+        if sums_path.is_file():
+            for line in read(sums_path).splitlines():
+                if line.strip():
+                    digest_, file_ = line.split(None, 1)
+                    sums[file_.strip()] = digest_
+        patches = sorted("patches/" + p.name for p in (set_dir / "patches").glob("*.patch"))
+        listed = sorted(k for k in sums if k.startswith("patches/"))
+        check(bool(patches) and patches == listed,
+              "optional %s: SHA512SUMS pins exactly its %d patches" % (name, len(patches)),
+              "extra %s missing %s" % (sorted(set(listed) - set(patches))[:2],
+                                       sorted(set(patches) - set(listed))[:2]))
+        bad = [p for p in patches if p in sums and sha512(set_dir / p) != sums[p]]
+        check(not bad, "optional %s: patch hashes match SHA512SUMS" % name, ",".join(bad[:3]))
+        numbers = [pathlib.Path(p).name[:4] for p in patches]
+        check(numbers == ["%04d" % i for i in range(1, len(numbers) + 1)],
+              "optional %s: patches are numbered 0001-%04d without gaps" % (name, len(numbers)))
+        clash = sorted({pathlib.Path(p).name[5:] for p in patches} &
+                       {p.name[5:] for p in recipe.glob("0*.patch")})
+        check(not clash, "optional %s: no patch is also in the default recipe" % name,
+              ",".join(clash[:2]))
+        fw = conf.get("firmware")
+        if fw:
+            check(fw in sums, "optional %s: SHA512SUMS pins the firmware %s" % (name, fw))
+            if (set_dir / fw).is_file():
+                check(sha512(set_dir / fw) == sums.get(fw),
+                      "optional %s: local firmware %s matches its pin" % (name, fw))
+            else:
+                print("NOTE optional %s: firmware %s not present (needed only with --optional %s)"
+                      % (name, fw, name))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--recipe", default=str(REPO / "flows/rc4/device/testing/linux-postmarketos-qcom-sm8150"))
@@ -155,6 +205,7 @@ def main():
     ap.add_argument("--local-flow", default=str(REPO / "flows/rc4/local-storage"))
     ap.add_argument("--release", default="7.0.0-sm8150-guacamole-rc4")
     ap.add_argument("--rc3-recipe", default=str(REPO / "device/testing/rc3/linux-postmarketos-qcom-sm8150"))
+    ap.add_argument("--optional", default=str(REPO / "flows/rc4/optional"))
     args = ap.parse_args()
 
     recipe = pathlib.Path(args.recipe)
@@ -364,6 +415,9 @@ def main():
           "wrapper: the read-only action writes no logs and deletes nothing")
     check("__pycache__" not in wcode.replace("PYTHONDONTWRITEBYTECODE", ""),
           "wrapper: the read-only action deletes no caches")
+
+    # ------------------------------------------------------- optional sets
+    check_optional_sets(pathlib.Path(args.optional), recipe)
 
     # ---------------------------------------------------------------- summary
     print("\n%d checks, %d failed" % (checks, len(failures)))

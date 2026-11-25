@@ -1,0 +1,44 @@
+From: Nura rc4t venus series <rc4t-venus@nura.invalid>
+Date: Wed, 25 Nov 2026 11:19:15 +0100
+Subject: [PATCH] arm64: dts: qcom: guacamole: enable the Venus video codec
+
+Turn the SoC's video-codec node on for the OnePlus 7 Pro and point it at
+the board's firmware.
+
+There is no SM8150 Venus firmware in linux-firmware. The board's copy is
+the split venus.mdt + venus.b00-b04 set in the NON-HLOS modem partition
+(::/image, VIDEO.IR.1.2-00035). This optional set ships it in the kernel
+package as /usr/lib/firmware/qcom/sm8150/oneplus7/venus.mdt, next to the
+other remoteproc firmware. Its load span is 0x4ff020 bytes, which fits
+the 5 MiB venus_mem region that sm8150-oneplus-common.dtsi places at
+0x97200000.
+
+The SoC node, its OPP table and the driver support come from the SM8150
+Venus series of the AOSPA raphael tree (snowf14k3), backported to 7.0.
+
+Nura-Category: device-dt
+Nura-Origin: nura rc4t venus optional set (experimental)
+Upstream-Status: WIP
+---
+ .../boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi   | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+index 559bc98a6..ced8508c2 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150-oneplus-guacamole-nura.dtsi
+@@ -719,3 +719,14 @@ nfc: nfc@28 {
+ 			    <&nfc_clk_req_default>;
+ 	};
+ };
++
++/*
++ * Venus video codec (IRIS1), experimental optional set (flows/rc4/optional/venus).
++ * The firmware is the board's own split copy from the NON-HLOS modem
++ * partition, shipped in the kernel package next to the modem, ADSP and
++ * SLPI firmware.
++ */
++&venus {
++	firmware-name = "qcom/sm8150/oneplus7/venus.mdt";
++	status = "okay";
++};

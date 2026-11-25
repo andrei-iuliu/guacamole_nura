@@ -14,6 +14,9 @@ export RC4_KERNEL_ROOT="$NURA_SOURCE_ROOT/.work/rc4-build"
 export NURA_KERNEL_BUILD="$RC4_KERNEL_ROOT/kernel-output"
 export NURA_KERNEL_SOURCE_STATE="$RC4_KERNEL_ROOT/kernel-state"
 export NURA_KERNEL_DIR="$NURA_KERNEL_BUILD/kernel-package"
+# Optional kernel sets from flows/rc4/optional, space-separated; none by default.
+# venus = SM8150 hardware video codec, EXPERIMENTAL (flows/rc4/topics/venus).
+# export NURA_KERNEL_OPTIONAL="venus"
 
 # Boot-image-only retry inputs, after the rootfs build (Phosh paths).
 export NURA_LOCAL_INITRAMFS="$NURA_SOURCE_ROOT/flows/rc4/local-storage/.work/local-userdata-phosh/rootfs-state/rootfs/export/initramfs"

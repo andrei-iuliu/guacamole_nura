@@ -1,0 +1,34 @@
+From: snowf14k3 <60956553+snowf14k3@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 01:23:04 +0800
+Subject: [PATCH] media: venus: stop startup when load scaling fails
+
+Propagate a failed OPP, clock or interconnect vote instead of submitting
+LOAD_RESOURCES and START after an unsuccessful resource setup. Unregister
+buffers and free internal allocations through the existing failure labels.
+
+This is an error-handling fix, not a demonstrated explanation for the
+SM8150 encoder/RPMh timeout seen in another CPU-frequency worker.
+
+Nura-Category: media-driver
+Nura-Origin: AOSPA raphael linux, branch venus, commit 2dd28d743816 (backport from 7.2)
+Upstream-Status: Pending
+
+---
+ drivers/media/platform/qcom/venus/helpers.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/qcom/venus/helpers.c b/drivers/media/platform/qcom/venus/helpers.c
+index 747c388fe..2909226cd 100644
+--- a/drivers/media/platform/qcom/venus/helpers.c
++++ b/drivers/media/platform/qcom/venus/helpers.c
+@@ -1646,7 +1646,9 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+ 	if (ret)
+ 		goto err_bufs_free;
+ 
+-	venus_pm_load_scale(inst);
++	ret = venus_pm_load_scale(inst);
++	if (ret)
++		goto err_unreg_bufs;
+ 
+ 	ret = hfi_session_load_res(inst);
+ 	if (ret)
