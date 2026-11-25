@@ -87,6 +87,7 @@ uses local userdata; the older camera results do not establish rc4j camera healt
 | **Suspend** | :construction: Manual | s2idle + PM8150 RTC / power key | Manual suspend works, waking on the RTC or the Power button; the modem-rail vote (kernel patch `0044`) is released at every boot. Automatic suspend is off. See `flows/rc4/topics/suspend-fixes/README.md` |
 | **Volume Keys** | :white_check_mark: Working | `gpio-keys` (PM8150 GPIO 6/7) | Volume up/down report `KEY_VOLUMEUP`/`KEY_VOLUMEDOWN` |
 | **GPU Acceleration** | :white_check_mark: Working | Adreno 640 / Mesa Freedreno & Turnip | GMU v2.0.261 + ZAP shader loaded; native OpenGL ES 3.2 and Vulkan 1.3 |
+| **Video Codec (Venus)** | :test_tube: Experimental | `qcom-venus` (IRIS1, HFI 4.x) | Opt-in kernel set (`./nura kernel --optional venus`, rc4t). Decoder H.264/VP8/VP9/HEVC/MPEG-2, encoder H.264/VP8/HEVC; 1080p H.264/HEVC decode bit-exact through GStreamer `v4l2*dec`, 720p H.264 encode works. Alpine's ffmpeg/mpv lack V4L2 M2M; browsers need a VA-API shim. See `flows/rc4/topics/venus/README.md` |
 | **Wi-Fi** | :white_check_mark: Working | `ath10k_snoc` (WCN3990) | 2.4 and 5 GHz, DHCP and internet; OxygenOS 12-era WLAN firmware + kernel patch `0009`. Factory MAC as the interface address; NetworkManager uses a stable per-network MAC when connected. WoWLAN is armed (magic packet + disconnect; the disconnect wake is verified, magic packet untested); the GTK rekey is offloaded to the firmware during suspend (kernel patch `0078`), so the AP's group rekey no longer wakes the phone |
 | **Bluetooth** | :white_check_mark: Working | `hci_qca` (WCN3990) on UART13 | Scanning and HID devices; stable address from the factory Wi-Fi MAC; audio profiles untested |
 | **Modem / MPSS** | :construction: Detected | Hexagon remoteproc / PAS + IPA v4.1 (`rmnet_ipa0`) | ModemManager detects the modem (QMI over QRTR, IPA data path, kernel patches `0013`–`0016`); SIM, registration, data and calls untested, no SIM fitted yet; see "Wi-Fi, Bluetooth & Modem Bringup" in `docs/PLAN.md` |
@@ -132,6 +133,7 @@ All DSP and radio firmware is closed-source Qualcomm code. These blobs are long-
 | `adsp.mdt` / `adsp.bNN` | OxygenOS | Audio DSP | OxygenOS |
 | `a640_zap.mdt` / `a640_zap.bNN` | OxygenOS | GPU secure-mode shader (TrustZone) | OxygenOS |
 | `a640_gmu.bin` | `v2.0.261` | Adreno GPU management unit | `linux-firmware` |
+| `venus.mdt` / `venus.bNN` | `VIDEO.IR.1.2-00035` | Video codec (Venus/IRIS1); only with the experimental `venus` kernel set, shipped in the kernel package | phone's NON-HLOS `modem_b` |
 
 The compute (CDSP) and sensor (SLPI) DSP firmware is not packaged yet; the SLPI image will join this list when sensor work starts.
 
