@@ -40,10 +40,12 @@ Where things live:
   (`scripts/local_storage_build.sh`, `install_userdata.py`). Its
   `device/testing/` entries are symlinks into `flows/rc4/device/testing` and
   `flows/local-storage/device/testing`; edit the link targets.
-- State and outputs: `flows/rc4/local-storage/.work/local-userdata-phosh/`
-  (pmbootstrap work dir and kernel copy) and `.../build/local-userdata-phosh/`
-  (`DELIVERY.local.json`, boot image). The kernel builds into `RC4_KERNEL_ROOT`
-  (for example `.work/rc4o-build`) or `flows/rc4/build-source/`.
+- State and outputs: `flows/rc4/local-storage/.work/local-userdata<suffix>/`
+  (pmbootstrap work dir and kernel copy) and `.../build/local-userdata<suffix>/`
+  (`DELIVERY.local.json`, boot image). The suffix is `-phosh` for Phosh, none for
+  Plasma, and `-nura` is added for `--pmaports-ref` builds. The phone runs the
+  `-nura` Plasma build (see WORKSPACE_STATUS.md). The kernel builds into
+  `RC4_KERNEL_ROOT` (for example `.work/rc4r-build`) or `flows/rc4/build-source/`.
 - `scripts/`: helpers called by `./nura`, indexed in `scripts/README.md`.
   `archive/scripts/`: superseded 6.17/7.0 scripts (see `archive/README.md`).
 - Ignored local inputs: `local/` (host tools, `local/sources/` kernel

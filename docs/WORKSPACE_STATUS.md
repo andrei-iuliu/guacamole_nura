@@ -13,7 +13,8 @@ armed by systemd, and the reboot-hang workaround (no fbdev restore when KWin
 exits, panel turned off before KWin stops). See
 [the reboot hang topic](../flows/rc4/topics/reboot-hang/README.md). Also merged:
 `wip/sensor-startup-claim` (iio-sensor-proxy 3.9-r101, already on the phone).
-Rollback image (rc4p kernel): `.work/rollback/boot-rc4p-local-userdata-20261121.img`.
+Copy of the flashed image: `.work/rollback/boot-rc4r-local-userdata-nura-20261123.img`
+(the rc4p rollback image was removed in the 2026-11-23 cleanup).
 Health check after boot: no failed units, Wi-Fi up, iio-sensor-proxy active.
 
 ### Before that: rc4q kernel package on the rc4p image (2026-11-23)
