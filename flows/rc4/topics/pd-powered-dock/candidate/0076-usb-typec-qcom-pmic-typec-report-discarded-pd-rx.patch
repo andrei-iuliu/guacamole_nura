@@ -1,0 +1,24 @@
+From: Nura rc4 series <rc4@nura.invalid>
+Subject: [PATCH] usb: typec: qcom-pmic-typec: report discarded PD RX messages
+
+The PD PHY raises msg-rx-discarded when a message arrives while RX is
+disabled or the buffer is still owned by software. The handler ignored it,
+which hid why a self-powered dock never completed PD. Log it at debug
+level (dynamic debug) so such races are visible.
+
+Nura-Category: usb-pd
+Upstream-Status: candidate
+---
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_pdphy.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_pdphy.c
+@@ -410,6 +410,10 @@
+ 		tcpm_pd_transmit_complete(pmic_typec_pdphy->tcpm_port,
+ 					  TCPC_TX_DISCARDED);
+ 		break;
++	case PMIC_PDPHY_MSG_RX_DISCARD_IRQ:
++		/* A message arrived while RX was disabled or the buffer busy */
++		dev_dbg(dev, "isr: rx message discarded\n");
++		break;
+ 	}
+ 
+ 	return IRQ_HANDLED;

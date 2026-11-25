@@ -1,0 +1,73 @@
+From: Nura rc4 series <rc4@nura.invalid>
+Subject: [PATCH] usb: typec: tcpm: listen for Source_Capabilities during the sink hard-reset wait
+
+After a Hard Reset in the sink role, tcpm disables PD RX in
+HARD_RESET_START and only re-enables it in SNK_WAIT_CAPABILITIES, after
+SNK_HARD_RESET_SINK_OFF has waited PD_T_SAFE_0V (650 ms) for VBUS to drop.
+
+A self-powered USB-C dock keeps VBUS up across the Hard Reset and
+resends Source_Capabilities at once, then does not retry. Its messages hit
+the PM8150B PD PHY while RX is off and are discarded (msg-rx-discarded:
+exactly one per attach plus one per hard reset; msg-rx stays 0, even with
+sink-wait-cap-time-ms raised to 2000), so every attach ends without a
+contract and DisplayPort never starts. USB-PD wall chargers, which wait
+longer, are unaffected.
+
+Enable PD RX (and restart the message counters) when entering
+SNK_HARD_RESET_SINK_OFF. If Source_Capabilities arrive in
+SNK_HARD_RESET_SINK_OFF or SNK_HARD_RESET_WAIT_VBUS, finish the hard reset
+the way SNK_HARD_RESET_SINK_ON does and go straight to
+SNK_NEGOTIATE_CAPABILITIES, so the Request goes out within tSenderResponse
+instead of the generic path turning the message into a soft reset.
+
+Nura-Category: usb-pd
+Nura-Origin: guacamole powered-dock tcpm logs 2026-11-15 (.work/pd-wait620, .work/pd-wait2000)
+Upstream-Status: candidate
+---
+--- a/drivers/usb/typec/tcpm/tcpm.c
++++ b/drivers/usb/typec/tcpm/tcpm.c
+@@ -3252,6 +3252,23 @@
+ 			port->ams = POWER_NEGOTIATION;
+ 			port->in_ams = true;
+ 			tcpm_set_state(port, SNK_NEGOTIATE_CAPABILITIES, 0);
++		} else if (port->state == SNK_HARD_RESET_SINK_OFF ||
++			   port->state == SNK_HARD_RESET_WAIT_VBUS) {
++			/*
++			 * The source recovered from our Hard Reset without
++			 * dropping VBUS (see SNK_HARD_RESET_SINK_OFF). Finish
++			 * the reset as SNK_HARD_RESET_SINK_ON would and answer
++			 * within tSenderResponse instead of soft-resetting.
++			 */
++			if (port->ams == HARD_RESET)
++				tcpm_ams_finish(port);
++			tcpm_set_attached_state(port, true);
++			tcpm_set_auto_vbus_discharge_threshold(port, TYPEC_PWR_MODE_USB,
++							       false, VSAFE5V);
++			port->explicit_contract = false;
++			port->ams = POWER_NEGOTIATION;
++			port->in_ams = true;
++			tcpm_set_state(port, SNK_NEGOTIATE_CAPABILITIES, 0);
+ 		} else {
+ 			if (port->ams == GET_SOURCE_CAPABILITIES)
+ 				tcpm_ams_finish(port);
+@@ -5506,6 +5523,20 @@
+ 		tcpm_set_roles(port, port->self_powered, TYPEC_STATE_USB, TYPEC_SINK,
+ 			       tcpm_data_role_for_sink(port));
+ 		/*
++		 * Some sources (seen: a self-powered USB-C dock) keep VBUS up
++		 * across a Hard Reset and resend Source_Capabilities at once,
++		 * long before PD_T_SAFE_0V expires. With PD RX still disabled
++		 * since HARD_RESET_START the PHY discards them and the source
++		 * does not retry, so every attach ends without a contract.
++		 * Listen during the wait; the message counters restart after a
++		 * Hard Reset.
++		 */
++		if (port->pd_supported) {
++			port->message_id = 0;
++			port->rx_msgid = -1;
++			port->tcpc->set_pd_rx(port->tcpc, true);
++		}
++		/*
+ 		 * VBUS may or may not toggle, depending on the adapter.
+ 		 * If it doesn't toggle, transition to SNK_HARD_RESET_SINK_ON
+ 		 * directly after timeout.
