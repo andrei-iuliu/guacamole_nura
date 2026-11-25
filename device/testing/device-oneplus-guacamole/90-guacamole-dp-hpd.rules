@@ -1,0 +1,3 @@
+# Re-enter an active DisplayPort alternate mode once the display driver binds,
+# so a monitor attached before the (modular) driver loaded gets its hotplug.
+ACTION=="add", SUBSYSTEM=="drm", KERNEL=="card[0-9]", RUN+="/usr/libexec/guacamole-dp-hpd"

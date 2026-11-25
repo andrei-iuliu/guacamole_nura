@@ -1,0 +1,55 @@
+From: Emily Astranova <emily@astralabs.dev>
+Date: Sun, 23 Nov 2026 00:30:00 -0700
+Subject: [PATCH] media: qcom: camss: hold the VFE required-opp only while the domain is on
+
+A camss node may carry required-opps for its VFE power domains so that the
+parent rail (MMCX on SM8150) is raised while a pipeline runs. On SM8150 the
+600 MHz CSID clock does not come out of reset at the rail's idle corner, so
+without such a vote the first stream after the display drops MMCX to low SVS
+fails with "CSID reset timeout" and the graph is dead until reboot.
+
+genpd records a required-opp performance state when the virtual power-domain
+device is attached and only parks it when that device runtime-suspends. camss
+drives the VFE domains through device links instead, so a domain that has not
+been used yet, or that this board never uses, keeps the attach-time vote
+forever and pins the parent rail at the camera corner while idle.
+
+Cycle each VFE domain device through runtime resume and suspend once the
+camss device itself has runtime PM enabled. genpd then parks the vote in
+rpm_pstate, restores it when a device link activates the domain, and drops it
+again when the link goes away.
+
+Signed-off-by: Emily Astranova <emily@astralabs.dev>
+---
+ drivers/media/platform/qcom/camss/camss.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -3860,6 +3860,26 @@ static int camss_probe(struct platform_device *pdev)
+ 
+ 	pm_runtime_enable(dev);
+ 
++	/*
++	 * A required-opp vote on a VFE power domain is recorded when the
++	 * domain device is attached and is only parked by a runtime suspend
++	 * of that device. The domains are driven through device links, so
++	 * give each one a resume/suspend cycle now; otherwise an unused
++	 * domain holds the vote, and with it the parent rail, forever.
++	 */
++	for (int i = 0; i < camss->res->vfe_num; i++) {
++		struct device *genpd = camss->vfe[i].genpd;
++
++		if (!genpd)
++			continue;
++
++		ret = pm_runtime_resume_and_get(genpd);
++		if (ret)
++			dev_warn(dev, "vfe%d pm domain cycle failed: %d\n", i, ret);
++		else
++			pm_runtime_put_sync_suspend(genpd);
++	}
++
+ 	num_subdevs = camss_of_parse_ports(camss);
+ 	if (num_subdevs < 0) {
+ 		ret = num_subdevs;

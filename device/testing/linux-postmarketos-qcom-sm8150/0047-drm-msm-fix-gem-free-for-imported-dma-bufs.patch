@@ -1,0 +1,42 @@
+From: Rob Clark <robin.clark@oss.qualcomm.com>
+Date: Tue, 23 Sep 2025 07:04:40 -0700
+Subject: [PATCH] drm/msm: Fix GEM free for imported dma-bufs
+
+Imported dma-bufs also have obj->resv != &obj->_resv, so the check for
+dropping the shared-resv reference must also test the NO_SHARE flag.
+Without this, freeing an imported dma-buf (for example a V4L2 buffer that
+libcamera's EGL debayer imports into the GPU) warns in
+msm_gem_free_object(), drops a reference on memory that is not a GEM
+object, and corrupts the slab.
+
+Backport of upstream commit c34e08ba6c0037a72a7433741225b020c989e4ae
+(linux-6.17.y 9674c4cb2fe62727a2e4d3f66065ab949dfa61be).
+
+Fixes: de651b6e040b ("drm/msm: Fix refcnt underflow in error path")
+Signed-off-by: Rob Clark <robin.clark@oss.qualcomm.com>
+---
+ drivers/gpu/drm/msm/msm_gem.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+--- a/drivers/gpu/drm/msm/msm_gem.c
++++ b/drivers/gpu/drm/msm/msm_gem.c
+@@ -1121,12 +1121,16 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
+ 		put_pages(obj);
+ 	}
+ 
+-	if (obj->resv != &obj->_resv) {
++	/*
++	 * In error paths, we could end up here before msm_gem_new_handle()
++	 * has changed obj->resv to point to the shared resv.  In this case,
++	 * we don't want to drop a ref to the shared r_obj that we haven't
++	 * taken yet.
++	 */
++	if ((msm_obj->flags & MSM_BO_NO_SHARE) && (obj->resv != &obj->_resv)) {
+ 		struct drm_gem_object *r_obj =
+ 			container_of(obj->resv, struct drm_gem_object, _resv);
+ 
+-		WARN_ON(!(msm_obj->flags & MSM_BO_NO_SHARE));
+-
+ 		/* Drop reference we hold to shared resv obj: */
+ 		drm_gem_object_put(r_obj);
+ 	}

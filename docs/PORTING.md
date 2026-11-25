@@ -18,10 +18,12 @@ the evidence behind each item.
 | Bluetooth | DT UART13 + `qcom,wcn3990-bt` node, `serial1` alias; `crbtfw21.tlv`, `crnv21.bin` | `guacamole-bdaddr` + udev rule + oneshot unit (public address from the factory MAC, via `btmgmt`) | Needs `btmgmt` (bluez). Without it the controller stays unconfigured and BlueZ ignores it |
 | Cellular (data path) | patches `0013`–`0016` (IPA v4.1); DT `ipa@1e40000`, SMP2P entries, `usb-psy-name`; `ipa_fws.mbn` | ModemManager (qcom-soc plugin), `msm-modem-uim-selection` | Untested with a SIM. Debian/UT ship ModemManager with the same plugin |
 | USB host/OTG | DT: PM8150B Type-C + VBUS regulator, `usb-c-connector`, role switch, QMP orientation switch | none | Works with any distro |
-| Reboot | DT `qcom,dload-mode` (TCSR) | none | Without it, a reboot with Wi-Fi on lands in Qualcomm crashdump mode |
+| Reboot | DT `qcom,dload-mode` (TCSR); PON `mode-bootloader`/`mode-recovery` and IMEM `reboot-mode@65c` (reboot reasons) | `guacamole-wlan-down.service` (wlan0 down before `rmtfs` stops the modem) | Without `dload-mode`, a reboot with Wi-Fi on lands in Qualcomm crashdump mode; without the wlan-down unit, `reboot bootloader` with Wi-Fi on boots normally. systemd needs `--reboot-argument=` |
 | Battery, charging | patches `0011`, `0012`, `0018`–`0024`; DT `battery` node (4.35 V, 3 A), charger node, sink PDO 5 V/3 A | `guacamole-chgctrl` (policy daemon), its unit, `/etc/conf.d/guacamole-chgctrl`, systemd preset | The daemon is plain Python 3 with no distro dependencies; it needs `/sys/class/power_supply` and systemd (or an init script, one is provided for OpenRC) |
 | Sensors (auto-rotate, light) | patch `0017`; DT SLPI enabled, FastRPC pool; `slpi.mdt`/`.bNN`, `slpir.jsn`, `slpius.jsn` | `hexagonrpcd` (patched), the served tree in `/usr/share/qcom`, `guacamole-sensors-registry` (imports the per-unit registry from `persist`), udev rules (start order, mount matrix), `iio-sensor-proxy` (patched, libssc build) | The heaviest port: see the sensors section |
 | Volume keys | DT `gpio-keys` on PM8150 GPIO 6/7 | none | — |
+| Cameras (rear) | patches `0025`–`0047`; DT CCI blocks, `camss` (+ `required-opps`), PM8009 LDO1/3/4, camera rails and pins, four slots, flash LEDs; no extra firmware | libcamera with the OnePlus sensor data and `ipa/simple` tuning files (`device/testing/libcamera`) | Any libcamera 0.7+ with the software ISP works for raw capture; the sensor data patches are small and distro-neutral. The front IMX471 node is disabled on this unit |
+| DisplayPort (USB-C) | DT: FSA4480 SBU switch, connector `displayport` altmode, `displayport-controller@ae90000` on two lanes with `power-domains` fixed to `SM8150_MMCX`; `CONFIG_DRM_MSM=m` to dodge an early-boot hang; patch `0049` for cable swaps; udev rule `90-guacamole-dp-hpd.rules` re-sends the hotplug after the modular driver binds | none | The `SM8250_MMCX` typo in `sm8150.dtsi` is upstreamable; the modular display driver is a workaround, not a fix |
 
 ## Kernel space
 
@@ -51,6 +53,15 @@ The kernel is the `v6.17.0-sm8150` tag of
 | `0022` | qcom_smbx | follow the TCPM contract: Rp/standby/contract current, voltage window, 500 mA floor |
 | `0023` | qcom-pmic-typec | diagnostic: port status on VBUS interrupts (to be dropped) |
 | `0024` | qcom-pmic-typec | exit the sink state on CC only (fixes the PD voltage-step detach) |
+| `0025`–`0034` | media camss | SM8150 backend, CSIPHY generation, VFE IRQ status, DMA range, CAMNOC bandwidth/QoS and HF AXI bridge, C-PHY, unwind failed stream starts (from hotdog `0055`–`0089`, `0114`) |
+| `0035`–`0041` | media i2c | S5K3M5, IMX586, IMX481 and IMX471 sensor drivers with the OnePlus power sequences |
+| `0042`–`0045` | media i2c | AK73xx and LC898217XC lens actuators |
+| `0046` | media camss | park the VFE required-opp vote while a domain is off (MMCX not pinned at nominal when idle) |
+| `0047` | drm/msm | upstream fix for freeing imported dma-bufs (libcamera's EGL debayer corrupted the slab without it) |
+| `0048` | watchdog | arms the APSS watchdog at probe so a dark boot hang warm-resets (debug aid) |
+| `0049` | usb/typec | re-notifies TCPM once a decaying VBUS reaches vSafe0V, so the port attaches as a source after a cable swap (needed because `0021` counts anything above vSafe0V as present) |
+| `0050` | drm/msm | upstream "Fix shrinker deadlock" (3392291fc509): trylock in the GEM shrinker; a GEM page fault entering direct reclaim dead-locked otherwise |
+| `0051` | drm/msm | upstream "Fix vm_bo use-after-free in with_vm_locks()" (81878aa1a2f5) |
 
 Every patch is against mainline drivers, not pmOS-specific code, so they apply
 to any 6.17-based tree. Several come from the OnePlus 7T Pro bringup
@@ -68,6 +79,7 @@ device relies on (a distro kernel config should include them):
 - `CONFIG_CHARGER_QCOM_SMB2=y` (the `qcom_smbx` driver), `CONFIG_BATTERY_BQ27XXX_I2C` with `CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM` **off**.
 - `CONFIG_QCOM_SCM=y` with the `qcom,dload-mode` DT property (clean reboots).
 - `CONFIG_PSTORE_RAM` for ramoops (debugging only).
+- Cameras: `CONFIG_SM_CAMCC_8150=m`, `CONFIG_VIDEO_QCOM_CAMSS=m`, `CONFIG_I2C_QCOM_CCI=m`, `CONFIG_VIDEO_IMX586/IMX481/IMX471=m`, `CONFIG_VIDEO_S5K3M5=m`, `CONFIG_VIDEO_LC898217XC=m`, `CONFIG_VIDEO_AK7375=m`, `CONFIG_LEDS_QCOM_FLASH=m`, `CONFIG_V4L2_FLASH_LED_CLASS=m`.
 
 ### Device tree
 
@@ -80,11 +92,13 @@ plus `scripts/patch_dtb.py`. Relative to the upstream
 - Audio: QUP0 wrapper and `i2c@890000` (TFA9874 at 0x34/0x35), QUAT MI2S pinctrl, `q6afedai` dai@22, sound card routing.
 - Fuel gauge `ti,bq27411` on `i2c@a80000` (no `monitored-battery`); `battery` node (4.35 V float, 3 A fast charge); `charger@1000` enabled.
 - Wi-Fi regulators and supplies; `qcom,dload-mode` on `scm` with a TCSR syscon.
+- Reboot reasons: `mode-bootloader = <2>`, `mode-recovery = <1>` on the PM8150 `pon@800`; `sram@146bf000` with `reboot-mode@65c` (IMEM cookies `0x77665500`/`0x77665502`).
 - Volume keys (`gpio-keys`, PM8150 GPIO 6/7).
 - Bluetooth: `serial1` alias, `serial@c8c000` with a `qcom,wcn3990-bt` child.
 - USB: `dr_mode = "otg"`, `usb-role-switch`, `usb-psy-name = "pm8150b-charger"`, PM8150B Type-C (`usb-c-connector`, sink PDO 5 V/3 A only) and VBUS regulator, QMP combo PHY orientation switch.
 - IPA: `ipa@1e40000`, SMP2P `ipa-ap-to-modem`/`ipa-modem-to-ap`, `system-noc` phandle.
 - SLPI remoteproc enabled with `firmware-name`, SDSP FastRPC `memory-region` and `qcom,vmids`.
+- Cameras: `cci@ac4a000`/`cci@ac4b000`, `camss@acb3000` with `required-opps` (IFE domains at nominal, so MMCX is raised while a pipeline runs), PM8009 `ldo1`/`ldo3`/`ldo4`, `cam0_vaf`/`cam1_vaf`/`cam1_vana` fixed regulators, CCI/MCLK/enable pin states, the four sensor nodes with lens actuators and CSIPHY endpoints (IMX471 and its `camss` endpoint disabled), PM8150L flash LEDs. `camcc` needs a phandle in the flattened tree.
 
 A port should carry these as a proper DTS on top of upstream; `PLAN.md` has
 the exact property values and the reasons for each.
@@ -141,6 +155,7 @@ None of it is large; most of it is glue around generic daemons.
 | `guacamole-mpss-start`, `guacamole-mpss.service`, `guacamole-mpss.initd` | shell + systemd oneshot + OpenRC | starts the modem remoteproc after `rmtfs`, `tqftpserv` and IPA readiness; resolves MPSS by DT compatible/sysmon name instead of a hardcoded `remoteproc0` | systemd unit is packaged but deliberately not enabled; see the note below |
 | `sxmo_deviceprofile-oneplus-guacamole.sh` | Sxmo | button profile | pmOS/Sxmo only |
 | `deviceinfo` | pmOS | boot image parameters | pmOS only (translate to the distro's boot tooling) |
+| `device/testing/libcamera` | libcamera package | pmaports libcamera 0.8.0 plus hotdog's sensor data patches (S5K3M5, IMX586, IMX481: gain model, black level, control delays), the contrast autofocus port (`0006`) and `ipa/softisp` tuning files | the four patches and four YAML files apply to any libcamera 0.8 build; PipeWire's libcamera plugin must be built against the same libcamera |
 
 The SM8150 MPSS PAS descriptor has `auto_boot = false`, so the modem stays
 offline until a starter writes `start`. On the systemd image the unit is
@@ -192,4 +207,4 @@ Rough size: a day for patches and config, two to three days for the device tree 
 
 ## Not done anywhere yet
 
-Earpiece and call audio, cellular with a SIM, the gyroscope/compass in user space, proximity for calls, cameras, Warp Charge (needs the OnePlus fast-charge MCU protocol), DisplayPort alternate mode, the FSA4480 audio switch, and the fingerprint sensor (TrustZone-bound). See `PLAN.md`.
+Earpiece and call audio, cellular with a SIM, the gyroscope/compass in user space, proximity for calls, the pop-up front camera and camera autofocus/exposure tuning, Warp Charge (needs the OnePlus fast-charge MCU protocol), DisplayPort alternate mode, the FSA4480 audio switch, and the fingerprint sensor (TrustZone-bound). See `PLAN.md`.

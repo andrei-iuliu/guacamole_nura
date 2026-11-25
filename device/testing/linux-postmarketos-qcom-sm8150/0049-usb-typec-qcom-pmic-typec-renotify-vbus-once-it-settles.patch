@@ -1,0 +1,102 @@
+From: Emily Astranova <emily@astralabs.dev>
+Subject: [PATCH] usb: typec: qcom-pmic-typec: re-notify VBUS once it settles
+
+Since "count VBUS above vSafe0V as present", get_vbus reports a supply
+that is not at vSafe0V as present. The PMIC raises its VBUS interrupt
+when the detect threshold changes, which on a detach happens while the
+supply is still decaying: TCPM then records VBUS present, no interrupt
+follows when the supply finally reaches vSafe0V, and the port never
+learns that VBUS is gone. Plugging a bus-powered DisplayPort adapter
+afterwards stays in SRC_ATTACH_WAIT forever (TCPM needs vSafe0V before
+it attaches as a source), the adapter gives up, and the port toggles
+without ever attaching. Seen on a OnePlus 7 Pro when swapping the PC
+cable for a USB-C to DisplayPort cable: "vbus irq: misc 0x09 sm 0x99"
+at the swap (not at vSafe5V, not at vSafe0V) and nothing after.
+
+When a VBUS interrupt finds the supply between vSafe5V and vSafe0V, poll
+the state machine status every 50 ms until it settles (bounded at about
+two seconds) and notify TCPM again.
+
+---
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port.c
+@@ -179,6 +179,8 @@
+ 	int				cc;
+ 	bool				debouncing_cc;
+ 	struct delayed_work		cc_debounce_dwork;
++	struct delayed_work		vbus_settle_dwork;
++	unsigned int			vbus_settle_polls;
+ 
+ 	spinlock_t			lock;	/* Register atomicity */
+ };
+@@ -232,6 +234,34 @@
+ 	dev_dbg(pmic_typec_port->dev, "Debounce cc complete\n");
+ }
+ 
++/*
++ * Re-notify TCPM once a VBUS that was neither at vSafe5V nor at vSafe0V at
++ * interrupt time has settled, or after about two seconds either way.
++ */
++static void qcom_pmic_typec_port_vbus_settle_work(struct work_struct *work)
++{
++	struct pmic_typec_port *pmic_typec_port =
++		container_of(work, struct pmic_typec_port, vbus_settle_dwork.work);
++	unsigned int misc = 0, sm = 0;
++
++	regmap_read(pmic_typec_port->regmap,
++		    pmic_typec_port->base + TYPEC_MISC_STATUS_REG, &misc);
++	regmap_read(pmic_typec_port->regmap,
++		    pmic_typec_port->base + TYPEC_SM_STATUS_REG, &sm);
++
++	if (!(misc & TYPEC_VBUS_DETECT) && !(sm & TYPEC_SM_VBUS_VSAFE0V) &&
++	    ++pmic_typec_port->vbus_settle_polls < 40) {
++		mod_delayed_work(system_wq, &pmic_typec_port->vbus_settle_dwork,
++				 msecs_to_jiffies(50));
++		return;
++	}
++
++	dev_info(pmic_typec_port->dev,
++		 "vbus settled: misc 0x%02x sm 0x%02x after %u polls\n",
++		 misc, sm, pmic_typec_port->vbus_settle_polls);
++	tcpm_vbus_change(pmic_typec_port->tcpm_port);
++}
++
+ static irqreturn_t pmic_typec_port_isr(int irq, void *dev_id)
+ {
+ 	struct pmic_typec_port_irq_data *irq_data = dev_id;
+@@ -264,6 +294,17 @@
+ 			 "vbus irq: misc 0x%02x sm 0x%02x usbin_rt 0x%02x\n",
+ 			 misc, sm, usbin);
+ 		vbus_change = true;
++		/*
++		 * No further VBUS interrupt comes once a decaying supply reaches
++		 * vSafe0V, and get_vbus reports anything above vSafe0V as present.
++		 * Poll the state machine until it settles so TCPM learns about
++		 * vSafe0V and can attach as a source.
++		 */
++		if (!(misc & TYPEC_VBUS_DETECT) && !(sm & TYPEC_SM_VBUS_VSAFE0V)) {
++			pmic_typec_port->vbus_settle_polls = 0;
++			mod_delayed_work(system_wq, &pmic_typec_port->vbus_settle_dwork,
++					 msecs_to_jiffies(50));
++		}
+ 		break;
+ 	}
+ 	case PMIC_TYPEC_CC_STATE_IRQ:
+@@ -733,6 +774,8 @@
+ 
+ 	for (i = 0; i < pmic_typec_port->nr_irqs; i++)
+ 		disable_irq(pmic_typec_port->irq_data[i].irq);
++
++	cancel_delayed_work_sync(&pmic_typec_port->vbus_settle_dwork);
+ }
+ 
+ int qcom_pmic_typec_port_probe(struct platform_device *pdev,
+@@ -770,6 +813,8 @@
+ 	pmic_typec_port->nr_irqs = res->nr_irqs;
+ 	pmic_typec_port->irq_data = irq_data;
+ 	spin_lock_init(&pmic_typec_port->lock);
++	INIT_DELAYED_WORK(&pmic_typec_port->vbus_settle_dwork,
++			  qcom_pmic_typec_port_vbus_settle_work);
+ 	INIT_DELAYED_WORK(&pmic_typec_port->cc_debounce_dwork,
+ 			  qcom_pmic_typec_port_cc_debounce);
+ 
