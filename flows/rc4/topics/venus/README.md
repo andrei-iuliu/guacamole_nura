@@ -1,12 +1,24 @@
 # rc4 topic: hardware video decode (Venus) on the OnePlus 7 Pro
 
-**Status (2026-11-25): rc4t, EXPERIMENTAL optional set, compile tested, not
-run on the phone.** It is not part of the default build: enable it with
+**Status (2026-11-25): rc4t, EXPERIMENTAL optional set, working on the
+phone.** Not part of the default build: enable it with
 `./nura kernel --optional venus` (or `NURA_KERNEL_OPTIONAL=venus` in
 `build-env.local.sh`). The set lives in `flows/rc4/optional/venus`
 (49 patches, `0001`-`0049`, plus the firmware). Other developers can leave it
 out, or use a different Venus implementation, without touching the default
-recipe. Next step: the RAM boot test below.
+recipe.
+
+First boot (rc4t on `boot_b`, Plasma rootfs kept): firmware
+`VIDEO.IR.1.2-00035` boots; `/dev/video8` decoder (H.264, VP8, VP9, HEVC,
+MPEG-2) and `/dev/video9` encoder (H.264, VP8, HEVC). GStreamer
+`v4l2h264dec`/`v4l2h265dec` decoded 1080p clips bit-exactly (300/300 frames,
+same sha256 as a software decode); real-time 1080p H.264 decode used ~31% of
+one core. `v4l2h264enc` produced a valid 720p stream, and the encoder's
+secure persist buffer was assigned to and reclaimed from VMID 11. The block
+runtime-suspends when idle; no SMMU faults for SIDs 0x23xx. Still open:
+VP8/VP9, long playback, suspend/resume mid-session, player apps (Alpine's
+ffmpeg lacks V4L2 M2M, so mpv/ffmpeg can't use it yet), and the VA-API shim
+for browsers.
 
 ## What the hardware is
 

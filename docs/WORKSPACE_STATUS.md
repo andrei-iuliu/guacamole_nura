@@ -1,6 +1,29 @@
 # Authoritative workspace and runtime status
 
-## Current: rc4r on `boot_b`, kernel pkgrel 20 and device 4-r22 on the Plasma rootfs (2026-11-23)
+## Current: rc4t (rc4 + EXPERIMENTAL venus optional set) on `boot_b`, Plasma rootfs kept (2026-11-25)
+
+`boot_b` holds the rc4t Plasma image (`--optional venus`, pmaports `82eac8fd`,
+kernel package `7.0.0_p20261125122042-r0`, installed with `apk add` on the
+existing Plasma `-nura` rootfs; userdata kept). Flashed directly (RAM boots
+are unreliable on this ABL); copies of both boot images and both kernel APKs
+are in `.work/rollback/`, and the rc4r APK is also on the phone in
+`~/rollback/`. `/usr/share/kernel/postmarketos-qcom-sm8150/optional-sets`
+reads `venus experimental 7a2aaf80…`.
+
+Venus works: firmware `VIDEO.IR.1.2-00035` boots, `/dev/video8` decoder
+(H.264, VP8, VP9, HEVC, MPEG-2 → NV12) and `/dev/video9` encoder (H.264, VP8,
+HEVC). GStreamer `v4l2h264dec`/`v4l2h265dec` decoded 1080p test clips
+bit-exactly (300/300 frames, sha256 equal to a software decode); 1080p H.264
+real-time decode used ~31% of one core. `v4l2h264enc` encoded 720p and the
+secure persist buffer was assigned to and reclaimed from VMID 11 (TrustZone
+accepts it). Runtime PM returns to `suspended`. No SMMU faults for SIDs 0x23xx.
+Health: no failed units, Wi-Fi up, KDE running, modem/ADSP/SLPI running.
+Not yet tested: VP8/VP9 decode, long playback, suspend/resume with a
+session, a player app. Alpine's ffmpeg has no V4L2 M2M (and on the phone
+its CLI is 9.1 against 9.0.2 libs); use GStreamer. See
+[the venus topic](../flows/rc4/topics/venus/README.md).
+
+### Before that: rc4r on `boot_b`, kernel pkgrel 20 and device 4-r22 on the Plasma rootfs (2026-11-23)
 
 `boot_b` holds the rc4r Plasma image (kernel build ID `c1f7fd5f…`, 0001-0079),
 flashed after a RAM boot failed (RAM boots on this ABL often end black with no
